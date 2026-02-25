@@ -223,68 +223,90 @@ Email (.eml)
 ## 📁 Project Structure
 
 ```
-darkhook-defense/
+DARKHOOK_DEFENSE/                          ← Main project (on GitHub)
 │
-├── backend/
-│   ├── main.py                    # FastAPI entry point
-│   ├── requirements.txt
-│   │
-│   ├── modules/
-│   │   ├── link/
-│   │   │   ├── feature_extractor.py   # 20+ URL features
-│   │   │   ├── crawler.py             # BeautifulSoup live crawl
-│   │   │   ├── model.py               # RF + XGBoost inference
-│   │   │   └── router.py              # /analyze/url endpoint
-│   │   │
-│   │   ├── email/
-│   │   │   ├── header_parser.py       # SPF/DKIM/DMARC checks
-│   │   │   ├── body_analyzer.py       # TF-IDF + keyword scoring
-│   │   │   ├── model.py               # Naive Bayes inference
-│   │   │   └── router.py              # /analyze/email endpoint
-│   │   │
-│   │   └── document/
-│   │       ├── pdf_parser.py          # PyMuPDF extraction
-│   │       ├── office_parser.py       # DOCX, XLSX, PPTX
-│   │       ├── ocr_engine.py          # pytesseract OCR
-│   │       ├── qr_detector.py         # pyzbar QR detection
-│   │       └── router.py              # /analyze/document endpoint
-│   │
-│   ├── ml/
-│   │   ├── train_link_model.py        # Training script — URL
-│   │   ├── train_email_model.py       # Training script — Email
-│   │   └── models/
-│   │       ├── url_rf_model.pkl
-│   │       ├── url_xgb_model.pkl
-│   │       └── email_nb_model.pkl
-│   │
-│   └── database/
-│       └── mongo.py                   # MongoDB connection + queries
+├── .gitignore                             ← What NOT to upload on GitHub
+├── README.md                              ← Project description
 │
-├── frontend/
-│   ├── src/
-│   │   ├── pages/
-│   │   │   ├── Home.jsx               # 3 tabs: URL / Email / Doc
-│   │   │   ├── Result.jsx             # Score meter + flags
-│   │   │   ├── History.jsx            # Past scans list
-│   │   │   └── About.jsx
-│   │   │
-│   │   ├── components/
-│   │   │   ├── ScoreMeter.jsx         # Recharts radial score
-│   │   │   ├── FlagsList.jsx          # Why it was flagged
-│   │   │   ├── FileUpload.jsx         # Drag-and-drop upload
-│   │   │   └── ScanHistory.jsx
-│   │   │
-│   │   └── services/
-│   │       └── api.js                 # Axios calls to backend
+│
+├── frontend/                              ← DISHA'S TERRITORY 🎨
+│   ├── index.html                         ← Main webpage
+│   ├── static/
+│   │   ├── css/
+│   │   │   └── style.css                  ← All styling
+│   │   ├── js/
+│   │   │   └── main.js                    ← Frontend logic
+│   │   └── images/                        ← All images used in UI
+│   └── templates/
+│       ├── result.html                    ← Shows scan results
+│       └── upload.html                    ← File upload page
+│
+│
+├── backend/                               ← ALL PYTHON CODE
 │   │
-│   ├── index.html
-│   └── vite.config.js
+│   ├── app.py                             ← Main Flask server (Team)
+│   ├── requirements.txt                   ← All libraries list
+│   ├── config.py                          ← Settings and configuration
+│   │
+│   ├── uploads/                           ← Temporary file storage
+│   │   └── .gitkeep                       ← Keeps empty folder on GitHub
+│   │
+│   └── modules/                           ← ALL ANALYSIS MODULES HERE
+│       │
+│       ├── __init__.py                    ← Makes modules a package
+│       │
+│       ├── document_analysis/             ← YOUR TERRITORY 📄 (POONAM)
+│       │   ├── __init__.py
+│       │   ├── pdf_parser.py              ← Reads PDF files
+│       │   ├── docx_parser.py             ← Reads Word files
+│       │   ├── excel_parser.py            ← Reads Excel files
+│       │   ├── ppt_parser.py              ← Reads PowerPoint files
+│       │   ├── ocr_parser.py              ← Reads text from images
+│       │   ├── qr_scanner.py              ← Scans QR codes
+│       │   └── scorer.py                  ← Calculates danger score
+│       │
+│       ├── url_analysis/                  ← URL TEAM'S TERRITORY 🔗
+│       │   ├── __init__.py
+│       │   ├── url_scanner.py             ← Scans URLs for phishing
+│       │   ├── domain_checker.py          ← Checks domain reputation
+│       │   └── whois_lookup.py            ← Domain registration info
+│       │
+│       ├── email_analysis/                ← EMAIL TEAM'S TERRITORY 📧
+│       │   ├── __init__.py
+│       │   ├── email_parser.py            ← Reads email content
+│       │   └── header_analyzer.py         ← Checks email headers
+│       │
+│       └── database/                      ← DATABASE 🗄️
+│           ├── __init__.py
+│           ├── mongo_config.py            ← MongoDB connection
+│           └── models.py                  ← Data structure definitions
 │
-├── data/                              # Datasets (gitignored)
-│   ├── phishing_urls.csv
-│   └── emails/
 │
-└── README.md
+└── tests/                                 ← TESTING FOLDER (Everyone)
+    │
+    ├── test_documents/                    ← YOUR TEST FILES 📄 (Poonam)
+    │   ├── sample_phishing.pdf            ← Fake phishing PDF for testing
+    │   ├── sample_safe.pdf                ← Normal safe PDF for testing
+    │   ├── sample_macro.docx              ← Word file with macro for testing
+    │   ├── sample_safe.docx               ← Normal safe Word file
+    │   ├── sample_phishing.xlsx           ← Suspicious Excel file
+    │   ├── sample_safe.xlsx               ← Normal safe Excel file
+    │   ├── sample_phishing.pptx           ← Suspicious PPT file
+    │   └── sample_qr.pdf                  ← PDF with QR code for testing
+    │
+    ├── test_urls/                         ← URL TEAM TEST FILES 🔗
+    │   ├── sample_phishing_urls.txt       ← List of phishing URLs
+    │   └── sample_safe_urls.txt           ← List of safe URLs
+    │
+    ├── test_emails/                       ← EMAIL TEAM TEST FILES 📧
+    │   ├── sample_phishing.eml            ← Fake phishing email
+    │   └── sample_safe.eml                ← Normal safe email
+    │
+    ├── test_document_analysis.py          ← YOUR TEST CODE (Poonam)
+    │   
+    ├── test_url_analysis.py               ← URL team test code
+    │
+    └── test_email_analysis.py             ← Email team test code
 ```
 
 ---
