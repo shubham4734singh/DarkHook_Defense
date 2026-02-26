@@ -122,7 +122,7 @@ def get_database():
     Returns:
         Database: MongoDB database object
     """
-    client = get_mongo_client()
+    client = get_client()
     return client[DATABASE_NAME]
 
 

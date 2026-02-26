@@ -79,41 +79,51 @@ def get_current_user_email(token: str = Depends(oauth2_scheme)):
 @router.post("/register", response_model=Token)
 async def register(user: User):
     """Register a new user"""
-    users_collection = get_users_collection()
-    
-    # Check if user already exists
-    existing_user = users_collection.find_one({"email": user.email})
-    if existing_user:
-        raise HTTPException(status_code=400, detail="Email already registered")
-    
-    # Hash the password and store user
-    hashed_password = pwd_context.hash(user.password)
-    
-    user_doc = {
-        "name": user.name,
-        "email": user.email,
-        "password": hashed_password,
-        "created_at": datetime.utcnow()
-    }
-    
-    users_collection.insert_one(user_doc)
-    
-    access_token = create_access_token(data={"sub": user.email})
-    return {"access_token": access_token, "token_type": "bearer"}
+    try:
+        users_collection = get_users_collection()
+        
+        # Check if user already exists
+        existing_user = users_collection.find_one({"email": user.email})
+        if existing_user:
+            raise HTTPException(status_code=400, detail="Email already registered")
+        
+        # Hash the password and store user
+        hashed_password = pwd_context.hash(user.password)
+        
+        user_doc = {
+            "name": user.name,
+            "email": user.email,
+            "password": hashed_password,
+            "created_at": datetime.utcnow()
+        }
+        
+        users_collection.insert_one(user_doc)
+        
+        access_token = create_access_token(data={"sub": user.email})
+        return {"access_token": access_token, "token_type": "bearer"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 @router.post("/login", response_model=Token)
 async def login(user_login: UserLogin):
     """Login user"""
-    users_collection = get_users_collection()
-    
-    # Find user by email
-    user = users_collection.find_one({"email": user_login.email})
-    
-    if not user or not pwd_context.verify(user_login.password, user["password"]):
-        raise HTTPException(status_code=401, detail="Incorrect email or password")
-    
-    access_token = create_access_token(data={"sub": user_login.email})
-    return {"access_token": access_token, "token_type": "bearer"}
+    try:
+        users_collection = get_users_collection()
+        
+        # Find user by email
+        user = users_collection.find_one({"email": user_login.email})
+        
+        if not user or not pwd_context.verify(user_login.password, user["password"]):
+            raise HTTPException(status_code=401, detail="Incorrect email or password")
+        
+        access_token = create_access_token(data={"sub": user_login.email})
+        return {"access_token": access_token, "token_type": "bearer"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
 
 @router.get("/me", response_model=UserResponse)
 async def get_current_user(current_user: str = Depends(get_current_user_email)):
