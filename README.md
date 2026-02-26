@@ -238,6 +238,10 @@ DARKHOOK_DEFENSE/                          ← Main project (on GitHub)
 │   │   │   └── main.js                    ← Frontend logic
 │   │   └── images/                        ← All images used in UI
 │   └── templates/
+│       ├── index.html                     ← Landing / home page
+│       ├── login.html                     ← Login page
+│       ├── register.html                  ← Register page
+│       ├── dashboard.html                 ← User dashboard (scan history)
 │       ├── result.html                    ← Shows scan results
 │       └── upload.html                    ← File upload page
 │
@@ -246,16 +250,22 @@ DARKHOOK_DEFENSE/                          ← Main project (on GitHub)
 │   │
 │   ├── app.py                             ← Main Flask server (Team)
 │   ├── requirements.txt                   ← All libraries list
-│   ├── config.py                          ← Settings and configuration
+│   ├── config.py                          ← Settings/configuration + SECRET_KEY
 │   │
 │   ├── uploads/                           ← Temporary file storage
 │   │   └── .gitkeep                       ← Keeps empty folder on GitHub
+│   │
+│   ├── auth/                              ← AUTHENTICATION MODULE 🔐
+│   │   ├── __init__.py
+│   │   ├── auth_routes.py                 ← /register, /login, /logout routes
+│   │   ├── jwt_handler.py                 ← Generate & verify JWT tokens
+│   │   └── middleware.py                  ← Protect routes (check token)
 │   │
 │   └── modules/                           ← ALL ANALYSIS MODULES HERE
 │       │
 │       ├── __init__.py                    ← Makes modules a package
 │       │
-│       ├── document_analysis/             ← YOUR TERRITORY 📄 (POONAM)
+│       ├── document_analysis/             ← POONAM'S TERRITORY 📄
 │       │   ├── __init__.py
 │       │   ├── pdf_parser.py              ← Reads PDF files
 │       │   ├── docx_parser.py             ← Reads Word files
@@ -278,34 +288,36 @@ DARKHOOK_DEFENSE/                          ← Main project (on GitHub)
 │       │
 │       └── database/                      ← DATABASE 🗄️
 │           ├── __init__.py
-│           ├── mongo_config.py            ← MongoDB connection
-│           └── models.py                  ← Data structure definitions
+│           ├── mongo_config.py            ← MongoDB connection setup
+│           ├── models.py                  ← Data structure definitions
+│           │                                 (users, scan_results schemas)
+│           └── user_repository.py         ← DB functions (save/find user,
+│                                             save scan result, get history)
 │
 │
 └── tests/                                 ← TESTING FOLDER (Everyone)
     │
-    ├── test_documents/                    ← YOUR TEST FILES 📄 (Poonam)
-    │   ├── sample_phishing.pdf            ← Fake phishing PDF for testing
-    │   ├── sample_safe.pdf                ← Normal safe PDF for testing
-    │   ├── sample_macro.docx              ← Word file with macro for testing
-    │   ├── sample_safe.docx               ← Normal safe Word file
-    │   ├── sample_phishing.xlsx           ← Suspicious Excel file
-    │   ├── sample_safe.xlsx               ← Normal safe Excel file
-    │   ├── sample_phishing.pptx           ← Suspicious PPT file
-    │   └── sample_qr.pdf                  ← PDF with QR code for testing
+    ├── test_documents/                    ← POONAM'S TEST FILES 📄
+    │   ├── sample_phishing.pdf
+    │   ├── sample_safe.pdf
+    │   ├── sample_macro.docx
+    │   ├── sample_safe.docx
+    │   ├── sample_phishing.xlsx
+    │   ├── sample_safe.xlsx
+    │   ├── sample_phishing.pptx
+    │   └── sample_qr.pdf
     │
     ├── test_urls/                         ← URL TEAM TEST FILES 🔗
-    │   ├── sample_phishing_urls.txt       ← List of phishing URLs
-    │   └── sample_safe_urls.txt           ← List of safe URLs
+    │   ├── sample_phishing_urls.txt
+    │   └── sample_safe_urls.txt
     │
     ├── test_emails/                       ← EMAIL TEAM TEST FILES 📧
-    │   ├── sample_phishing.eml            ← Fake phishing email
-    │   └── sample_safe.eml                ← Normal safe email
+    │   ├── sample_phishing.eml
+    │   └── sample_safe.eml
     │
-    ├── test_document_analysis.py          ← YOUR TEST CODE (Poonam)
-    │   
+    ├── test_auth.py                       ← NEW: Auth tests (login/register)
+    ├── test_document_analysis.py          ← Poonam's test code
     ├── test_url_analysis.py               ← URL team test code
-    │
     └── test_email_analysis.py             ← Email team test code
 ```
 
