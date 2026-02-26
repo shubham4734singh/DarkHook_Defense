@@ -7,40 +7,79 @@ A multi-module phishing detection engine built with **FastAPI** and **Python**, 
 ## 📁 Project Structure
 
 ```
-darkhook-defense-backend/
-├── app/
-│   ├── main.py                  # FastAPI app entry point
-│   ├── routers/
-│   │   ├── url.py               # /analyze/url endpoint
-│   │   ├── email.py             # /analyze/email endpoint
-│   │   └── document.py          # /analyze/document endpoint
-│   ├── modules/
-│   │   ├── url_analyzer/
-│   │   │   ├── feature_extractor.py   # 20+ URL features
-│   │   │   ├── ml_model.py            # Random Forest / XGBoost
-│   │   │   └── crawler.py             # BeautifulSoup page crawling
-│   │   ├── email_analyzer/
-│   │   │   ├── header_parser.py       # SPF / DKIM / DMARC
-│   │   │   ├── body_analyzer.py       # Urgency keywords, HTML ratio
-│   │   │   └── ml_model.py            # Naive Bayes on TF-IDF
-│   │   └── document_analyzer/
-│   │       ├── pdf_parser.py          # PyMuPDF + OCR (pytesseract)
-│   │       ├── docx_parser.py         # python-docx + olevba
-│   │       ├── office_parser.py       # openpyxl / pptx support
-│   │       └── qr_scanner.py          # pyzbar QR detection
-│   ├── models/                        # Saved .pkl ML model files
-│   ├── db/
-│   │   └── mongo.py                   # MongoDB connection + helpers
-│   └── utils/
-│       ├── scoring.py                 # Unified score + verdict logic
-│       └── validators.py              # Input validation helpers
-├── tests/
-│   ├── test_url.py
-│   ├── test_email.py
-│   └── test_document.py
-├── requirements.txt
-├── .env.example
-└── README.md
+├── backend/                               ← ALL PYTHON CODE
+│   │
+│   ├── app.py                             ← Main Flask server (Team)
+│   ├── requirements.txt                   ← All libraries list
+│   ├── config.py                          ← Settings/configuration + SECRET_KEY
+│   │
+│   ├── uploads/                           ← Temporary file storage
+│   │   └── .gitkeep                       ← Keeps empty folder on GitHub
+│   │
+│   ├── auth/                              ← AUTHENTICATION MODULE 🔐
+│   │   ├── __init__.py
+│   │   ├── auth_routes.py                 ← /register, /login, /logout routes
+│   │   ├── jwt_handler.py                 ← Generate & verify JWT tokens
+│   │   └── middleware.py                  ← Protect routes (check token)
+│   │
+│   └── modules/                           ← ALL ANALYSIS MODULES HERE
+│       │
+│       ├── __init__.py                    ← Makes modules a package
+│       │
+│       ├── document_analysis/             ← POONAM'S TERRITORY 📄
+│       │   ├── __init__.py
+│       │   ├── pdf_parser.py              ← Reads PDF files
+│       │   ├── docx_parser.py             ← Reads Word files
+│       │   ├── excel_parser.py            ← Reads Excel files
+│       │   ├── ppt_parser.py              ← Reads PowerPoint files
+│       │   ├── ocr_parser.py              ← Reads text from images
+│       │   ├── qr_scanner.py              ← Scans QR codes
+│       │   └── scorer.py                  ← Calculates danger score
+│       │
+│       ├── url_analysis/                  ← URL TEAM'S TERRITORY 🔗
+│       │   ├── __init__.py
+│       │   ├── url_scanner.py             ← Scans URLs for phishing
+│       │   ├── domain_checker.py          ← Checks domain reputation
+│       │   └── whois_lookup.py            ← Domain registration info
+│       │
+│       ├── email_analysis/                ← EMAIL TEAM'S TERRITORY 📧
+│       │   ├── __init__.py
+│       │   ├── email_parser.py            ← Reads email content
+│       │   └── header_analyzer.py         ← Checks email headers
+│       │
+│       └── database/                      ← DATABASE 🗄️
+│           ├── __init__.py
+│           ├── mongo_config.py            ← MongoDB connection setup
+│           ├── models.py                  ← Data structure definitions
+│           │                                 (users, scan_results schemas)
+│           └── user_repository.py         ← DB functions (save/find user,
+│                                             save scan result, get history)
+│
+│
+└── tests/                                 ← TESTING FOLDER (Everyone)
+    │
+    ├── test_documents/                    ← POONAM'S TEST FILES 📄
+    │   ├── sample_phishing.pdf
+    │   ├── sample_safe.pdf
+    │   ├── sample_macro.docx
+    │   ├── sample_safe.docx
+    │   ├── sample_phishing.xlsx
+    │   ├── sample_safe.xlsx
+    │   ├── sample_phishing.pptx
+    │   └── sample_qr.pdf
+    │
+    ├── test_urls/                         ← URL TEAM TEST FILES 🔗
+    │   ├── sample_phishing_urls.txt
+    │   └── sample_safe_urls.txt
+    │
+    ├── test_emails/                       ← EMAIL TEAM TEST FILES 📧
+    │   ├── sample_phishing.eml
+    │   └── sample_safe.eml
+    │
+    ├── test_auth.py                       ← NEW: Auth tests (login/register)
+    ├── test_document_analysis.py          ← Poonam's test code
+    ├── test_url_analysis.py               ← URL team test code
+    └── test_email_analysis.py             ← Email team test code
 ```
 
 ---
