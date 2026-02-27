@@ -80,17 +80,24 @@ class ApiService {
     return response.json();
   }
 
-  async getCurrentUser(): Promise<UserResponse> {
-    const response = await fetch(`${this.baseUrl}/auth/me`, {
-      method: 'GET',
-      headers: this.getAuthHeaders(),
-    });
+  async getCurrentUser(): Promise<UserResponse | null> {
+    try {
+      const response = await fetch(`${this.baseUrl}/auth/me`, {
+        method: 'GET',
+        headers: this.getAuthHeaders(),
+      });
 
-    if (!response.ok) {
-      throw new Error('Failed to get user info');
+      if (!response.ok) {
+        // Return null instead of throwing - allows app to continue
+        return null;
+      }
+
+      return response.json();
+    } catch (error) {
+      // Network error or server down - return null
+      console.warn('Failed to get current user:', error);
+      return null;
     }
-
-    return response.json();
   }
 }
 

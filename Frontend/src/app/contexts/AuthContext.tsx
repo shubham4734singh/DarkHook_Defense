@@ -29,12 +29,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         try {
           // Try to get user info from API to verify token is still valid
           const userInfo = await api.getCurrentUser();
-          setUser(userInfo);
-          setIsAuthenticated(true);
+          if (userInfo) {
+            setUser(userInfo);
+            setIsAuthenticated(true);
+          } else {
+            // API returned null - token might be invalid or server error
+            // Keep using stored user data for this session
+            setUser(JSON.parse(storedUser));
+            setIsAuthenticated(true);
+          }
         } catch (error) {
-          // Token is invalid, clear storage
-          localStorage.removeItem('darkhook_token');
-          localStorage.removeItem('darkhook_user');
+          // Network error or server down - keep using stored user data
+          console.warn('Auth check failed, using cached data:', error);
+          try {
+            setUser(JSON.parse(storedUser));
+            setIsAuthenticated(true);
+          } catch {
+            // Invalid stored user data, clear everything
+            localStorage.removeItem('darkhook_token');
+            localStorage.removeItem('darkhook_user');
+          }
         }
       }
       setLoading(false);
