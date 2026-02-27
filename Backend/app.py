@@ -59,6 +59,9 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         FRONTEND_URL,
+        "https://dark-hook-defense.vercel.app",
+        "https://darkhookdefense.online",
+        "https://www.darkhookdefense.online",
         "http://localhost:3000",
         "http://localhost:5173",
     ],
