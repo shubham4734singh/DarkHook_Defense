@@ -1,4 +1,5 @@
 import math
+import os
 import re
 from collections import Counter
 from functools import lru_cache
@@ -626,30 +627,51 @@ def load_url_model():
 	return pd.read_pickle(model_path)
 
 
+def align_features_for_model(features_df: pd.DataFrame, model) -> pd.DataFrame:
+	"""Align runtime feature dataframe to model training schema when available."""
+	if hasattr(model, "feature_names_in_"):
+		expected_features = list(model.feature_names_in_)
+		return features_df.reindex(columns=expected_features, fill_value=0)
+	return features_df
+
+
+def should_use_ml_model() -> bool:
+	"""Allow disabling ML model loading in low-memory deployments."""
+	return os.getenv("URL_ANALYSIS_USE_ML", "true").strip().lower() in {"1", "true", "yes", "on"}
+
+
 @router.post("/url", response_model=URLAnalyzeResponse)
 def analyze_url(payload: URLAnalyzeRequest):
 	normalized = normalize_url(payload.url)
 	if not normalized:
 		raise HTTPException(status_code=400, detail="Invalid URL")
 
-	try:
-		model = load_url_model()
-	except FileNotFoundError as exc:
-		raise HTTPException(status_code=500, detail=str(exc)) from exc
-	except Exception as exc:
-		raise HTTPException(status_code=500, detail=f"Failed to load model: {exc}") from exc
+	model = None
+	model_load_error = None
+	if should_use_ml_model():
+		try:
+			model = load_url_model()
+		except FileNotFoundError as exc:
+			model_load_error = str(exc)
+		except Exception as exc:
+			model_load_error = f"Failed to load model: {exc}"
+	else:
+		model_load_error = "ML model disabled via URL_ANALYSIS_USE_ML=false"
 
 	try:
 		features_df, feature_map = extract_features(normalized)
+		heuristic_score = compute_heuristic_score(feature_map, normalized)
+		model_features_df = align_features_for_model(features_df, model) if model is not None else features_df
 
-		if hasattr(model, "predict_proba"):
-			probability = float(model.predict_proba(features_df)[0][1])
-		else:
-			prediction = int(model.predict(features_df)[0])
+		if model is not None and hasattr(model, "predict_proba"):
+			probability = float(model.predict_proba(model_features_df)[0][1])
+		elif model is not None:
+			prediction = int(model.predict(model_features_df)[0])
 			probability = 0.99 if prediction == 1 else 0.01
+		else:
+			probability = heuristic_score / 100
 
 		model_score = max(0, min(100, int(round(probability * 100))))
-		heuristic_score = compute_heuristic_score(feature_map, normalized)
 		score = max(model_score, heuristic_score)
 		
 		# Apply trusted domain override to avoid false positives
@@ -722,7 +744,7 @@ def analyze_url(payload: URLAnalyzeRequest):
 			status=status,
 			flags=flags,
 			feature_summary=feature_summary,
-			explanation=" ".join(explanation),
+			explanation=" ".join(explanation + (["ML model unavailable; heuristic engine used for this scan."] if model is None and model_load_error else [])),
 		)
 	except HTTPException:
 		raise
