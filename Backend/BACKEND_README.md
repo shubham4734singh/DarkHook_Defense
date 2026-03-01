@@ -12,6 +12,13 @@ A multi-module phishing detection engine built with **FastAPI** and **Python**, 
 │   ├── app.py                             ← Main Flask server (Team)
 │   ├── requirements.txt                   ← All libraries list
 │   ├── config.py                          ← Settings/configuration + SECRET_KEY
+│   ├── ml/                                ← MODEL TRAINING & ARTIFACTS
+│   │   ├── train_link_model.py            ← Training script — URL
+│   │   ├── train_email_model.py           ← Training script — Email
+│   │   └── models/
+│   │       ├── url_rf_model.pkl
+│   │       ├── url_xgb_model.pkl
+│   │       └── email_nb_model.pkl
 │   │
 │   ├── uploads/                           ← Temporary file storage
 │   │   └── .gitkeep                       ← Keeps empty folder on GitHub

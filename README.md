@@ -229,28 +229,125 @@ DARKHOOK_DEFENSE/                          ← Main project (on GitHub)
 ├── README.md                              ← Project description
 │
 │
-├── frontend/                              ← DISHA'S TERRITORY 🎨
-│   ├── index.html                         ← Main webpage
-│   ├── static/
-│   │   ├── css/
-│   │   │   └── style.css                  ← All styling
-│   │   ├── js/
-│   │   │   └── main.js                    ← Frontend logic
-│   │   └── images/                        ← All images used in UI
-│   └── templates/
-│       ├── index.html                     ← Landing / home page
-│       ├── login.html                     ← Login page
-│       ├── register.html                  ← Register page
-│       ├── dashboard.html                 ← User dashboard (scan history)
-│       ├── result.html                    ← Shows scan results
-│       └── upload.html                    ← File upload page
+├── Frontend/                              ← REACT FRONTEND 🎨
+│   ├── 📁 src
+│   │   ├── 📁 app
+│   │   │   ├── 📁 components
+│   │   │   │   ├── 📁 figma
+│   │   │   │   │   └── 📄 ImageWithFallback.tsx
+│   │   │   │   ├── 📁 ui
+│   │   │   │   │   ├── 📄 accordion.tsx
+│   │   │   │   │   ├── 📄 alert-dialog.tsx
+│   │   │   │   │   ├── 📄 alert.tsx
+│   │   │   │   │   ├── 📄 aspect-ratio.tsx
+│   │   │   │   │   ├── 📄 avatar.tsx
+│   │   │   │   │   ├── 📄 badge.tsx
+│   │   │   │   │   ├── 📄 breadcrumb.tsx
+│   │   │   │   │   ├── 📄 button.tsx
+│   │   │   │   │   ├── 📄 calendar.tsx
+│   │   │   │   │   ├── 📄 card.tsx
+│   │   │   │   │   ├── 📄 carousel.tsx
+│   │   │   │   │   ├── 📄 chart.tsx
+│   │   │   │   │   ├── 📄 checkbox.tsx
+│   │   │   │   │   ├── 📄 collapsible.tsx
+│   │   │   │   │   ├── 📄 command.tsx
+│   │   │   │   │   ├── 📄 context-menu.tsx
+│   │   │   │   │   ├── 📄 dialog.tsx
+│   │   │   │   │   ├── 📄 drawer.tsx
+│   │   │   │   │   ├── 📄 dropdown-menu.tsx
+│   │   │   │   │   ├── 📄 form.tsx
+│   │   │   │   │   ├── 📄 hover-card.tsx
+│   │   │   │   │   ├── 📄 input-otp.tsx
+│   │   │   │   │   ├── 📄 input.tsx
+│   │   │   │   │   ├── 📄 label.tsx
+│   │   │   │   │   ├── 📄 menubar.tsx
+│   │   │   │   │   ├── 📄 navigation-menu.tsx
+│   │   │   │   │   ├── 📄 pagination.tsx
+│   │   │   │   │   ├── 📄 popover.tsx
+│   │   │   │   │   ├── 📄 progress.tsx
+│   │   │   │   │   ├── 📄 radio-group.tsx
+│   │   │   │   │   ├── 📄 resizable.tsx
+│   │   │   │   │   ├── 📄 scroll-area.tsx
+│   │   │   │   │   ├── 📄 select.tsx
+│   │   │   │   │   ├── 📄 separator.tsx
+│   │   │   │   │   ├── 📄 sheet.tsx
+│   │   │   │   │   ├── 📄 sidebar.tsx
+│   │   │   │   │   ├── 📄 skeleton.tsx
+│   │   │   │   │   ├── 📄 slider.tsx
+│   │   │   │   │   ├── 📄 sonner.tsx
+│   │   │   │   │   ├── 📄 switch.tsx
+│   │   │   │   │   ├── 📄 table.tsx
+│   │   │   │   │   ├── 📄 tabs.tsx
+│   │   │   │   │   ├── 📄 textarea.tsx
+│   │   │   │   │   ├── 📄 toggle-group.tsx
+│   │   │   │   │   ├── 📄 toggle.tsx
+│   │   │   │   │   ├── 📄 tooltip.tsx
+│   │   │   │   │   ├── 📄 use-mobile.ts
+│   │   │   │   │   └── 📄 utils.ts
+│   │   │   │   ├── 📄 AboutSection.tsx
+│   │   │   │   ├── 📄 ComparisonSection.tsx
+│   │   │   │   ├── 📄 FAQSection.tsx
+│   │   │   │   ├── 📄 Footer.tsx
+│   │   │   │   ├── 📄 HeroScanWidget.tsx
+│   │   │   │   ├── 📄 HeroSection.tsx
+│   │   │   │   ├── 📄 HowItWorksSection.tsx
+│   │   │   │   ├── 📄 Navbar.tsx
+│   │   │   │   ├── 📄 ProtectedRoute.tsx
+│   │   │   │   ├── 📄 RiskScoreSection.tsx
+│   │   │   │   ├── 📄 RootLayout.tsx
+│   │   │   │   ├── 📄 ScanDemoSection.tsx
+│   │   │   │   ├── 📄 ScanNowDropdown.tsx
+│   │   │   │   ├── 📄 TeamSection.tsx
+│   │   │   │   ├── 📄 ThreatStatsSection.tsx
+│   │   │   │   └── 📄 ThreeLayersSection.tsx
+│   │   │   ├── 📁 contexts
+│   │   │   │   └── 📄 AuthContext.tsx
+│   │   │   ├── 📁 pages
+│   │   │   │   ├── 📄 DocumentScan.tsx
+│   │   │   │   ├── 📄 EmailScan.tsx
+│   │   │   │   ├── 📄 History.tsx
+│   │   │   │   ├── 📄 Home.tsx
+│   │   │   │   ├── 📄 Login.tsx
+│   │   │   │   ├── 📄 Result.tsx
+│   │   │   │   └── 📄 URLScan.tsx
+│   │   │   ├── 📁 services
+│   │   │   │   └── 📄 api.ts
+│   │   │   ├── 📄 App.tsx
+│   │   │   └── 📄 routes.tsx
+│   │   ├── 📁 assets
+│   │   │   ├── 🖼️ 164bd3b4c66bb15268339b22ae1165b91c7ea4e9.png
+│   │   │   └── 🖼️ eabe0015a9a1edfe92cb4ac7f5415daf9aa9241d.png
+│   │   ├── 📁 styles
+│   │   │   ├── 🎨 fonts.css
+│   │   │   ├── 🎨 index.css
+│   │   │   ├── 🎨 tailwind.css
+│   │   │   └── 🎨 theme.css
+│   │   ├── 📄 image.d.ts
+│   │   ├── 📄 main.tsx
+│   │   └── 📄 vite-env.d.ts
+│   ├── ⚙️ .gitignore
+│   ├── 📝 ATTRIBUTIONS.md
+│   ├── 📝 FRONTEND_README.md
+│   ├── 🌐 index.html
+│   ├── ⚙️ package-lock.json
+│   ├── ⚙️ package.json
+│   ├── 📄 postcss.config.mjs
+│   ├── ⚙️ vercel.json
+│   └── 📄 vite.config.ts
 │
 │
-├── backend/                               ← ALL PYTHON CODE
+├── Backend/                               ← ALL PYTHON CODE
 │   │
-│   ├── app.py                             ← Main Flask server (Team)
+│   ├── app.py                             ← Main FastAPI server (Team)
 │   ├── requirements.txt                   ← All libraries list
 │   ├── config.py                          ← Settings/configuration + SECRET_KEY
+│   ├── ml/                                ← MODEL TRAINING & ARTIFACTS
+│   │   ├── train_link_model.py            ← Training script — URL
+│   │   ├── train_email_model.py           ← Training script — Email
+│   │   └── models/
+│   │       ├── url_rf_model.pkl
+│   │       ├── url_xgb_model.pkl
+│   │       └── email_nb_model.pkl
 │   │
 │   ├── uploads/                           ← Temporary file storage
 │   │   └── .gitkeep                       ← Keeps empty folder on GitHub

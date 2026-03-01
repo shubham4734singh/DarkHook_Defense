@@ -23,53 +23,112 @@ All UI/UX is designed in **Figma** by **Disha**.
 ## 📁 Project Structure
 
 ```
-darkhook-defense-frontend/
-├── public/
-│   ├── favicon.ico
-│   └── logo.png
-├── src/
-│   ├── pages/
-│   │   ├── Home.jsx           # 3-tab scanner (URL / Email / Document)
-│   │   ├── Result.jsx         # Score meter + flags breakdown
-│   │   ├── History.jsx        # Paginated scan history from MongoDB
-│   │   └── About.jsx          # Project & team info
-│   ├── components/
-│   │   ├── TabSwitcher.jsx    # URL / Email / Document tab UI
-│   │   ├── ScoreMeter.jsx     # Circular score meter (Recharts)
-│   │   ├── VerdictBadge.jsx   # 🟢 Safe / 🟡 Suspicious / 🔴 Phishing
-│   │   ├── FlagCard.jsx       # Individual flag with tooltip
-│   │   ├── HistoryItem.jsx    # Single scan history row
-│   │   └── Navbar.jsx         # Top navigation bar
-│   ├── api/
-│   │   └── axiosClient.js     # Axios instance with base URL
-│   ├── hooks/
-│   │   └── useScan.js         # Custom hook for scan API calls
-│   ├── styles/
-│   │   └── index.css          # Tailwind base imports
-│   ├── App.jsx
-│   └── main.jsx
-├── .env.example
-├── index.html
-├── tailwind.config.js
-├── vite.config.js
-└── README.md
+Frontend
+├── 📁 src
+│   ├── 📁 app
+│   │   ├── 📁 components
+│   │   │   ├── 📁 figma
+│   │   │   │   └── 📄 ImageWithFallback.tsx
+│   │   │   ├── 📁 ui
+│   │   │   │   ├── 📄 accordion.tsx
+│   │   │   │   ├── 📄 alert-dialog.tsx
+│   │   │   │   ├── 📄 alert.tsx
+│   │   │   │   ├── 📄 aspect-ratio.tsx
+│   │   │   │   ├── 📄 avatar.tsx
+│   │   │   │   ├── 📄 badge.tsx
+│   │   │   │   ├── 📄 breadcrumb.tsx
+│   │   │   │   ├── 📄 button.tsx
+│   │   │   │   ├── 📄 calendar.tsx
+│   │   │   │   ├── 📄 card.tsx
+│   │   │   │   ├── 📄 carousel.tsx
+│   │   │   │   ├── 📄 chart.tsx
+│   │   │   │   ├── 📄 checkbox.tsx
+│   │   │   │   ├── 📄 collapsible.tsx
+│   │   │   │   ├── 📄 command.tsx
+│   │   │   │   ├── 📄 context-menu.tsx
+│   │   │   │   ├── 📄 dialog.tsx
+│   │   │   │   ├── 📄 drawer.tsx
+│   │   │   │   ├── 📄 dropdown-menu.tsx
+│   │   │   │   ├── 📄 form.tsx
+│   │   │   │   ├── 📄 hover-card.tsx
+│   │   │   │   ├── 📄 input-otp.tsx
+│   │   │   │   ├── 📄 input.tsx
+│   │   │   │   ├── 📄 label.tsx
+│   │   │   │   ├── 📄 menubar.tsx
+│   │   │   │   ├── 📄 navigation-menu.tsx
+│   │   │   │   ├── 📄 pagination.tsx
+│   │   │   │   ├── 📄 popover.tsx
+│   │   │   │   ├── 📄 progress.tsx
+│   │   │   │   ├── 📄 radio-group.tsx
+│   │   │   │   ├── 📄 resizable.tsx
+│   │   │   │   ├── 📄 scroll-area.tsx
+│   │   │   │   ├── 📄 select.tsx
+│   │   │   │   ├── 📄 separator.tsx
+│   │   │   │   ├── 📄 sheet.tsx
+│   │   │   │   ├── 📄 sidebar.tsx
+│   │   │   │   ├── 📄 skeleton.tsx
+│   │   │   │   ├── 📄 slider.tsx
+│   │   │   │   ├── 📄 sonner.tsx
+│   │   │   │   ├── 📄 switch.tsx
+│   │   │   │   ├── 📄 table.tsx
+│   │   │   │   ├── 📄 tabs.tsx
+│   │   │   │   ├── 📄 textarea.tsx
+│   │   │   │   ├── 📄 toggle-group.tsx
+│   │   │   │   ├── 📄 toggle.tsx
+│   │   │   │   ├── 📄 tooltip.tsx
+│   │   │   │   ├── 📄 use-mobile.ts
+│   │   │   │   └── 📄 utils.ts
+│   │   │   ├── 📄 AboutSection.tsx
+│   │   │   ├── 📄 ComparisonSection.tsx
+│   │   │   ├── 📄 FAQSection.tsx
+│   │   │   ├── 📄 Footer.tsx
+│   │   │   ├── 📄 HeroScanWidget.tsx
+│   │   │   ├── 📄 HeroSection.tsx
+│   │   │   ├── 📄 HowItWorksSection.tsx
+│   │   │   ├── 📄 Navbar.tsx
+│   │   │   ├── 📄 ProtectedRoute.tsx
+│   │   │   ├── 📄 RiskScoreSection.tsx
+│   │   │   ├── 📄 RootLayout.tsx
+│   │   │   ├── 📄 ScanDemoSection.tsx
+│   │   │   ├── 📄 ScanNowDropdown.tsx
+│   │   │   ├── 📄 TeamSection.tsx
+│   │   │   ├── 📄 ThreatStatsSection.tsx
+│   │   │   └── 📄 ThreeLayersSection.tsx
+│   │   ├── 📁 contexts
+│   │   │   └── 📄 AuthContext.tsx
+│   │   ├── 📁 pages
+│   │   │   ├── 📄 DocumentScan.tsx
+│   │   │   ├── 📄 EmailScan.tsx
+│   │   │   ├── 📄 History.tsx
+│   │   │   ├── 📄 Home.tsx
+│   │   │   ├── 📄 Login.tsx
+│   │   │   ├── 📄 Result.tsx
+│   │   │   └── 📄 URLScan.tsx
+│   │   ├── 📁 services
+│   │   │   └── 📄 api.ts
+│   │   ├── 📄 App.tsx
+│   │   └── 📄 routes.tsx
+│   ├── 📁 assets
+│   │   ├── 🖼️ 164bd3b4c66bb15268339b22ae1165b91c7ea4e9.png
+│   │   └── 🖼️ eabe0015a9a1edfe92cb4ac7f5415daf9aa9241d.png
+│   ├── 📁 styles
+│   │   ├── 🎨 fonts.css
+│   │   ├── 🎨 index.css
+│   │   ├── 🎨 tailwind.css
+│   │   └── 🎨 theme.css
+│   ├── 📄 image.d.ts
+│   ├── 📄 main.tsx
+│   └── 📄 vite-env.d.ts
+├── ⚙️ .gitignore
+├── 📝 ATTRIBUTIONS.md
+├── 📝 FRONTEND_README.md
+├── 🌐 index.html
+├── ⚙️ package-lock.json
+├── ⚙️ package.json
+├── 📄 postcss.config.mjs
+├── ⚙️ vercel.json
+└── 📄 vite.config.ts
 ```
-
----
-
-## ⚙️ Tech Stack
-
-| Layer | Technology |
-|---|---|
-| Framework | React 18 + Vite |
-| Styling | Tailwind CSS |
-| Routing | React Router v6 |
-| Charts | Recharts (circular score meter) |
-| HTTP Client | Axios |
-| Design Tool | Figma |
-| Deployment | Vercel |
-
----
 
 ## 🚀 Getting Started
 
