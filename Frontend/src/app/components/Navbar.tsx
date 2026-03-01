@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useNavigate } from 'react-router';
 import { ScanNowDropdown } from './ScanNowDropdown';
-import logo from '@/assets/eabe0015a9a1edfe92cb4ac7f5415daf9aa9241d.png';
+import logo from '../../assets/eabe0015a9a1edfe92cb4ac7f5415daf9aa9241d.png';
 
 export function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -65,7 +65,7 @@ export function Navbar() {
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
-            className="md:hidden bg-[#0D1F38] border-b border-[#1E3A5F] overflow-hidden"
+            className="md:hidden bg-[#0D1F38] border-b border-[#1E3A5F]"
           >
             <div className="flex flex-col p-6 gap-4">
               <button
