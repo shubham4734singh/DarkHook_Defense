@@ -1,5 +1,5 @@
 {
-  "name": "@/my-make-file",
+  "name": "@/my-file",
   "private": true,
   "version": "0.0.1",
   "type": "module",
