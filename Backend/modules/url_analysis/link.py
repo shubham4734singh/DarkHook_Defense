@@ -21,7 +21,15 @@ SUSPICIOUS_KEYWORDS = {
 	"login", "verify", "secure", "account", "update", "bank", "wallet", "password", "signin", "confirm",
 	"crypto", "bitcoin", "ethereum", "blockchain", "defi", "nft", "token",
 	"trezor", "ledger", "metamask", "coinbase", "binance", "kraken", "exodus",
-	"sso", "auth", "oauth", "api", "validation", "authenticate", "recovery"
+	"sso", "auth", "oauth", "api", "validation", "authenticate", "recovery",
+	"service", "setup", "support", "help", "client", "admin", "panel",
+	"reset", "forgot", "recover", "restore", "sync", "connect", "enable",
+	"certificate", "security", "alert", "warning", "urgent", "action",
+	"payment", "billing", "charge", "transaction", "invoice", "receipt",
+	"office", "outlook", "azure", "teams", "sharepoint", "microsoft",
+	"stripe", "paypal", "ebay", "amazon", "apple", "google", "facebook",
+	"itunes", "icloud", "appstore", "playstore", "steam", "epic",
+	"2fa", "2factor", "otp", "totp", "authenticator", "verification"
 }
 
 # Well-known legitimate domains to avoid false positives
@@ -308,7 +316,9 @@ def extract_features(url: str) -> dict:
 	suspicious_tlds = {".tk", ".ml", ".ga", ".cf", ".gq", ".xyz", ".top", ".work", ".click",
 	                  ".loan", ".men", ".review", ".racing", ".win", ".bid", ".download",
 	                  ".stream", ".icu", ".club", ".info", ".online", ".site", ".website",
-	                  ".space", ".tech", ".store", ".fun", ".live"}
+	                  ".space", ".tech", ".store", ".fun", ".live", ".cyou", ".sbs", ".cfd",
+	                  ".boats", ".vip", ".pw", ".ninja", ".rocks", ".party", ".red", ".webcam",
+	                  ".monster", ".wtf", ".faith", ".trade", ".science", ".shop", ".host"}
 	tld = "." + domain.split(".")[-1] if "." in domain else ""
 	features["suspicious_tld"] = 1 if tld in suspicious_tlds else 0
 	features["tld_is_country_code"] = 1 if (len(tld) == 3 and tld[1:].isalpha()) else 0
@@ -359,11 +369,18 @@ def extract_features(url: str) -> dict:
 	features["has_lookalike"] = 1 if (any(pattern in full_url for pattern in lookalike_patterns) or has_brand_typo or 
 	                                    (brand_found and ("login" in full_url or "verify" in full_url or "secure" in full_url))) else 0
 	
-	free_hosting = ["repl.co", "herokuapp.com", "github.io", "blogspot.com", "wordpress.com",
-	               "wix.com", "weebly.com", "000webhostapp.com", "pantheonsite.io",
-	               "onedumb.com", "ddns.net", "duckdns.org", "pages.dev", "webflow.io",
-	               "netlify.app", "vercel.app", "render.com", "fly.dev", "railway.app",
-	               "glitch.me", "surge.sh", "web.app", "firebaseapp.com"]
+	free_hosting = ["repl.co", "herokuapp.com", "github.io", "blogspot.com", "blogspot.ae",
+	               "blogspot.be", "blogspot.ch", "blogspot.co.at", "blogspot.com.ar", "blogspot.com.cy",
+	               "blogspot.com.es", "blogspot.com.tr", "blogspot.co.uk", "blogspot.de", "blogspot.dk",
+	               "blogspot.hk", "blogspot.hu", "blogspot.it", "blogspot.lt", "blogspot.no", "blogspot.pe",
+	               "blogspot.pt", "blogspot.qa", "blogspot.ro", "blogspot.rs", "blogspot.sk", "blogspot.tw",
+	               "wordpress.com", "wix.com", "wixsite.com", "weebly.com", "000webhostapp.com",
+	               "pantheonsite.io", "onedumb.com", "ddns.net", "duckdns.org", "pages.dev",
+	               "webflow.io", "netlify.app", "vercel.app", "render.com", "fly.dev", "railway.app",
+	               "glitch.me", "surge.sh", "web.app", "firebaseapp.com", "teachable.com",
+	               "jdevcloud.com", "webmo.fr", "mooo.com", "netsons.org", "wpenginepowered.com",
+	               "siaedu.net", "mybluehost.me", "nspace.pl", "mdbgo.io", "wasmer.app",
+	               "mystrikingly.com", "cloudaccess.host", "sviluppo.host", "azurewebsites.net"]
 	features["is_free_hosting"] = 1 if any(host in domain for host in free_hosting) else 0
 	
 	shorteners = ["bit.ly", "tinyurl.com", "goo.gl", "t.co", "ow.ly", "is.gd", "buff.ly"]
@@ -375,6 +392,16 @@ def extract_features(url: str) -> dict:
 	# Consecutive hyphen detection (-- or ---) - strong phishing indicator
 	features["consecutive_hyphens"] = 1 if ("--" in domain or "---" in domain) else 0
 	
+	# Service prefix detection (strong phishing indicator: servicelpo, servicetrezor, etc.)
+	domain_name_only = domain.split('.')[0].lower()
+	service_keywords = ["trezor", "ledger", "metamask", "coinbase", "binance", "kraken", "exodus",
+	                     "paypal", "amazon", "apple", "microsoft", "google", "facebook", "yahoo",
+	                     "office", "outlook", "mail", "orange", "sfr", "aruba", "infomaniak"]
+	has_service_prefix = domain_name_only.startswith("service") and any(
+		kw in domain_name_only for kw in service_keywords
+	)
+	features["has_service_prefix"] = 1 if has_service_prefix else 0
+
 	# ============================================================================
 	# ZERO-DAY DETECTION FEATURES
 	# ============================================================================
@@ -485,6 +512,10 @@ def build_flags(url: str, score: int, feature_map: dict) -> list[str]:
 	elif domain.count("-") >= 2:
 		flags.append(f"⚠️ Multiple hyphens in domain ({domain.count('-')}) - Common in fake domains mimicking brands")
 	
+	# Service prefix impersonation (servicelpo, servicetrezor, etc.)
+	if int(feature_map.get("has_service_prefix", 0)) == 1:
+		flags.append("🎭 Service prefix impersonation detected - Domain mimics legitimate service with brand name (e.g., servicelpo, servicetrezor)")
+	
 	# ============================================================================
 	# ZERO-DAY DETECTION FLAGS
 	# ============================================================================
@@ -554,13 +585,24 @@ def compute_heuristic_score(feature_map: dict, url: str) -> int:
 	if int(feature_map.get("consecutive_hyphens", 0)) == 1:
 		score += 20
 	
+	# Service prefix + brand name = very strong phishing indicator
+	if int(feature_map.get("has_service_prefix", 0)) == 1:
+		score += 50  # Extremely suspicious pattern
+	
 	# Brand impersonation with lookalike patterns or crypto brands
 	if int(feature_map.get("has_lookalike", 0)) == 1:
 		score += 35
 	
-	# Free hosting platforms commonly used for phishing
+	# Free hosting platforms commonly used for phishing - INCREASED from 15
 	if int(feature_map.get("is_free_hosting", 0)) == 1:
-		score += 15
+		# Free hosting + phishing keywords = very high risk
+		keyword_hits = int(feature_map.get("keyword_hits", 0))
+		if keyword_hits >= 2:
+			score += 45  # Free hosting + multiple keywords = strong phishing indicator
+		elif keyword_hits >= 1:
+			score += 35  # Free hosting + one keyword = still suspicious
+		else:
+			score += 25  # Free hosting alone = moderately suspicious
 
 	if feature_map["url_entropy"] >= 4.5:
 		score += 10
@@ -685,6 +727,7 @@ def analyze_url(payload: URLAnalyzeRequest):
 			"is_free_hosting": int(feature_map.get("is_free_hosting", 0)),
 			"has_port": int(feature_map.get("has_port", 0)),
 			"consecutive_hyphens": int(feature_map.get("consecutive_hyphens", 0)),
+			"has_service_prefix": int(feature_map.get("has_service_prefix", 0)),
 			# Zero-day detection features
 			"has_leetspeak": int(feature_map.get("has_leetspeak", 0)),
 			"brand_impersonation": int(feature_map.get("brand_impersonation", 0)),
