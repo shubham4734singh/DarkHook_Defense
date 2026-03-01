@@ -8,11 +8,6 @@ python-multipart>=0.0.12
 # Database
 pymongo>=4.10.0
 
-# ML Models
-scikit-learn>=1.6.0
-xgboost>=2.1.0
-numpy>=2.0.0
-
 # PDF Analysis
 PyMuPDF>=1.25.0
 

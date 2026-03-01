@@ -2,13 +2,10 @@ import math
 import os
 import re
 from collections import Counter
-from functools import lru_cache
-from pathlib import Path
 from urllib.parse import urlparse
 from uuid import uuid4
 
-import numpy as np
-import pandas as pd
+import requests
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
@@ -271,7 +268,7 @@ def detect_urgency_manipulation(url: str) -> tuple[bool, int]:
 	return False, 0
 
 
-def extract_features(url: str) -> tuple[pd.DataFrame, dict]:
+def extract_features(url: str) -> dict:
 	"""Extract 31 features from URL matching the v2 trained model"""
 	parsed = urlparse(url)
 	domain = parsed.netloc.lower()
@@ -402,8 +399,7 @@ def extract_features(url: str) -> tuple[pd.DataFrame, dict]:
 	features["has_urgency_tactics"] = 1 if has_urgency else 0
 	features["urgency_score"] = urgency_score / 100  # Normalize to 0-1
 	
-	feature_frame = pd.DataFrame([features])
-	return feature_frame, features
+	return features
 
 
 def build_flags(url: str, score: int, feature_map: dict) -> list[str]:
@@ -611,33 +607,26 @@ def map_verdict(score: int) -> tuple[str, str]:
 	return "Safe", "safe"
 
 
-@lru_cache(maxsize=1)
-def load_url_model():
-	backend_root = Path(__file__).resolve().parents[2]
-	preferred = backend_root / "ml" / "models" / "url_rf_model_v2.pkl"
-	fallback = backend_root / "ml" / "models" / "url_xgb_model_v2.pkl"
+# HuggingFace API Configuration
+HF_API_URL = "https://cybersky4734-phising.hf.space/scan"
 
-	model_path = preferred if preferred.exists() else fallback
-	if not model_path.exists():
-		raise FileNotFoundError(
-			"No trained URL model found. Expected one of: "
-			f"{preferred} or {fallback}. Train model first using ml/train_link_model_v2.py"
+
+def call_hf_ml_service(url: str) -> dict:
+	"""Call HuggingFace ML service for URL prediction with error handling."""
+	try:
+		response = requests.post(
+			HF_API_URL,
+			json={"url": url},
+			timeout=60
 		)
-
-	return pd.read_pickle(model_path)
-
-
-def align_features_for_model(features_df: pd.DataFrame, model) -> pd.DataFrame:
-	"""Align runtime feature dataframe to model training schema when available."""
-	if hasattr(model, "feature_names_in_"):
-		expected_features = list(model.feature_names_in_)
-		return features_df.reindex(columns=expected_features, fill_value=0)
-	return features_df
-
-
-def should_use_ml_model() -> bool:
-	"""Allow disabling ML model loading in low-memory deployments."""
-	return os.getenv("URL_ANALYSIS_USE_ML", "true").strip().lower() in {"1", "true", "yes", "on"}
+		response.raise_for_status()
+		return response.json()
+	except requests.exceptions.Timeout:
+		return {"error": "ML service timeout - took longer than 60 seconds", "available": False}
+	except requests.exceptions.ConnectionError:
+		return {"error": "ML service unavailable - connection failed", "available": False}
+	except requests.exceptions.RequestException as e:
+		return {"error": f"ML service error: {str(e)}", "available": False}
 
 
 @router.post("/url", response_model=URLAnalyzeResponse)
@@ -646,33 +635,32 @@ def analyze_url(payload: URLAnalyzeRequest):
 	if not normalized:
 		raise HTTPException(status_code=400, detail="Invalid URL")
 
-	model = None
-	model_load_error = None
-	if should_use_ml_model():
-		try:
-			model = load_url_model()
-		except FileNotFoundError as exc:
-			model_load_error = str(exc)
-		except Exception as exc:
-			model_load_error = f"Failed to load model: {exc}"
-	else:
-		model_load_error = "ML model disabled via URL_ANALYSIS_USE_ML=false"
-
 	try:
-		features_df, feature_map = extract_features(normalized)
+		feature_map = extract_features(normalized)
 		heuristic_score = compute_heuristic_score(feature_map, normalized)
-		model_features_df = align_features_for_model(features_df, model) if model is not None else features_df
-
-		if model is not None and hasattr(model, "predict_proba"):
-			probability = float(model.predict_proba(model_features_df)[0][1])
-		elif model is not None:
-			prediction = int(model.predict(model_features_df)[0])
-			probability = 0.99 if prediction == 1 else 0.01
+		
+		# Call HuggingFace ML service for prediction
+		ml_result = call_hf_ml_service(normalized)
+		model_score = None
+		ml_available = True
+		ml_error_msg = None
+		
+		if "error" not in ml_result or ml_result.get("available", False):
+			# Extract confidence/probability from HF response
+			try:
+				model_score = int(ml_result.get("prediction_score", heuristic_score))
+			except (ValueError, TypeError):
+				ml_available = False
+				ml_error_msg = "Invalid response format from ML service"
 		else:
-			probability = heuristic_score / 100
+			ml_available = False
+			ml_error_msg = ml_result.get("error", "ML service unavailable")
 
-		model_score = max(0, min(100, int(round(probability * 100))))
-		score = max(model_score, heuristic_score)
+		# Use model score if available, otherwise use heuristic
+		if ml_available and model_score is not None:
+			score = max(model_score, heuristic_score)
+		else:
+			score = heuristic_score
 		
 		# Apply trusted domain override to avoid false positives
 		if is_trusted_domain(normalized) and score >= 45:
@@ -735,6 +723,11 @@ def analyze_url(payload: URLAnalyzeRequest):
 			explanation.append(f"This URL scored {score}/100 indicating LOW RISK.")
 			explanation.append("No major phishing indicators detected, but always verify the true sender.")
 
+		# Add ML service status message if unavailable
+		explanation_str = " ".join(explanation)
+		if not ml_available:
+			explanation_str += f" (ML service unavailable; heuristic engine used: {ml_error_msg})"
+
 		return URLAnalyzeResponse(
 			scan_id=str(uuid4()),
 			url=normalized,
@@ -744,7 +737,7 @@ def analyze_url(payload: URLAnalyzeRequest):
 			status=status,
 			flags=flags,
 			feature_summary=feature_summary,
-			explanation=" ".join(explanation + (["ML model unavailable; heuristic engine used for this scan."] if model is None and model_load_error else [])),
+			explanation=explanation_str,
 		)
 	except HTTPException:
 		raise
