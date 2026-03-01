@@ -65,7 +65,7 @@ export function ScanNowDropdown({ className = '', variant = 'primary' }: ScanNow
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
             transition={{ duration: 0.2 }}
-            className="absolute top-full mt-2 right-0 w-56 bg-[#0D1F38] border border-[#1E3A5F] rounded-lg shadow-[0_0_20px_rgba(0,0,0,0.5)] overflow-hidden z-50"
+            className="absolute top-full mt-2 left-0 right-0 md:left-auto md:right-0 md:w-56 bg-[#0D1F38] border border-[#1E3A5F] rounded-lg shadow-[0_0_20px_rgba(0,0,0,0.5)] overflow-hidden z-[100]"
           >
             {menuItems.map((item, index) => (
               <button
