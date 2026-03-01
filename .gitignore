@@ -182,9 +182,7 @@ jspm_packages/
 
 
 # Large ML Model Files (use Git LFS if needed)
-Backend/ml/models/*.pkl
-Backend/ml/models/*.h5
-Backend/ml/models/*.joblib
+
 
 # Large Dataset Files
 Backend/ml/datasets/*.csv
