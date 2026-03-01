@@ -325,7 +325,7 @@ The backend is deployed on **Render** as a web service.
 1. Push to GitHub
 2. Connect repo in Render dashboard
 3. Set build command: `pip install -r requirements.txt`
-4. Set start command: `uvicorn app.main:app --host 0.0.0.0 --port 10000`
+4. Set start command: `uvicorn app:app --host 0.0.0.0 --port 10000`
 5. Add environment variables (MongoDB URI, etc.) in Render settings
 
 > **Note:** Ensure `tesseract-ocr` is available in the Render environment. Add it via a `render.yaml` or a build script if needed.

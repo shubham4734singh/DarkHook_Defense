@@ -1,0 +1,79 @@
+{
+  "random_forest_v2": {
+    "accuracy": 0.9102576556011559,
+    "precision": 0.4709336630046922,
+    "recall": 0.8337146836450458,
+    "f1": 0.6018852679773767
+  },
+  "xgboost_v2": {
+    "accuracy": 0.9027821624290698,
+    "precision": 0.44803057649432,
+    "recall": 0.8396339037007561,
+    "f1": 0.5842852197992385
+  },
+  "feature_importance": [
+    {
+      "feature": "path_depth",
+      "importance": 0.28101906180381775
+    },
+    {
+      "feature": "num_slashes",
+      "importance": 0.2537958025932312
+    },
+    {
+      "feature": "path_length",
+      "importance": 0.24883797764778137
+    },
+    {
+      "feature": "path_entropy",
+      "importance": 0.1523289680480957
+    },
+    {
+      "feature": "suspicious_tld",
+      "importance": 0.016994157806038857
+    },
+    {
+      "feature": "query_length",
+      "importance": 0.011500383727252483
+    },
+    {
+      "feature": "is_free_hosting",
+      "importance": 0.010731348767876625
+    },
+    {
+      "feature": "is_https",
+      "importance": 0.006487533450126648
+    },
+    {
+      "feature": "num_dots",
+      "importance": 0.0031372085213661194
+    },
+    {
+      "feature": "num_hyphens",
+      "importance": 0.0028553202282637358
+    },
+    {
+      "feature": "num_subdomains",
+      "importance": 0.0017314584692940116
+    },
+    {
+      "feature": "domain_entropy",
+      "importance": 0.0015247835544869304
+    },
+    {
+      "feature": "tld_is_country_code",
+      "importance": 0.001413509831763804
+    },
+    {
+      "feature": "num_digits",
+      "importance": 0.0012130922405049205
+    },
+    {
+      "feature": "digit_ratio",
+      "importance": 0.0011001216480508447
+    }
+  ],
+  "training_samples": 988296,
+  "test_samples": 247074,
+  "num_features": 31
+}
