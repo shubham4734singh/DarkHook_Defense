@@ -1,11 +1,38 @@
 // DarkHook Defense API Service
 // API configuration for connecting to backend
 
-// Use environment variable or fallback to Render URL in production
-// For production (Render), use the deployed backend URL
-// For development, use localhost
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 
-  (import.meta.env.PROD ? 'https://darkhook-defense.onrender.com' : 'http://localhost:8000');
+// Priority order:
+// 1. VITE_API_BASE_URL environment variable (if set)
+// 2. Localhost for development
+// 3. Production URL only if explicitly deployed and URL is set
+const getApiBaseUrl = (): string => {
+  // Check for explicit environment variable (highest priority)
+  if (import.meta.env.VITE_API_BASE_URL) {
+    console.log('📌 Using VITE_API_BASE_URL:', import.meta.env.VITE_API_BASE_URL);
+    return import.meta.env.VITE_API_BASE_URL;
+  }
+
+  // For local development, always use localhost:8000
+  // unless absolutely in production with Render deployed
+  const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+  
+  if (isLocalhost) {
+    console.log('🏠 Local development detected, using localhost:8000');
+    return 'http://localhost:8000';
+  }
+
+  // Only use production URL if we're on the production domain
+  if (window.location.hostname.includes('darkhook') || window.location.hostname.includes('render')) {
+    console.log('🚀 Production environment detected');
+    return 'https://darkhook-defense.onrender.com';
+  }
+
+  // Fallback to localhost
+  console.log('⚠️ Using fallback: localhost:8000');
+  return 'http://localhost:8000';
+};
+
+const API_BASE_URL = getApiBaseUrl();
 
 export interface LoginRequest {
   email: string;
@@ -33,6 +60,7 @@ class ApiService {
 
   constructor(baseUrl: string) {
     this.baseUrl = baseUrl;
+    console.log(`🔧 API Service initialized with baseUrl: ${baseUrl}`);
   }
 
   private getAuthHeaders(): HeadersInit {
@@ -97,6 +125,49 @@ class ApiService {
       // Network error or server down - return null
       console.warn('Failed to get current user:', error);
       return null;
+    }
+  }
+
+  async scanUrl(url: string): Promise<any> {
+    const fullUrl = `${this.baseUrl}/scan/url`;
+    
+    console.log(`\n📡 === API CALL START ===`);
+    console.log(`Base URL: ${this.baseUrl}`);
+    console.log(`Full URL: ${fullUrl}`);
+    console.log(`Method: POST`);
+    console.log(`Headers: Content-Type: application/json`);
+    console.log(`Payload: ${JSON.stringify({ url })}`);
+    
+    try {
+      console.log(`⏳ Fetching...`);
+      const response = await fetch(fullUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ url }),
+      });
+
+      console.log(`📊 Response received:`);
+      console.log(`  Status: ${response.status} ${response.statusText}`);
+      console.log(`  Content-Type: ${response.headers.get('content-type')}`);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`❌ Response NOT OK (status ${response.status})`);
+        console.error(`  Response body: ${errorText}`);
+        throw new Error(errorText.includes('detail') ? 
+          `API Error ${response.status}: ${errorText}` : 
+          `HTTP ${response.status}: ${errorText.substring(0, 100)}`);
+      }
+
+      const result = await response.json();
+      console.log(`✅ === API CALL SUCCESS ===\n`);
+      return result;
+    } catch (error) {
+      console.error(`❌ === API CALL FAILED ===\n`);
+      console.error(`Error:`, error);
+      throw error;
     }
   }
 }

@@ -15,6 +15,7 @@ load_dotenv()
 # Import modules
 from modules.database.mongo_config import get_client, close_connection
 from auth.auth_routes import router as auth_router
+from modules.url_analysis.link import router as url_router
 
 # Configuration
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
@@ -75,6 +76,7 @@ app.add_middleware(
 # -------------------------
 
 app.include_router(auth_router, prefix="/auth", tags=["Authentication"])
+app.include_router(url_router, prefix="/scan", tags=["URL Analysis"])
 
 
 # -------------------------

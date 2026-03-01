@@ -179,3 +179,12 @@ jspm_packages/
 .env.development.local
 .env.test.local
 .env.production.local
+
+# Large ML Model Files (use Git LFS if needed)
+Backend/ml/models/*.pkl
+Backend/ml/models/*.h5
+Backend/ml/models/*.joblib
+
+# Large Dataset Files
+Backend/ml/datasets/*.csv
+Backend/ml/datasets/processed/*.csv
