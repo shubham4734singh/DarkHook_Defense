@@ -50,22 +50,27 @@ def extract_features_v2(url: str) -> dict:
     domain_tokens = domain.replace("-", " ").replace("_", " ").split(".")
     features["num_subdomains"] = len(domain_tokens) - 2 if len(domain_tokens) > 1 else 0
     
-    # TLD analysis with reputation scoring
+    # TLD analysis with reputation scoring - expanded list
     suspicious_tlds = {".tk", ".ml", ".ga", ".cf", ".gq", ".xyz", ".top", ".work", ".click", 
                       ".loan", ".men", ".review", ".racing", ".win", ".bid", ".download", 
-                      ".stream", ".icu", ".club", ".info"}
+                      ".stream", ".icu", ".club", ".info", ".online", ".site", ".website",
+                      ".space", ".tech", ".store", ".fun", ".live"}
     
     tld = "." + domain.split(".")[-1] if "." in domain else ""
     features["suspicious_tld"] = 1 if tld in suspicious_tlds else 0
     features["tld_is_country_code"] = 1 if (len(tld) == 3 and tld[1:].isalpha()) else 0
     
-    # Keyword analysis - expanded suspicious terms
+    # Keyword analysis - expanded suspicious terms including crypto and auth
     phishing_keywords = [
         "login", "signin", "account", "verify", "update", "secure", "banking",
         "paypal", "ebay", "amazon", "apple", "microsoft", "google", "confirm",
         "suspended", "locked", "unusual", "click", "urgent", "immediately",
         "password", "credential", "wallet", "crypto", "invest", "prize", "winner",
-        "free", "bonus", "gift", "limited", "expire", "claim"
+        "free", "bonus", "gift", "limited", "expire", "claim",
+        "trezor", "ledger", "metamask", "coinbase", "binance", "kraken", "exodus",
+        "blockchain", "bitcoin", "ethereum", "defi", "nft", "token", "swap",
+        "sso", "auth", "oauth", "api", "validate", "authenticate", "recovery",
+        "support", "help", "restore", "sync", "connect", "enable"
     ]
     features["keyword_hits"] = sum(1 for kw in phishing_keywords if kw in full_url)
     
@@ -88,15 +93,26 @@ def extract_features_v2(url: str) -> dict:
     features["digit_ratio"] = features["num_digits"] / len(url) if url else 0
     features["special_char_ratio"] = (features["num_hyphens"] + features["num_underscores"]) / len(domain) if domain else 0
     
-    # Advanced heuristics
+    # Advanced heuristics - enhanced brand impersonation detection
     # Check for homograph attacks (mixed character sets, lookalike chars)
     lookalike_patterns = ["pa.ypal", "g00gle", "micros0ft", "yah00", "netfl1x", "amaz0n"]
-    features["has_lookalike"] = 1 if any(pattern in full_url for pattern in lookalike_patterns) else 0
+    # Crypto wallet brand variations (typosquatting)
+    crypto_brands = ["trezor", "ledger", "metamask", "coinbase", "binance", "kraken", "exodus"]
+    brand_found = any(brand in domain for brand in crypto_brands)
+    # Check for brand name with typo or in suspicious context
+    has_brand_typo = (
+        "trezorr" in domain or "tresor" in domain or "meta-mask" in domain or 
+        "coin-base" in domain or "ledgerr" in domain or "exoduss" in domain
+    )
+    features["has_lookalike"] = 1 if (any(pattern in full_url for pattern in lookalike_patterns) or has_brand_typo or 
+                                        (brand_found and ("login" in full_url or "verify" in full_url or "secure" in full_url))) else 0
     
-    # Free hosting detection
+    # Free hosting detection - expanded with modern platforms
     free_hosting = ["repl.co", "herokuapp.com", "github.io", "blogspot.com", "wordpress.com",
                    "wix.com", "weebly.com", "000webhostapp.com", "pantheonsite.io", 
-                   "onedumb.com", "ddns.net", "duckdns.org"]
+                   "onedumb.com", "ddns.net", "duckdns.org", "pages.dev", "webflow.io",
+                   "netlify.app", "vercel.app", "render.com", "fly.dev", "railway.app",
+                   "glitch.me", "surge.sh", "web.app", "firebaseapp.com"]
     features["is_free_hosting"] = 1 if any(host in domain for host in free_hosting) else 0
     
     # Shortener detection
@@ -108,6 +124,9 @@ def extract_features_v2(url: str) -> dict:
     
     # Suspicious patterns in path
     features["has_suspicious_path"] = 1 if any(x in path for x in ["../", "//", "%", "script"]) else 0
+    
+    # Consecutive hyphen detection (-- or ---) - strong phishing indicator
+    features["consecutive_hyphens"] = 1 if ("--" in domain or "---" in domain) else 0
     
     return features
 
