@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: darkhook-defense
+    env: python
+    rootDir: Backend
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn -k uvicorn.workers.UvicornWorker -w 1 --max-requests 250 --max-requests-jitter 25 -b 0.0.0.0:$PORT app:app
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.11
+      - key: URL_ANALYSIS_USE_ML
+        value: "false"

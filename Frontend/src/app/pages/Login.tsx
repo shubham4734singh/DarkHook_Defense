@@ -1,5 +1,5 @@
 import { motion } from 'motion/react';
-import { Mail, Lock, ArrowRight } from 'lucide-react';
+import { Mail, Lock, ArrowRight, Loader2 } from 'lucide-react';
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { useAuth } from '../contexts/AuthContext';
@@ -10,22 +10,38 @@ export function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { login, register } = useAuth();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Call login from auth context
-    login(email, name || email.split('@')[0]);
+    setError('');
+    setLoading(true);
     
-    // Check if there's a redirect path stored
-    const redirectPath = localStorage.getItem('darkhook_redirect');
-    if (redirectPath) {
-      localStorage.removeItem('darkhook_redirect');
-      navigate(redirectPath);
-    } else {
-      // Default to URL scan page
-      navigate('/scan/url');
+    try {
+      if (isLogin) {
+        // Call login from auth context (which now calls the API)
+        await login(email, password);
+      } else {
+        // Call register from auth context
+        await register(name, email, password);
+      }
+      
+      // Check if there's a redirect path stored
+      const redirectPath = localStorage.getItem('darkhook_redirect');
+      if (redirectPath) {
+        localStorage.removeItem('darkhook_redirect');
+        navigate(redirectPath);
+      } else {
+        // Default to URL scan page
+        navigate('/scan/url');
+      }
+    } catch (err: any) {
+      setError(err.message || 'Authentication failed. Please try again.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -106,12 +122,29 @@ export function Login() {
 
             <button
               type="submit"
-              className="w-full px-6 py-3 bg-[#00C2FF] hover:bg-[#00A8E0] text-[#060D1A] font-semibold rounded-lg transition-all flex items-center justify-center gap-2 shadow-[0_0_24px_rgba(0,194,255,0.35)]"
+              disabled={loading}
+              className="w-full px-6 py-3 bg-[#00C2FF] hover:bg-[#00A8E0] text-[#060D1A] font-semibold rounded-lg transition-all flex items-center justify-center gap-2 shadow-[0_0_24px_rgba(0,194,255,0.35)] disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isLogin ? 'Sign In' : 'Create Account'}
-              <ArrowRight className="w-5 h-5" />
+              {loading ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  {isLogin ? 'Signing In...' : 'Creating Account...'}
+                </>
+              ) : (
+                <>
+                  {isLogin ? 'Sign In' : 'Create Account'}
+                  <ArrowRight className="w-5 h-5" />
+                </>
+              )}
             </button>
           </form>
+
+          {/* Error Message */}
+          {error && (
+            <div className="mt-4 p-3 bg-red-500/20 border border-red-500 rounded-lg text-red-400 text-sm text-center">
+              {error}
+            </div>
+          )}
 
           {/* Toggle */}
           <div className="mt-6 text-center">

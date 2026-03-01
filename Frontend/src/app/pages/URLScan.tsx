@@ -2,8 +2,7 @@ import { motion } from 'motion/react';
 import { Shield, Link as LinkIcon, AlertTriangle, CheckCircle, XCircle, ArrowLeft, LogOut } from 'lucide-react';
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router';
-import { useAuth } from '../contexts/AuthContext';
-import logo from '@/assets/eabe0015a9a1edfe92cb4ac7f5415daf9aa9241d.png';
+import { useAuth } from '../contexts/AuthContext';import { api } from '../services/api';import logo from '@/assets/eabe0015a9a1edfe92cb4ac7f5415daf9aa9241d.png';
 
 export function URLScan() {
   const [url, setUrl] = useState('');
@@ -17,23 +16,31 @@ export function URLScan() {
     navigate('/');
   };
 
-  const handleScan = () => {
-    setScanning(true);
+  const handleScan = async () => {
+    if (!url) return;
     
-    // Mock scanning process
-    setTimeout(() => {
-      setResult({
-        riskScore: Math.floor(Math.random() * 100),
-        status: ['safe', 'suspicious', 'dangerous'][Math.floor(Math.random() * 3)],
-        threats: [
-          { name: 'SSL Certificate', status: 'safe' },
-          { name: 'Domain Age', status: 'safe' },
-          { name: 'Suspicious Keywords', status: Math.random() > 0.5 ? 'safe' : 'warning' },
-          { name: 'Known Malicious Patterns', status: 'safe' },
-        ]
-      });
+    setScanning(true);
+    setResult(null);
+    
+    console.log('🚀 === SCAN START ===');
+    console.log('Input URL:', url);
+    
+    try {
+      // Call real API
+      console.log('📍 Calling api.scanUrl()...');
+      const response = await api.scanUrl(url);
+      console.log('📍 Response received:', response);
+      setResult(response);
+      console.log('✅ === SCAN SUCCESS ===');
+    } catch (error) {
+      console.error('❌ === SCAN ERROR ===');
+      console.error('Error object:', error);
+      console.error('Error type:', typeof error);
+      console.error('Error message:', error instanceof Error ? error.message : 'Unknown');
+      alert(`Scan failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
       setScanning(false);
-    }, 2000);
+    }
   };
 
   const getStatusColor = (status: string) => {
@@ -139,33 +146,69 @@ export function URLScan() {
                 <div className="text-center mb-6">
                   <div className="inline-flex items-center justify-center w-32 h-32 rounded-full border-8 mb-4"
                     style={{ borderColor: getStatusColor(result.status) }}>
-                    <span className="text-4xl font-bold text-white">{result.riskScore}</span>
+                    <span className="text-4xl font-bold text-white">{result.score}</span>
                   </div>
                   <h3 className="text-2xl font-bold mb-2" style={{ color: getStatusColor(result.status) }}>
                     {result.status === 'safe' ? '🟢 SAFE' : result.status === 'suspicious' ? '🟡 SUSPICIOUS' : '🔴 DANGEROUS'}
                   </h3>
-                  <p className="text-[#8BA3BC]">
-                    {result.status === 'safe' ? 'No threats detected' : result.status === 'suspicious' ? 'Proceed with caution' : 'Do not open this URL'}
+                  <p className="text-[#8BA3BC] mb-4">
+                    {result.verdict} - Confidence: {(result.confidence * 100).toFixed(0)}%
+                  </p>
+                  <p className="text-[#8BA3BC] text-sm">
+                    {result.explanation}
                   </p>
                 </div>
               </div>
 
-              {/* Threat Details */}
+              {/* Detection Flags */}
               <div className="bg-[#0D1F38] border border-[#1E3A5F] rounded-2xl p-8">
-                <h3 className="text-xl font-bold text-white mb-4">Threat Analysis</h3>
+                <h3 className="text-xl font-bold text-white mb-4">Detection Flags</h3>
                 <div className="space-y-3">
-                  {result.threats.map((threat: any, index: number) => (
-                    <div
-                      key={index}
-                      className="flex items-center justify-between p-4 bg-[#060D1A] border border-[#1E3A5F] rounded-lg"
-                    >
-                      <span className="text-white font-medium">{threat.name}</span>
-                      <div className="flex items-center gap-2" style={{ color: getStatusColor(threat.status) }}>
-                        {getStatusIcon(threat.status)}
-                        <span className="text-sm font-semibold uppercase">{threat.status}</span>
+                  {result.flags && result.flags.length > 0 ? (
+                    result.flags.map((flag: string, index: number) => (
+                      <div
+                        key={index}
+                        className="p-4 bg-[#060D1A] border border-[#1E3A5F] rounded-lg"
+                      >
+                        <p className="text-white text-sm leading-relaxed">{flag}</p>
                       </div>
+                    ))
+                  ) : (
+                    <div className="p-4 bg-[#060D1A] border border-[#1E3A5F] rounded-lg">
+                      <p className="text-[#8BA3BC] text-sm">No specific threats detected</p>
                     </div>
-                  ))}
+                  )}
+                </div>
+              </div>
+
+              {/* Technical Details */}
+              <div className="bg-[#0D1F38] border border-[#1E3A5F] rounded-2xl p-8">
+                <h3 className="text-xl font-bold text-white mb-4">Technical Analysis</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="p-4 bg-[#060D1A] border border-[#1E3A5F] rounded-lg">
+                    <p className="text-[#8BA3BC] text-xs mb-1">HTTPS</p>
+                    <p className="text-white font-semibold">{result.feature_summary?.is_https ? '✓ Enabled' : '✗ Disabled'}</p>
+                  </div>
+                  <div className="p-4 bg-[#060D1A] border border-[#1E3A5F] rounded-lg">
+                    <p className="text-[#8BA3BC] text-xs mb-1">Suspicious TLD</p>
+                    <p className="text-white font-semibold">{result.feature_summary?.suspicious_tld ? '⚠️ Yes' : '✓ No'}</p>
+                  </div>
+                  <div className="p-4 bg-[#060D1A] border border-[#1E3A5F] rounded-lg">
+                    <p className="text-[#8BA3BC] text-xs mb-1">IP Address</p>
+                    <p className="text-white font-semibold">{result.feature_summary?.has_ip ? '⚠️ Used' : '✓ Domain'}</p>
+                  </div>
+                  <div className="p-4 bg-[#060D1A] border border-[#1E3A5F] rounded-lg">
+                    <p className="text-[#8BA3BC] text-xs mb-1">URL Shortener</p>
+                    <p className="text-white font-semibold">{result.feature_summary?.is_shortener ? '⚠️ Yes' : '✓ No'}</p>
+                  </div>
+                  <div className="p-4 bg-[#060D1A] border border-[#1E3A5F] rounded-lg">
+                    <p className="text-[#8BA3BC] text-xs mb-1">Phishing Keywords</p>
+                    <p className="text-white font-semibold">{result.feature_summary?.keyword_hits || 0} detected</p>
+                  </div>
+                  <div className="p-4 bg-[#060D1A] border border-[#1E3A5F] rounded-lg">
+                    <p className="text-[#8BA3BC] text-xs mb-1">URL Length</p>
+                    <p className="text-white font-semibold">{result.feature_summary?.url_length || 0} chars</p>
+                  </div>
                 </div>
               </div>
             </motion.div>

@@ -223,68 +223,199 @@ Email (.eml)
 ## 📁 Project Structure
 
 ```
-darkhook-defense/
+DARKHOOK_DEFENSE/                          ← Main project (on GitHub)
 │
-├── backend/
-│   ├── main.py                    # FastAPI entry point
-│   ├── requirements.txt
+├── .gitignore                             ← What NOT to upload on GitHub
+├── README.md                              ← Project description
+│
+│
+├── Frontend/                              ← REACT FRONTEND 🎨
+│   ├── 📁 src
+│   │   ├── 📁 app
+│   │   │   ├── 📁 components
+│   │   │   │   ├── 📁 figma
+│   │   │   │   │   └── 📄 ImageWithFallback.tsx
+│   │   │   │   ├── 📁 ui
+│   │   │   │   │   ├── 📄 accordion.tsx
+│   │   │   │   │   ├── 📄 alert-dialog.tsx
+│   │   │   │   │   ├── 📄 alert.tsx
+│   │   │   │   │   ├── 📄 aspect-ratio.tsx
+│   │   │   │   │   ├── 📄 avatar.tsx
+│   │   │   │   │   ├── 📄 badge.tsx
+│   │   │   │   │   ├── 📄 breadcrumb.tsx
+│   │   │   │   │   ├── 📄 button.tsx
+│   │   │   │   │   ├── 📄 calendar.tsx
+│   │   │   │   │   ├── 📄 card.tsx
+│   │   │   │   │   ├── 📄 carousel.tsx
+│   │   │   │   │   ├── 📄 chart.tsx
+│   │   │   │   │   ├── 📄 checkbox.tsx
+│   │   │   │   │   ├── 📄 collapsible.tsx
+│   │   │   │   │   ├── 📄 command.tsx
+│   │   │   │   │   ├── 📄 context-menu.tsx
+│   │   │   │   │   ├── 📄 dialog.tsx
+│   │   │   │   │   ├── 📄 drawer.tsx
+│   │   │   │   │   ├── 📄 dropdown-menu.tsx
+│   │   │   │   │   ├── 📄 form.tsx
+│   │   │   │   │   ├── 📄 hover-card.tsx
+│   │   │   │   │   ├── 📄 input-otp.tsx
+│   │   │   │   │   ├── 📄 input.tsx
+│   │   │   │   │   ├── 📄 label.tsx
+│   │   │   │   │   ├── 📄 menubar.tsx
+│   │   │   │   │   ├── 📄 navigation-menu.tsx
+│   │   │   │   │   ├── 📄 pagination.tsx
+│   │   │   │   │   ├── 📄 popover.tsx
+│   │   │   │   │   ├── 📄 progress.tsx
+│   │   │   │   │   ├── 📄 radio-group.tsx
+│   │   │   │   │   ├── 📄 resizable.tsx
+│   │   │   │   │   ├── 📄 scroll-area.tsx
+│   │   │   │   │   ├── 📄 select.tsx
+│   │   │   │   │   ├── 📄 separator.tsx
+│   │   │   │   │   ├── 📄 sheet.tsx
+│   │   │   │   │   ├── 📄 sidebar.tsx
+│   │   │   │   │   ├── 📄 skeleton.tsx
+│   │   │   │   │   ├── 📄 slider.tsx
+│   │   │   │   │   ├── 📄 sonner.tsx
+│   │   │   │   │   ├── 📄 switch.tsx
+│   │   │   │   │   ├── 📄 table.tsx
+│   │   │   │   │   ├── 📄 tabs.tsx
+│   │   │   │   │   ├── 📄 textarea.tsx
+│   │   │   │   │   ├── 📄 toggle-group.tsx
+│   │   │   │   │   ├── 📄 toggle.tsx
+│   │   │   │   │   ├── 📄 tooltip.tsx
+│   │   │   │   │   ├── 📄 use-mobile.ts
+│   │   │   │   │   └── 📄 utils.ts
+│   │   │   │   ├── 📄 AboutSection.tsx
+│   │   │   │   ├── 📄 ComparisonSection.tsx
+│   │   │   │   ├── 📄 FAQSection.tsx
+│   │   │   │   ├── 📄 Footer.tsx
+│   │   │   │   ├── 📄 HeroScanWidget.tsx
+│   │   │   │   ├── 📄 HeroSection.tsx
+│   │   │   │   ├── 📄 HowItWorksSection.tsx
+│   │   │   │   ├── 📄 Navbar.tsx
+│   │   │   │   ├── 📄 ProtectedRoute.tsx
+│   │   │   │   ├── 📄 RiskScoreSection.tsx
+│   │   │   │   ├── 📄 RootLayout.tsx
+│   │   │   │   ├── 📄 ScanDemoSection.tsx
+│   │   │   │   ├── 📄 ScanNowDropdown.tsx
+│   │   │   │   ├── 📄 TeamSection.tsx
+│   │   │   │   ├── 📄 ThreatStatsSection.tsx
+│   │   │   │   └── 📄 ThreeLayersSection.tsx
+│   │   │   ├── 📁 contexts
+│   │   │   │   └── 📄 AuthContext.tsx
+│   │   │   ├── 📁 pages
+│   │   │   │   ├── 📄 DocumentScan.tsx
+│   │   │   │   ├── 📄 EmailScan.tsx
+│   │   │   │   ├── 📄 History.tsx
+│   │   │   │   ├── 📄 Home.tsx
+│   │   │   │   ├── 📄 Login.tsx
+│   │   │   │   ├── 📄 Result.tsx
+│   │   │   │   └── 📄 URLScan.tsx
+│   │   │   ├── 📁 services
+│   │   │   │   └── 📄 api.ts
+│   │   │   ├── 📄 App.tsx
+│   │   │   └── 📄 routes.tsx
+│   │   ├── 📁 assets
+│   │   │   ├── 🖼️ 164bd3b4c66bb15268339b22ae1165b91c7ea4e9.png
+│   │   │   └── 🖼️ eabe0015a9a1edfe92cb4ac7f5415daf9aa9241d.png
+│   │   ├── 📁 styles
+│   │   │   ├── 🎨 fonts.css
+│   │   │   ├── 🎨 index.css
+│   │   │   ├── 🎨 tailwind.css
+│   │   │   └── 🎨 theme.css
+│   │   ├── 📄 image.d.ts
+│   │   ├── 📄 main.tsx
+│   │   └── 📄 vite-env.d.ts
+│   ├── ⚙️ .gitignore
+│   ├── 📝 ATTRIBUTIONS.md
+│   ├── 📝 FRONTEND_README.md
+│   ├── 🌐 index.html
+│   ├── ⚙️ package-lock.json
+│   ├── ⚙️ package.json
+│   ├── 📄 postcss.config.mjs
+│   ├── ⚙️ vercel.json
+│   └── 📄 vite.config.ts
+│
+│
+├── Backend/                               ← ALL PYTHON CODE
 │   │
-│   ├── modules/
-│   │   ├── link/
-│   │   │   ├── feature_extractor.py   # 20+ URL features
-│   │   │   ├── crawler.py             # BeautifulSoup live crawl
-│   │   │   ├── model.py               # RF + XGBoost inference
-│   │   │   └── router.py              # /analyze/url endpoint
-│   │   │
-│   │   ├── email/
-│   │   │   ├── header_parser.py       # SPF/DKIM/DMARC checks
-│   │   │   ├── body_analyzer.py       # TF-IDF + keyword scoring
-│   │   │   ├── model.py               # Naive Bayes inference
-│   │   │   └── router.py              # /analyze/email endpoint
-│   │   │
-│   │   └── document/
-│   │       ├── pdf_parser.py          # PyMuPDF extraction
-│   │       ├── office_parser.py       # DOCX, XLSX, PPTX
-│   │       ├── ocr_engine.py          # pytesseract OCR
-│   │       ├── qr_detector.py         # pyzbar QR detection
-│   │       └── router.py              # /analyze/document endpoint
-│   │
-│   ├── ml/
-│   │   ├── train_link_model.py        # Training script — URL
-│   │   ├── train_email_model.py       # Training script — Email
+│   ├── app.py                             ← Main FastAPI server (Team)
+│   ├── requirements.txt                   ← All libraries list
+│   ├── config.py                          ← Settings/configuration + SECRET_KEY
+│   ├── ml/                                ← MODEL TRAINING & ARTIFACTS
+│   │   ├── train_link_model.py            ← Training script — URL
+│   │   ├── train_email_model.py           ← Training script — Email
 │   │   └── models/
 │   │       ├── url_rf_model.pkl
 │   │       ├── url_xgb_model.pkl
 │   │       └── email_nb_model.pkl
 │   │
-│   └── database/
-│       └── mongo.py                   # MongoDB connection + queries
-│
-├── frontend/
-│   ├── src/
-│   │   ├── pages/
-│   │   │   ├── Home.jsx               # 3 tabs: URL / Email / Doc
-│   │   │   ├── Result.jsx             # Score meter + flags
-│   │   │   ├── History.jsx            # Past scans list
-│   │   │   └── About.jsx
-│   │   │
-│   │   ├── components/
-│   │   │   ├── ScoreMeter.jsx         # Recharts radial score
-│   │   │   ├── FlagsList.jsx          # Why it was flagged
-│   │   │   ├── FileUpload.jsx         # Drag-and-drop upload
-│   │   │   └── ScanHistory.jsx
-│   │   │
-│   │   └── services/
-│   │       └── api.js                 # Axios calls to backend
+│   ├── uploads/                           ← Temporary file storage
+│   │   └── .gitkeep                       ← Keeps empty folder on GitHub
 │   │
-│   ├── index.html
-│   └── vite.config.js
+│   ├── auth/                              ← AUTHENTICATION MODULE 🔐
+│   │   ├── __init__.py
+│   │   ├── auth_routes.py                 ← /register, /login, /logout routes
+│   │   ├── jwt_handler.py                 ← Generate & verify JWT tokens
+│   │   └── middleware.py                  ← Protect routes (check token)
+│   │
+│   └── modules/                           ← ALL ANALYSIS MODULES HERE
+│       │
+│       ├── __init__.py                    ← Makes modules a package
+│       │
+│       ├── document_analysis/             ← POONAM'S TERRITORY 📄
+│       │   ├── __init__.py
+│       │   ├── pdf_parser.py              ← Reads PDF files
+│       │   ├── docx_parser.py             ← Reads Word files
+│       │   ├── excel_parser.py            ← Reads Excel files
+│       │   ├── ppt_parser.py              ← Reads PowerPoint files
+│       │   ├── ocr_parser.py              ← Reads text from images
+│       │   ├── qr_scanner.py              ← Scans QR codes
+│       │   └── scorer.py                  ← Calculates danger score
+│       │
+│       ├── url_analysis/                  ← URL TEAM'S TERRITORY 🔗
+│       │   ├── __init__.py
+│       │   ├── url_scanner.py             ← Scans URLs for phishing
+│       │   ├── domain_checker.py          ← Checks domain reputation
+│       │   └── whois_lookup.py            ← Domain registration info
+│       │
+│       ├── email_analysis/                ← EMAIL TEAM'S TERRITORY 📧
+│       │   ├── __init__.py
+│       │   ├── email_parser.py            ← Reads email content
+│       │   └── header_analyzer.py         ← Checks email headers
+│       │
+│       └── database/                      ← DATABASE 🗄️
+│           ├── __init__.py
+│           ├── mongo_config.py            ← MongoDB connection setup
+│           ├── models.py                  ← Data structure definitions
+│           │                                 (users, scan_results schemas)
+│           └── user_repository.py         ← DB functions (save/find user,
+│                                             save scan result, get history)
 │
-├── data/                              # Datasets (gitignored)
-│   ├── phishing_urls.csv
-│   └── emails/
 │
-└── README.md
+└── tests/                                 ← TESTING FOLDER (Everyone)
+    │
+    ├── test_documents/                    ← POONAM'S TEST FILES 📄
+    │   ├── sample_phishing.pdf
+    │   ├── sample_safe.pdf
+    │   ├── sample_macro.docx
+    │   ├── sample_safe.docx
+    │   ├── sample_phishing.xlsx
+    │   ├── sample_safe.xlsx
+    │   ├── sample_phishing.pptx
+    │   └── sample_qr.pdf
+    │
+    ├── test_urls/                         ← URL TEAM TEST FILES 🔗
+    │   ├── sample_phishing_urls.txt
+    │   └── sample_safe_urls.txt
+    │
+    ├── test_emails/                       ← EMAIL TEAM TEST FILES 📧
+    │   ├── sample_phishing.eml
+    │   └── sample_safe.eml
+    │
+    ├── test_auth.py                       ← NEW: Auth tests (login/register)
+    ├── test_document_analysis.py          ← Poonam's test code
+    ├── test_url_analysis.py               ← URL team test code
+    └── test_email_analysis.py             ← Email team test code
 ```
 
 ---
