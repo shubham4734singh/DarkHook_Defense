@@ -97,6 +97,7 @@ celerybeat.pid
 
 # Environments
 .env
+!.env.example
 .venv
 env/
 venv/
@@ -178,3 +179,11 @@ jspm_packages/
 .env.development.local
 .env.test.local
 .env.production.local
+
+
+# Large ML Model Files (use Git LFS if needed)
+
+
+# Large Dataset Files
+Backend/ml/datasets/*.csv
+Backend/ml/datasets/processed/*.csv

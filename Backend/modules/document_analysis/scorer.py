@@ -12,6 +12,7 @@
 # ----------------------------------------------------------
 
 WEIGHTS = {
+    # General findings
     "suspicious_url"     : 15,   # Suspicious link found
     "malicious_macro"    : 30,   # Dangerous macro in Word/Excel
     "hidden_script"      : 25,   # Hidden script inside file
@@ -20,6 +21,43 @@ WEIGHTS = {
     "suspicious_domain"  : 15,   # Known bad domain found
     "embedded_object"    : 20,   # Suspicious embedded object
     "ocr_phishing_text"  : 10,   # Phishing text found in image
+    
+    # PDF-specific structural findings
+    "javascript_detected"      : 40,  # Embedded JavaScript in PDF
+    "openaction_detected"      : 35,  # Auto-execute on open
+    "launch_action_detected"   : 35,  # Launch external application
+    "embedded_file_detected"   : 30,  # Hidden embedded files
+    "high_object_count"        : 15,  # Suspicious number of objects
+    "encrypted_object"         : 20,  # Encrypted content
+    "acroform_detected"        : 20,  # Forms (credential harvesting)
+    "xfa_form_detected"        : 25,  # XFA forms
+    
+    # PDF content findings
+    "urgent_tone_detected"     : 15,  # Urgent/pressure language
+    "financial_terms_detected" : 15,  # Banking/payment terms
+    "credential_harvesting"    : 20,  # Password/login requests
+    
+    # PDF URL findings
+    "ip_based_url"             : 30,  # IP address instead of domain
+    "shortened_url"            : 20,  # URL shorteners
+    "suspicious_tld"           : 20,  # Suspicious domain extensions
+    "at_symbol_trick"          : 25,  # @ symbol URL obfuscation
+    "mismatched_anchor"        : 25,  # Link text doesn't match URL
+    "homograph_domain"         : 30,  # Unicode domain spoofing
+    
+    # PDF image findings
+    "single_image_pdf"         : 25,  # PDF with single image only
+    "clickable_image_overlay"  : 20,  # Image with hidden link
+    
+    # PDF behavioral findings
+    "base64_payload"           : 35,  # Base64 encoded content
+    "hex_payload"              : 30,  # Hex encoded content
+    "high_entropy_string"      : 25,  # Random/obfuscated strings
+    "powershell_detected"      : 40,  # PowerShell commands
+    "external_network_call"    : 30,  # Network connections
+    "dropper_pattern"          : 40,  # Malware dropper indicators
+    "split_string_concat"      : 20,  # String obfuscation
+    "embedded_executable"      : 45,  # Embedded EXE/DLL files
 }
 
 
