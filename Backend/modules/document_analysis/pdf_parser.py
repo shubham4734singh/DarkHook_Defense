@@ -314,6 +314,109 @@ def is_hex_encoded(text):
 
 
 # ----------------------------------------------------------------
+# HELPER 3b — Reduce false positives for UTF-16 hex strings
+# Many legitimate PDFs (especially Office-generated) store metadata/text
+# as UTF-16 strings encoded in hex, e.g. FEFF004D0069... ("Microsoft...").
+# ----------------------------------------------------------------
+
+def _printable_ratio(text: str) -> float:
+    if not text:
+        return 0.0
+    printable = sum(1 for ch in text if ch.isprintable())
+    return printable / max(len(text), 1)
+
+
+def _looks_like_utf16_text_hex(hex_text: str) -> bool:
+    """Return True if hex decodes to mostly-printable UTF-16 text."""
+    if not is_hex_encoded(hex_text) or len(hex_text) < 40:
+        return False
+
+    # Limit work on very long sequences
+    sample = hex_text[:2000]
+    try:
+        raw = bytes.fromhex(sample)
+    except Exception:
+        return False
+
+    # UTF-16 BOM detection (common in benign metadata)
+    if raw.startswith(b"\xfe\xff"):
+        decoded = raw.decode("utf-16-be", errors="ignore")
+    elif raw.startswith(b"\xff\xfe"):
+        decoded = raw.decode("utf-16-le", errors="ignore")
+    else:
+        # Heuristic: lots of NUL bytes often implies UTF-16-ish text
+        nul_ratio = raw.count(0) / max(len(raw), 1)
+        if nul_ratio < 0.2:
+            return False
+        decoded = raw.decode("utf-16-be", errors="ignore")
+
+    decoded = decoded.strip("\x00\u0000\ufeff").strip()
+    if len(decoded) < 6:
+        return False
+
+    if _printable_ratio(decoded) < 0.9:
+        return False
+
+    # If it looks like human text (letters/spaces/punct), treat as benign
+    letters_spaces = sum(1 for ch in decoded if ch.isalpha() or ch.isspace())
+    if letters_spaces / max(len(decoded), 1) < 0.6:
+        return False
+
+    return True
+
+
+def is_suspicious_hex_payload(hex_text: str) -> bool:
+    """More selective hex payload detector to avoid benign UTF-16 hex."""
+    if not is_hex_encoded(hex_text):
+        return False
+
+    # Benign UTF-16 hex strings are extremely common in normal PDFs
+    if _looks_like_utf16_text_hex(hex_text):
+        return False
+
+    # Very short hex sequences are rarely meaningful payloads
+    if len(hex_text) < 120:
+        return False
+
+    # If it decodes to mostly non-ASCII bytes, it's likely binary/stream content
+    # (common in benign PDFs) rather than an obfuscated script payload.
+    sample = hex_text[:4000]
+    try:
+        raw = bytes.fromhex(sample)
+    except Exception:
+        return False
+
+    if not raw:
+        return False
+
+    ascii_like = sum(1 for b in raw if 32 <= b <= 126 or b in (9, 10, 13))
+    ascii_ratio = ascii_like / max(len(raw), 1)
+    if ascii_ratio < 0.7:
+        return False
+
+    decoded = raw.decode("latin-1", errors="ignore").lower()
+    suspicious_tokens = [
+        "javascript",
+        "eval",
+        "unescape",
+        "fromcharcode",
+        "xmlhttprequest",
+        "powershell",
+        "cmd.exe",
+        "http://",
+        "https://",
+        "/uri",
+        "app.launchurl",
+        "launchurl",
+    ]
+    if any(tok in decoded for tok in suspicious_tokens):
+        return True
+
+    # Default: do not treat as a payload unless it looks script-like
+    return False
+
+
+# ----------------------------------------------------------------
 # HELPER 4 — Check if URL uses IP address
 # ----------------------------------------------------------------
 
@@ -457,10 +560,29 @@ def structural_analysis(file_path, raw_text):
                 )
 
             elif action == "/OpenAction":
-                findings.append("openaction_detected")
-                details.append(
-                    f"🚨 CRITICAL: OpenAction found — auto-executes on open"
-                )
+                # OpenAction is not always malicious (often used for view/navigation).
+                # Only treat as dangerous if the OpenAction itself looks like it triggers
+                # script/network/launch behavior.
+                openaction_danger_tokens = [
+                    "/JavaScript", "/JS", "/URI", "/Launch", "/GoToR", "/SubmitForm"
+                ]
+
+                dangerous_openaction = False
+                for m in re.finditer(r"/OpenAction", raw_text):
+                    snippet = raw_text[m.start(): m.start() + 800]
+                    if any(tok in snippet for tok in openaction_danger_tokens):
+                        dangerous_openaction = True
+                        break
+
+                if dangerous_openaction:
+                    findings.append("openaction_detected")
+                    details.append(
+                        "🚨 CRITICAL: Dangerous OpenAction found — executes script/URI/launch on open"
+                    )
+                else:
+                    details.append(
+                        "ℹ️ OpenAction present (likely navigation/view). Not scored as malicious."
+                    )
 
             elif action == "/Launch":
                 findings.append("launch_action_detected")
@@ -487,17 +609,27 @@ def structural_analysis(file_path, raw_text):
                 )
 
             elif action == "/ObjStm":
-                findings.append("high_object_count")
-                details.append(
-                    f"⚠️ MEDIUM: Object stream detected — used for obfuscation"
-                )
+                # Object streams are common in legitimate PDFs.
+                # Only treat as suspicious if there are also "active" actions.
+                active_markers = ["/JavaScript", "/JS", "/AA", "/Launch", "/EmbeddedFile", "/Encrypt", "/URI", "/SubmitForm", "/GoToR"]
+                if any(m in raw_text for m in active_markers):
+                    findings.append("high_object_count")
+                    details.append(
+                        "⚠️ MEDIUM: Object stream detected with active actions — possible obfuscation"
+                    )
 
     # Check for high object count using regex
+    # Normal Office-generated PDFs often contain hundreds of objects.
     obj_count = len(re.findall(r'\d+ \d+ obj', raw_text))
-    if obj_count > 100:
+    if obj_count > 1200:
         findings.append("high_object_count")
         details.append(
             f"⚠️ HIGH: Suspicious object count: {obj_count} objects"
+        )
+    elif obj_count > 600 and any(m in raw_text for m in ["/JavaScript", "/JS", "/AA", "/Launch", "/EmbeddedFile", "/Encrypt", "/URI", "/SubmitForm", "/GoToR"]):
+        findings.append("high_object_count")
+        details.append(
+            f"⚠️ MEDIUM: High object count with active actions: {obj_count} objects"
         )
 
     # Check for encrypted objects
@@ -665,13 +797,31 @@ def content_analysis(pdf_document):
     # IMAGE-BASED PHISHING DETECTION
     # --------------------------------------------------
 
-    # Check 1 — Large single image PDF
-    if total_images >= 1 and len(total_text.strip()) < 100:
+    # Check 1 — Image-only PDFs
+    # Many legitimate documents are scans (images) with little/no extractable text.
+    # Only flag as phishing-like when combined with links/URLs/phishing keywords.
+    url_like_findings = {
+        "suspicious_url",
+        "ip_based_url",
+        "shortened_url",
+        "suspicious_tld",
+        "at_symbol_trick",
+        "mismatched_anchor",
+        "homograph_domain",
+    }
+
+    has_url_indicators = any(f in url_like_findings for f in findings)
+    has_keyword_indicators = keyword_hits > 0 or urgency_hits > 0 or financial_hits > 0 or credential_hits > 0
+
+    if total_images >= 1 and len(total_text.strip()) < 100 and (total_links > 0 or has_url_indicators or has_keyword_indicators):
         findings.append("single_image_pdf")
         details.append(
             f"🚨 Single-image PDF detected — "
-            f"{total_images} image(s), very little text. "
-            f"Classic image-based phishing!"
+            f"{total_images} image(s), very little text, with link/URL/keyword indicators."
+        )
+    elif total_images >= 1 and len(total_text.strip()) < 100:
+        details.append(
+            f"ℹ️ Image-heavy PDF detected — {total_images} image(s), little extractable text (common for scans)."
         )
 
     # Check 2 — Many images with links (clickable overlays)
@@ -752,7 +902,7 @@ def behavioral_analysis(raw_text):
     hex_matches = hex_pattern.findall(raw_text)
 
     for match in hex_matches:
-        if is_hex_encoded(match):
+        if is_suspicious_hex_payload(match):
             findings.append("hex_payload")
             details.append(
                 f"🚨 HIGH: Hex encoded payload detected "
@@ -809,6 +959,13 @@ def behavioral_analysis(raw_text):
     # CHECK 7 — Split string concatenation (obfuscation)
     # --------------------------------------------------
 
+    # Only flag string concatenation obfuscation when there are indicators
+    # of executable/active content (e.g., JavaScript actions) present.
+    has_active_content = any(
+        marker in raw_lower
+        for marker in ["/javascript", "/js", "/aa", "/launch"]
+    )
+
     split_patterns = [
         r'"\s*\+\s*"',          # "str" + "str"
         r"'\s*\+\s*'",          # 'str' + 'str'
@@ -816,12 +973,13 @@ def behavioral_analysis(raw_text):
         r'fromcharcode',        # fromCharCode obfuscation
     ]
 
-    for pattern in split_patterns:
-        if re.search(pattern, raw_lower):
-            findings.append("split_string_concat")
-            details.append(
-                f"⚠️ MEDIUM: String obfuscation detected: '{pattern}'"
-            )
+    if has_active_content:
+        for pattern in split_patterns:
+            if re.search(pattern, raw_lower):
+                findings.append("split_string_concat")
+                details.append(
+                    f"⚠️ MEDIUM: String obfuscation detected: '{pattern}'"
+                )
 
     details.append(f"Behavioral findings: {len(findings)}")
     return findings, details
@@ -922,9 +1080,8 @@ def parse_pdf(file_path):
             all_details.append(f"Creator  : {creator}")
 
             if not author or author == "Unknown":
-                all_findings.append("suspicious_url")
                 all_details.append(
-                    "⚠️ No author in metadata — common in phishing PDFs"
+                    "ℹ️ No author in metadata (common in many legitimate PDFs too)"
                 )
 
         # ----------------------------------------------

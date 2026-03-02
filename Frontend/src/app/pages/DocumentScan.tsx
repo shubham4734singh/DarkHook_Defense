@@ -4,10 +4,37 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { useAuth } from '../contexts/AuthContext';
 import logo from '@/assets/eabe0015a9a1edfe92cb4ac7f5415daf9aa9241d.png';
+
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+
+interface Finding {
+  name: string;
+  severity: string;
+}
+
+interface ScoreBreakdownItem {
+  finding_type: string;
+  score: number;
+}
+
+interface ScanResult {
+  fileName: string;
+  fileSize: string;
+  fileHash: string;
+  riskScore: number;
+  verdict: string;
+  scanTime: number;
+  totalFindings: number;
+  findings: string[];
+  scoreBreakdown: ScoreBreakdownItem[];
+  details: string[];
+}
+
 export function DocumentScan() {
   const [file, setFile] = useState<File | null>(null);
   const [scanning, setScanning] = useState(false);
-  const [result, setResult] = useState<any>(null);
+  const [result, setResult] = useState<ScanResult | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
   const { logout } = useAuth();
 
@@ -16,48 +43,63 @@ export function DocumentScan() {
     navigate('/');
   };
 
-  const handleScan = () => {
+  const handleScan = async () => {
     if (!file) return;
     
     setScanning(true);
+    setError(null);
     
-    // Mock scanning process
-    setTimeout(() => {
-      setResult({
-        fileName: file.name,
-        fileSize: (file.size / 1024).toFixed(2) + ' KB',
-        riskScore: Math.floor(Math.random() * 100),
-        status: ['safe', 'suspicious', 'dangerous'][Math.floor(Math.random() * 3)],
-        threats: [
-          { name: 'Macro Analysis', status: Math.random() > 0.5 ? 'safe' : 'warning' },
-          { name: 'Embedded Scripts', status: 'safe' },
-          { name: 'Suspicious Metadata', status: Math.random() > 0.5 ? 'safe' : 'warning' },
-          { name: 'Known Malware Signatures', status: 'safe' },
-          { name: 'File Structure Integrity', status: 'safe' },
-        ]
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      
+      const response = await fetch(`${API_BASE_URL}/scan/document`, {
+        method: 'POST',
+        body: formData,
       });
+      
+      if (!response.ok) {
+        throw new Error('Failed to scan document');
+      }
+      
+      const data: ScanResult = await response.json();
+      setResult(data);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'An error occurred while scanning');
+      console.error('Scan error:', err);
+    } finally {
       setScanning(false);
-    }, 2000);
+    }
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const uploadedFile = e.target.files?.[0];
     if (uploadedFile) {
       setFile(uploadedFile);
+      setError(null);
     }
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
+  const getVerdictColor = (verdict: string) => {
+    if (verdict.includes('Safe')) return '#00D68F';
+    if (verdict.includes('Suspicious')) return '#FFAA00';
+    if (verdict.includes('High Risk')) return '#FF6633';
+    if (verdict.includes('Dangerous')) return '#FF3B3B';
+    return '#1E3A5F';
+  };
+
+  const getSeverityColor = (severity: string) => {
+    switch (severity) {
       case 'safe': return '#00D68F';
-      case 'suspicious': return '#FFAA00';
-      case 'dangerous': return '#FF3B3B';
+      case 'warning': return '#FFAA00';
+      case 'danger': return '#FF6633';
+      case 'critical': return '#FF3B3B';
       default: return '#1E3A5F';
     }
   };
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
+  const getSeverityIcon = (severity: string) => {
+    switch (severity) {
       case 'safe': return <CheckCircle className="w-5 h-5" />;
       case 'warning': return <AlertTriangle className="w-5 h-5" />;
       default: return <XCircle className="w-5 h-5" />;
@@ -157,12 +199,21 @@ export function DocumentScan() {
                     </div>
                   </div>
                   <button
-                    onClick={() => setFile(null)}
+                    onClick={() => {
+                      setFile(null);
+                      setError(null);
+                    }}
                     className="text-[#FF3B3B] hover:text-[#ff5555] text-sm font-medium"
                   >
                     Remove
                   </button>
                 </div>
+              </div>
+            )}
+
+            {error && (
+              <div className="mb-6 p-4 bg-[#FF3B3B]/10 border border-[#FF3B3B] rounded-lg">
+                <p className="text-[#FF3B3B] font-medium">{error}</p>
               </div>
             )}
 
@@ -186,14 +237,14 @@ export function DocumentScan() {
               <div className="bg-[#0D1F38] border border-[#1E3A5F] rounded-2xl p-8">
                 <div className="text-center mb-6">
                   <div className="inline-flex items-center justify-center w-32 h-32 rounded-full border-8 mb-4"
-                    style={{ borderColor: getStatusColor(result.status) }}>
+                    style={{ borderColor: getVerdictColor(result.verdict) }}>
                     <span className="text-4xl font-bold text-white">{result.riskScore}</span>
                   </div>
-                  <h3 className="text-2xl font-bold mb-2" style={{ color: getStatusColor(result.status) }}>
-                    {result.status === 'safe' ? '🟢 SAFE' : result.status === 'suspicious' ? '🟡 SUSPICIOUS' : '🔴 DANGEROUS'}
+                  <h3 className="text-2xl font-bold mb-2" style={{ color: getVerdictColor(result.verdict) }}>
+                    {result.riskScore < 30 ? '🟢 SAFE' : result.riskScore < 60 ? '🟡 SUSPICIOUS' : result.riskScore < 80 ? '🟠 HIGH RISK' : '🔴 CRITICAL'}
                   </h3>
                   <p className="text-[#8BA3BC]">
-                    {result.status === 'safe' ? 'No threats detected' : result.status === 'suspicious' ? 'Proceed with caution' : 'Do not open this document'}
+                    {result.verdict}
                   </p>
                 </div>
 
@@ -207,25 +258,56 @@ export function DocumentScan() {
                       <p className="text-[#8BA3BC] text-sm mb-1">File Size</p>
                       <p className="text-white font-medium text-sm">{result.fileSize}</p>
                     </div>
+                    <div>
+                      <p className="text-[#8BA3BC] text-sm mb-1">Threats Found</p>
+                      <p className="text-white font-medium text-sm">{result.totalFindings}</p>
+                    </div>
+                    <div>
+                      <p className="text-[#8BA3BC] text-sm mb-1">Scan Time</p>
+                      <p className="text-white font-medium text-sm">{result.scanTime.toFixed(2)}s</p>
+                    </div>
                   </div>
+                </div>
+
+                <div className="mt-6 pt-6 border-t border-[#1E3A5F]">
+                  <p className="text-[#8BA3BC] text-sm mb-2">File Hash (SHA256)</p>
+                  <p className="text-white font-mono text-xs break-all bg-[#060D1A] p-3 rounded border border-[#1E3A5F]">{result.fileHash}</p>
                 </div>
               </div>
 
-              {/* Threat Details */}
-              <div className="bg-[#0D1F38] border border-[#1E3A5F] rounded-2xl p-8">
-                <h3 className="text-xl font-bold text-white mb-4">Document Analysis</h3>
-                <div className="space-y-3">
-                  {result.threats.map((threat: any, index: number) => (
-                    <div
-                      key={index}
-                      className="flex items-center justify-between p-4 bg-[#060D1A] border border-[#1E3A5F] rounded-lg"
-                    >
-                      <span className="text-white font-medium">{threat.name}</span>
-                      <div className="flex items-center gap-2" style={{ color: getStatusColor(threat.status) }}>
-                        {getStatusIcon(threat.status)}
-                        <span className="text-sm font-semibold uppercase">{threat.status}</span>
+              {/* Findings */}
+              {result.totalFindings > 0 && (
+                <div className="bg-[#0D1F38] border border-[#1E3A5F] rounded-2xl p-8">
+                  <h3 className="text-xl font-bold text-white mb-4">Detected Threats ({result.totalFindings})</h3>
+                  <div className="space-y-3">
+                    {result.scoreBreakdown.map((item, index) => (
+                      <div
+                        key={index}
+                        className="flex items-center justify-between p-4 bg-[#060D1A] border border-[#1E3A5F] rounded-lg"
+                      >
+                        <span className="text-white font-medium">{item.finding_type}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-semibold text-white bg-[#1E3A5F] px-3 py-1 rounded">
+                            +{item.score}
+                          </span>
+                        </div>
                       </div>
-                    </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Detailed Analysis */}
+              <div className="bg-[#0D1F38] border border-[#1E3A5F] rounded-2xl p-8">
+                <h3 className="text-xl font-bold text-white mb-4">Detailed Analysis</h3>
+                <div className="space-y-2 max-h-96 overflow-y-auto">
+                  {result.details.map((detail, index) => (
+                    <p
+                      key={index}
+                      className="text-[#8BA3BC] text-sm font-mono"
+                    >
+                      {detail}
+                    </p>
                   ))}
                 </div>
               </div>
