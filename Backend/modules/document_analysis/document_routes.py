@@ -10,6 +10,7 @@ from typing import List, Dict, Any
 import tempfile
 
 from ..document_analysis.pdf_parser import parse_pdf
+from ..document_analysis.docx_parser import parse_docx
 from ..document_analysis.scorer import calculate_score
 
 router = APIRouter()
@@ -131,11 +132,7 @@ async def scan_document(file: UploadFile = File(...)):
             if suffix == ".pdf":
                 result = parse_pdf(tmp_path)
             elif suffix == ".docx":
-                # DOCX parser coming soon
-                raise HTTPException(
-                    status_code=501,
-                    detail="DOCX analysis coming soon. Currently supporting PDF only."
-                )
+                result = parse_docx(tmp_path)
             elif suffix in [".xlsx", ".xls"]:
                 # Excel parser coming soon
                 raise HTTPException(
@@ -154,7 +151,7 @@ async def scan_document(file: UploadFile = File(...)):
                     detail=f"Unsupported file format: {suffix}. Currently supporting: .pdf"
                 )
             
-            # Calculate score
+            # Calculate score using centralized scorer for all document types
             score_result = calculate_score(result["findings"])
             
             # Format findings with severity
@@ -224,8 +221,8 @@ async def supported_formats():
             {
                 "name": "Word",
                 "extension": ".docx",
-                "description": "Microsoft Word Document - Coming Soon",
-                "supported": False
+                "description": "Microsoft Word Document - Fully Supported",
+                "supported": True
             },
             {
                 "name": "Excel",

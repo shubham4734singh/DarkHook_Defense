@@ -14,10 +14,10 @@
 WEIGHTS = {
     # General findings
     "suspicious_url"     : 15,   # Suspicious link found
-    "malicious_macro"    : 30,   # Dangerous macro in Word/Excel
+    "malicious_macro"    : 40,   # Dangerous macro in Word/Excel
     "hidden_script"      : 25,   # Hidden script inside file
     "qr_malicious_url"   : 20,   # QR code pointing to bad URL
-    "phishing_keyword"   : 5,    # Phishing words like "verify account"
+    "phishing_keyword"   : 10,   # Phishing words like "verify account"
     "suspicious_domain"  : 15,   # Known bad domain found
     "embedded_object"    : 20,   # Suspicious embedded object
     "ocr_phishing_text"  : 10,   # Phishing text found in image
@@ -58,6 +58,59 @@ WEIGHTS = {
     "dropper_pattern"          : 40,  # Malware dropper indicators
     "split_string_concat"      : 20,  # String obfuscation
     "embedded_executable"      : 45,  # Embedded EXE/DLL files
+    
+    # DOCX-specific file structure findings
+    "file_type_mismatch"         : 40,  # File extension doesn't match content
+    "corrupted_structure"        : 30,  # Corrupted or malformed structure
+    "double_extension"           : 35,  # Double extension trick
+    "malformed_zip"              : 25,  # DOCX has bad ZIP structure
+    
+    # DOCX metadata findings
+    "suspicious_metadata"        : 15,  # Suspicious author/creator info
+    "wiped_metadata"             : 20,  # Metadata intentionally removed
+    "metadata_mismatch"          : 20,  # Metadata inconsistencies
+    "suspicious_template"        : 25,  # Suspicious template reference
+    
+    # DOCX macro findings
+    "autoopen_macro"             : 35,  # Auto-execute macro
+    "hidden_macro_stream"        : 35,  # Hidden VBA streams
+    
+    # DOCX VBA behavior findings
+    "suspicious_vba_api"         : 30,  # Suspicious API calls in VBA
+    "powershell_in_vba"          : 40,  # PowerShell execution from VBA
+    "network_call_in_vba"        : 35,  # Network calls from VBA
+    "file_system_access"         : 25,  # File system operations
+    "registry_access"            : 30,  # Windows registry access
+    "process_creation"           : 35,  # Creating new processes
+    
+    # DOCX obfuscation findings
+    "encoded_macro_payload"      : 35,  # Encoded/obfuscated macro code
+    "string_obfuscation"         : 25,  # Obfuscated strings
+    "junk_code_detected"         : 15,  # Intentional junk/dead code
+    
+    # DOCX embedded object findings
+    "embedded_ole_object"        : 30,  # Embedded OLE objects
+    "embedded_script"            : 40,  # Embedded script files
+    "double_extension_payload"   : 40,  # Embedded file with double extension
+    
+    # DOCX external resource findings
+    "external_template"          : 35,  # External template loading
+    "external_image_tracker"     : 20,  # External image for tracking
+    "suspicious_relationship"    : 25,  # Suspicious document relationships
+    "hidden_relationship"        : 30,  # Hidden relationship entries
+    
+    # DOCX content findings
+    "enable_macro_lure"          : 35,  # Text trying to trick user to enable macros
+    "repeated_cta"               : 15,  # Repeated call-to-action phrases
+    "hidden_hyperlink"           : 25,  # Hidden or obfuscated hyperlinks
+    
+    # DOCX attack chain findings
+    "download_execute_pattern"   : 40,  # Download and execute pattern detected
+    "multistage_indicator"       : 35,  # Multi-stage attack indicators
+    
+    # DOCX reputation findings
+    "known_malicious_hash"       : 100, # Known malicious file hash
+    "known_macro_signature"      : 45,  # Known malicious macro signature
 }
 
 
