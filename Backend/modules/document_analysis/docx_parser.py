@@ -1,8 +1,9 @@
 # ================================================================
 # docx_parser.py — DarkHOOK_ Defence
-# Version  : 3.0 — Professional Grade
+# Version  : 3.1 — Professional Grade
 # Purpose  : Word document phishing detection using
-#            14 industry-standard techniques
+#            13 industry-standard detection techniques
+#            (Scoring handled by centralized scorer.py)
 #
 # Technique 1  -> File Type Validation
 # Technique 2  -> Metadata Analysis
@@ -17,7 +18,8 @@
 # Technique 11 -> Attack Chain Inference
 # Technique 12 -> Entropy and Payload Detection
 # Technique 13 -> Reputation Matching
-# Technique 14 -> Heuristic Risk Scoring
+# 
+# Final Scoring -> Handled by scorer.py (centralized)
 #
 # Libraries: python-docx, oletools, zipfile,
 #            hashlib, re, math
@@ -50,10 +52,19 @@ except ImportError:
 
 
 # ================================================================
-# CONFIGURATION — Weights, keywords, patterns
+# CONFIGURATION — Keywords and patterns
+# NOTE: Scoring weights are now centralized in scorer.py
+#       The WEIGHTS dict below is kept for reference but not used
 # ================================================================
 
+# WEIGHTS dict moved to scorer.py for centralized scoring
+# All parsers (PDF, DOCX, Excel, PPT) now use scorer.py
+
 WEIGHTS = {
+    # NOTE: These weights are no longer used by this parser
+    # See scorer.py for the active centralized scoring system
+    # Kept here for documentation purposes only
+    
     # File structure
     "file_type_mismatch"         : 40,
     "corrupted_structure"        : 30,
@@ -1351,8 +1362,18 @@ def technique13_reputation(file_path, all_vba_code=""):
 # TECHNIQUE 14 — Heuristic Risk Scoring
 # ================================================================
 
+# ================================================================
+# DEPRECATED: technique14_scoring
+# NOTE: This function is no longer used.
+#       Scoring is now handled by scorer.py (centralized system)
+#       Kept here for reference only
+# ================================================================
+
 def technique14_scoring(all_findings):
     """
+    DEPRECATED: This function is no longer used.
+    Scoring is now centralized in scorer.py for all parsers.
+    
     Converts all findings into a final weighted score.
     Exactly like how real antivirus engines work.
     """
@@ -1470,25 +1491,13 @@ def parse_docx(file_path):
         all_findings.extend(f13)
         all_details.extend(d13)
 
-        # Technique 14 — Final scoring
-        score, verdict, severity, breakdown = technique14_scoring(all_findings)
-
+        # Summary
         all_details.append("")
-        all_details.append("--- TECHNIQUE 14: HEURISTIC SCORING ---")
-        all_details.append("Total techniques run : 14")
+        all_details.append("--- ANALYSIS COMPLETE ---")
+        all_details.append("Total techniques run : 13")
         all_details.append("Total findings       : " + str(len(all_findings)))
-        all_details.append("Danger score         : " + str(score) + "/100")
-        all_details.append("Severity             : " + severity)
-        all_details.append("Verdict              : " + verdict)
         all_details.append("")
-        all_details.append("Score breakdown:")
-
-        for finding, data in breakdown.items():
-            all_details.append(
-                "  " + finding.ljust(35) +
-                " count=" + str(data["count"]) +
-                " score=" + str(data["score"])
-            )
+        all_details.append("Note: Final scoring calculated by centralized scorer.py")
 
     except Exception as error:
         all_details.append("Critical error: " + str(error))

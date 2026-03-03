@@ -80,16 +80,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const register = async (name: string, email: string, password: string) => {
     setLoading(true);
     try {
-      const response = await api.register(name, email, password);
+      // Register returns success message, NOT a token
+      // User must verify email and then login to get authenticated
+      await api.register(name, email, password);
       
-      // Store token
-      localStorage.setItem('darkhook_token', response.access_token);
-      
-      // Get user info
-      const userInfo = await api.getCurrentUser();
-      setUser(userInfo);
-      setIsAuthenticated(true);
-      localStorage.setItem('darkhook_user', JSON.stringify(userInfo));
+      // Do NOT authenticate here - user must verify email then login
+      setLoading(false);
     } catch (error) {
       setLoading(false);
       throw error;
