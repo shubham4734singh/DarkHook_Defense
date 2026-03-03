@@ -45,7 +45,7 @@ SMTP_FROM = os.getenv("SMTP_FROM")
 SMTP_USE_TLS = os.getenv("SMTP_USE_TLS", "true").strip().lower() in {"1", "true", "yes"}
 SMTP_USE_SSL = os.getenv("SMTP_USE_SSL", "false").strip().lower() in {"1", "true", "yes"}
 SMTP_SSL_PORT = int(os.getenv("SMTP_SSL_PORT", "465"))
-SMTP_TIMEOUT_SECONDS = int(os.getenv("SMTP_TIMEOUT_SECONDS", "15"))
+SMTP_TIMEOUT_SECONDS = int(os.getenv("SMTP_TIMEOUT_SECONDS", "5"))
 SMTP_FALLBACK_TO_SSL = os.getenv("SMTP_FALLBACK_TO_SSL", "true").strip().lower() in {"1", "true", "yes"}
 
 # Development-only helper: when enabled, OTP is not emailed (printed to logs)
@@ -136,16 +136,107 @@ def _send_email_otp(to_email: str, otp: str):
     if missing:
         raise RuntimeError(f"Missing SMTP config: {', '.join(missing)}")
 
-    msg = EmailMessage()
-    msg["Subject"] = "Your DarkHook Defense verification code"
-    msg["From"] = SMTP_FROM
-    msg["To"] = to_email
-    msg.set_content(
-        "Your verification code is:\n\n"
-        f"{otp}\n\n"
-        f"This code expires in {OTP_TTL_MINUTES} minutes.\n"
+    # Split OTP digits for the styled boxes
+    otp_boxes = "".join(
+        f'<td style="width:44px;height:52px;background:#f9f9f9;border:2px solid #222;'
+        f'border-radius:8px;text-align:center;vertical-align:middle;'
+        f'font-size:26px;font-weight:700;color:#111;letter-spacing:2px;'
+        f'font-family:\'Courier New\',monospace;">{d}</td>'
+        for d in otp
+    )
+
+    html_body = f"""\
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"></head>
+<body style="margin:0;padding:0;background:#f4f4f4;font-family:'Segoe UI',Arial,sans-serif;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f4f4;padding:40px 0;">
+  <tr><td align="center">
+    <table role="presentation" width="500" cellpadding="0" cellspacing="0"
+           style="background:#ffffff;border:1px solid #e0e0e0;
+                  border-radius:12px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.06);">
+
+      <!-- Header -->
+      <tr><td style="padding:36px 40px 12px;text-align:center;border-bottom:1px solid #eee;">
+        <div style="font-size:28px;font-weight:800;color:#111;letter-spacing:0.5px;">
+          DarkHook Defense
+        </div>
+        <div style="margin-top:6px;font-size:12px;color:#999;letter-spacing:1.5px;text-transform:uppercase;">
+          Phishing Detection Engine
+        </div>
+      </td></tr>
+
+      <!-- Greeting -->
+      <tr><td style="padding:32px 40px 10px;text-align:center;">
+        <div style="font-size:20px;font-weight:600;color:#222;">Verify Your Email</div>
+        <div style="margin-top:12px;font-size:14px;color:#666;line-height:1.7;">
+          Enter the code below to complete your verification.<br>
+          This code expires in <strong style="color:#111;">{OTP_TTL_MINUTES} minutes</strong>.
+        </div>
+      </td></tr>
+
+      <!-- OTP Code -->
+      <tr><td style="padding:24px 40px;" align="center">
+        <table role="presentation" cellpadding="0" cellspacing="6">
+          <tr>{otp_boxes}</tr>
+        </table>
+      </td></tr>
+
+      <!-- Inspirational Quote -->
+      <tr><td style="padding:16px 48px 20px;text-align:center;">
+        <div style="background:#fafafa;border-left:3px solid #333;padding:14px 20px;
+                    border-radius:0 8px 8px 0;text-align:left;">
+          <div style="font-size:13px;color:#555;font-style:italic;line-height:1.6;">
+            &ldquo;The best defense against phishing is awareness. Stay vigilant, stay safe.&rdquo;
+          </div>
+          <div style="margin-top:6px;font-size:11px;color:#999;font-weight:600;">
+            &mdash; DarkHook Defense Team
+          </div>
+        </div>
+      </td></tr>
+
+      <!-- Warning -->
+      <tr><td style="padding:4px 40px 28px;text-align:center;">
+        <div style="display:inline-block;background:#fff5f5;border:1px solid #fecaca;
+                    border-radius:6px;padding:10px 18px;">
+          <span style="font-size:12px;color:#b91c1c;">
+            &#x26a0;&#xfe0f; Didn&rsquo;t request this? You can safely ignore this email.
+          </span>
+        </div>
+      </td></tr>
+
+      <!-- Footer -->
+      <tr><td style="padding:20px 40px 28px;text-align:center;border-top:1px solid #eee;">
+        <div style="font-size:12px;color:#aaa;line-height:1.5;">
+          This is an automated message from <strong style="color:#888;">DarkHook Defense</strong>.<br>
+          Please do not reply to this email.
+        </div>
+        <div style="margin-top:10px;font-size:11px;color:#ccc;">
+          &copy; 2026 DarkHook Defense &mdash; Protecting you from phishing threats.
+        </div>
+      </td></tr>
+
+    </table>
+  </td></tr>
+</table>
+</body>
+</html>"""
+
+    plain_text = (
+        "Your DarkHook Defense verification code is:\n\n"
+        f"  {otp}\n\n"
+        f"This code expires in {OTP_TTL_MINUTES} minutes.\n\n"
+        "\"The best defense against phishing is awareness. Stay vigilant, stay safe.\"\n"
+        "  — DarkHook Defense Team\n\n"
         "If you did not request this code, you can ignore this email.\n"
     )
+
+    msg = EmailMessage()
+    msg["Subject"] = "Your DarkHook Defense Verification Code"
+    msg["From"] = SMTP_FROM
+    msg["To"] = to_email
+    msg.set_content(plain_text)
+    msg.add_alternative(html_body, subtype="html")
 
     # Gmail "App Passwords" are often copied with spaces for readability; strip them.
     smtp_password = (SMTP_PASSWORD or "").replace(" ", "")
@@ -231,7 +322,7 @@ def get_current_user_email(token: str = Depends(oauth2_scheme)):
 # Routes
 # -------------------------
 
-@router.post("/register", response_model=Token)
+@router.post("/register")
 async def register(user: User):
     try:
         users_collection = get_users_collection()
@@ -254,8 +345,12 @@ async def register(user: User):
 
         users_collection.insert_one(user_doc)
 
-        access_token = create_access_token(data={"sub": user.email})
-        return {"access_token": access_token, "token_type": "bearer"}
+        # Return success message without token - user must verify email then login
+        return {
+            "message": "Registration successful. Please verify your email to complete setup.",
+            "email": user.email,
+            "requires_verification": REQUIRE_EMAIL_VERIFICATION
+        }
 
     except HTTPException:
         raise

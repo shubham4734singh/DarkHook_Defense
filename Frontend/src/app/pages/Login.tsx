@@ -46,11 +46,8 @@ export function Login() {
       const res = await api.verifyEmailOtp(email, otp);
       setInfo(res.message || 'Email verified.');
 
-      // If user came here due to login being blocked, retry login.
-      // If user came here after signup, they may already have a token.
-      if (isLogin) {
-        await login(email, password);
-      }
+      // After OTP verification, log the user in (works for both signup and login flows)
+      await login(email, password);
 
       const redirectPath = localStorage.getItem('darkhook_redirect');
       if (redirectPath) {

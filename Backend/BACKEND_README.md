@@ -184,7 +184,7 @@ SMTP_USE_TLS=true
 # SMTP_SSL_PORT=465
 
 # Network tuning / fallback (useful on hosted platforms)
-SMTP_TIMEOUT_SECONDS=15
+SMTP_TIMEOUT_SECONDS=5
 SMTP_FALLBACK_TO_SSL=true
 
 # OTP behavior
@@ -192,6 +192,7 @@ OTP_TTL_MINUTES=10
 OTP_RESEND_COOLDOWN_SECONDS=60
 OTP_MAX_ATTEMPTS=5
 ```
+
 
 Note: Gmail "App Passwords" are often copied with spaces for readability; the backend strips spaces automatically.
 
