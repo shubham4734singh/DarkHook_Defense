@@ -255,18 +255,18 @@ def _send_email_otp(to_email: str, otp: str):
             _send_email_otp_via_api(to_email, otp)
             return
         except Exception as api_error:
-            print(f"⚠️  Brevo API failed: {api_error}. Falling back to SMTP...")
+            print(f"⚠️  Brevo API failed: {api_error}. Checking SMTP fallback...")
 
-    # Fallback to SMTP
-    missing = [k for k, v in {
-        "SMTP_HOST": SMTP_HOST,
-        "SMTP_USERNAME": SMTP_USERNAME,
-        "SMTP_PASSWORD": SMTP_PASSWORD,
-        "SMTP_FROM": SMTP_FROM,
-    }.items() if not v]
-
-    if missing:
-        raise RuntimeError(f"Missing SMTP config: {', '.join(missing)}")
+    # Fallback to SMTP (only if fully configured)
+    smtp_configured = all([SMTP_HOST, SMTP_USERNAME, SMTP_PASSWORD, SMTP_FROM])
+    
+    if not smtp_configured:
+        if BREVO_API_KEY:
+            # API was tried but failed, and SMTP not configured
+            raise RuntimeError("Email sending failed: Brevo API error and SMTP not configured")
+        else:
+            # Neither API nor SMTP configured
+            raise RuntimeError("Email sending not configured: Set BREVO_API_KEY or configure SMTP")
 
     # Split OTP digits for the styled boxes
     otp_boxes = "".join(
