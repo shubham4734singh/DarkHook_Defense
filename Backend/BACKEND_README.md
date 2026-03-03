@@ -184,7 +184,8 @@ SMTP_USE_TLS=true
 # SMTP_SSL_PORT=465
 
 # Network tuning / fallback (useful on hosted platforms)
-SMTP_TIMEOUT_SECONDS=5
+# Increase timeout if you get "timed out" errors (default: 30 seconds)
+SMTP_TIMEOUT_SECONDS=30
 SMTP_FALLBACK_TO_SSL=true
 
 # OTP behavior

@@ -45,7 +45,7 @@ SMTP_FROM = os.getenv("SMTP_FROM")
 SMTP_USE_TLS = os.getenv("SMTP_USE_TLS", "true").strip().lower() in {"1", "true", "yes"}
 SMTP_USE_SSL = os.getenv("SMTP_USE_SSL", "false").strip().lower() in {"1", "true", "yes"}
 SMTP_SSL_PORT = int(os.getenv("SMTP_SSL_PORT", "465"))
-SMTP_TIMEOUT_SECONDS = int(os.getenv("SMTP_TIMEOUT_SECONDS", "5"))
+SMTP_TIMEOUT_SECONDS = int(os.getenv("SMTP_TIMEOUT_SECONDS", "30"))
 SMTP_FALLBACK_TO_SSL = os.getenv("SMTP_FALLBACK_TO_SSL", "true").strip().lower() in {"1", "true", "yes"}
 
 # Development-only helper: when enabled, OTP is not emailed (printed to logs)
