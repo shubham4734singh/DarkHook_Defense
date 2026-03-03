@@ -6,6 +6,8 @@ import os
 import hashlib
 import secrets
 import smtplib
+import ssl
+import errno
 from email.message import EmailMessage
 from passlib.context import CryptContext
 from jose import jwt, JWTError, ExpiredSignatureError
@@ -41,6 +43,10 @@ SMTP_USERNAME = os.getenv("SMTP_USERNAME")
 SMTP_PASSWORD = os.getenv("SMTP_PASSWORD")
 SMTP_FROM = os.getenv("SMTP_FROM")
 SMTP_USE_TLS = os.getenv("SMTP_USE_TLS", "true").strip().lower() in {"1", "true", "yes"}
+SMTP_USE_SSL = os.getenv("SMTP_USE_SSL", "false").strip().lower() in {"1", "true", "yes"}
+SMTP_SSL_PORT = int(os.getenv("SMTP_SSL_PORT", "465"))
+SMTP_TIMEOUT_SECONDS = int(os.getenv("SMTP_TIMEOUT_SECONDS", "15"))
+SMTP_FALLBACK_TO_SSL = os.getenv("SMTP_FALLBACK_TO_SSL", "true").strip().lower() in {"1", "true", "yes"}
 
 # Development-only helper: when enabled, OTP is not emailed (printed to logs)
 OTP_EMAIL_SENDING_DISABLED = os.getenv("OTP_EMAIL_SENDING_DISABLED", "false").strip().lower() in {"1", "true", "yes"}
@@ -141,11 +147,55 @@ def _send_email_otp(to_email: str, otp: str):
         "If you did not request this code, you can ignore this email.\n"
     )
 
-    with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=15) as server:
-        if SMTP_USE_TLS:
-            server.starttls()
-        server.login(SMTP_USERNAME, SMTP_PASSWORD)
-        server.send_message(msg)
+    # Gmail "App Passwords" are often copied with spaces for readability; strip them.
+    smtp_password = (SMTP_PASSWORD or "").replace(" ", "")
+
+    def _try_send(use_ssl: bool, port: int):
+        if use_ssl:
+            context = ssl.create_default_context()
+            with smtplib.SMTP_SSL(SMTP_HOST, port, timeout=SMTP_TIMEOUT_SECONDS, context=context) as server:
+                server.login(SMTP_USERNAME, smtp_password)
+                server.send_message(msg)
+        else:
+            with smtplib.SMTP(SMTP_HOST, port, timeout=SMTP_TIMEOUT_SECONDS) as server:
+                server.ehlo()
+                if SMTP_USE_TLS:
+                    server.starttls(context=ssl.create_default_context())
+                    server.ehlo()
+                server.login(SMTP_USERNAME, smtp_password)
+                server.send_message(msg)
+
+    try:
+        # Primary attempt: whatever is configured via env vars.
+        primary_port = SMTP_SSL_PORT if SMTP_USE_SSL else SMTP_PORT
+        _try_send(SMTP_USE_SSL, primary_port)
+        return
+    except (OSError, smtplib.SMTPException) as exc:
+        # Common on some hosting providers: outbound SMTP is blocked, producing ENETUNREACH.
+        # Optionally fall back from STARTTLS/587 to SSL/465.
+        should_fallback = (
+            SMTP_FALLBACK_TO_SSL
+            and not SMTP_USE_SSL
+            and isinstance(exc, OSError)
+            and getattr(exc, "errno", None) in {errno.ENETUNREACH, errno.EHOSTUNREACH}
+        )
+        if should_fallback:
+            try:
+                _try_send(True, SMTP_SSL_PORT)
+                return
+            except Exception:
+                pass
+
+        hint = ""
+        if isinstance(exc, OSError) and getattr(exc, "errno", None) in {errno.ENETUNREACH, errno.EHOSTUNREACH}:
+            hint = (
+                " Outbound SMTP may be blocked in this hosting environment. "
+                "On Render/hosted platforms, prefer an email provider API (SendGrid/Mailgun/Resend) "
+                "or configure allowed egress."
+            )
+        raise RuntimeError(
+            f"SMTP send failed (host={SMTP_HOST}, port={(SMTP_SSL_PORT if SMTP_USE_SSL else SMTP_PORT)}, ssl={SMTP_USE_SSL}, tls={SMTP_USE_TLS}): {exc}.{hint}"
+        )
 
 
 # -------------------------
