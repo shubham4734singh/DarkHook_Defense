@@ -154,6 +154,84 @@ Interactive docs (Swagger UI): `http://localhost:8000/docs`
 
 ## 📡 API Endpoints
 
+## 🔐 Email OTP Verification (Optional)
+
+The backend supports **email OTP verification** (one-time password sent to the user’s email) to confirm ownership of an account.
+
+### Enable / Disable
+
+- By default, OTP endpoints are available, but login is not blocked.
+- To block login for unverified emails, set:
+
+```bash
+REQUIRE_EMAIL_VERIFICATION=true
+```
+
+### Required SMTP Environment Variables
+
+Set these in your `.env` (local) or Render/Vercel environment settings:
+
+```bash
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_USERNAME=your_email@gmail.com
+SMTP_PASSWORD=your_app_password
+SMTP_FROM="DarkHook Defense <your_email@gmail.com>"
+SMTP_USE_TLS=true
+
+# OTP behavior
+OTP_TTL_MINUTES=10
+OTP_RESEND_COOLDOWN_SECONDS=60
+OTP_MAX_ATTEMPTS=5
+```
+
+For local development only, you can disable sending and print OTPs to the backend logs:
+
+```bash
+OTP_EMAIL_SENDING_DISABLED=true
+```
+
+### Endpoints
+
+- `POST /auth/email-otp/request`
+  - Body:
+    ```json
+    {"email":"user@example.com"}
+    ```
+  - Response (always generic to avoid account enumeration):
+    ```json
+    {"message":"If the account exists, an OTP has been sent."}
+    ```
+
+- `POST /auth/email-otp/verify`
+  - Body:
+    ```json
+    {"email":"user@example.com","otp":"123456"}
+    ```
+  - Response:
+    ```json
+    {"message":"Email verified successfully."}
+    ```
+
+### Quick Test Flow (curl)
+
+```bash
+# 1) Register normally
+curl -X POST http://localhost:8000/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"name":"Test","email":"user@example.com","password":"Passw0rd!"}'
+
+# 2) Request OTP
+curl -X POST http://localhost:8000/auth/email-otp/request \
+  -H "Content-Type: application/json" \
+  -d '{"email":"user@example.com"}'
+
+# 3) Verify OTP (replace 123456)
+curl -X POST http://localhost:8000/auth/email-otp/verify \
+  -H "Content-Type: application/json" \
+  -d '{"email":"user@example.com","otp":"123456"}'
+```
+
 ### `POST /analyze/url`
 
 Analyzes a URL for phishing indicators using 20+ extracted features and a trained ML model.
