@@ -10,7 +10,6 @@ from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
-from starlette.exceptions import HTTPException as StarletteHTTPException
 
 # Load environment variables (for local development)
 load_dotenv()
@@ -32,17 +31,36 @@ FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
+    print("=" * 60)
+    print("🚀 DarkHook Defense Backend Starting Up")
+    print("=" * 60)
+    
+    # Check critical env vars
+    required_vars = ["MONGO_URI", "SECRET_KEY", "SMTP_HOST"]
+    missing = [var for var in required_vars if not os.getenv(var)]
+    if missing:
+        print(f"❌ CRITICAL: Missing env vars: {', '.join(missing)}")
+        print("   Please set these in Render dashboard before continuing")
+    else:
+        print("✓ All required environment variables present")
+    
+    # Test MongoDB connection
     try:
-        get_client()
-        print("✓ MongoDB connected successfully!")
+        client = get_client()
+        client.admin.command("ping")
+        print("✓ MongoDB connection successful!")
     except Exception as e:
-        print(f"✗ MongoDB connection failed: {e}")
+        print(f"⚠️  MongoDB connection warning: {e}")
+        print("   App will continue but database operations may fail")
 
     yield
 
     # Shutdown
-    close_connection()
-    print("✓ MongoDB connection closed")
+    try:
+        close_connection()
+        print("✓ MongoDB connection closed")
+    except:
+        pass
 
 
 # -------------------------
@@ -84,19 +102,6 @@ app.add_middleware(
 # -------------------------
 # Exception Handlers (Ensure CORS headers on all error responses)
 # -------------------------
-
-@app.exception_handler(StarletteHTTPException)
-async def http_exception_handler(request: Request, exc: StarletteHTTPException):
-    """Handle HTTP exceptions with CORS headers."""
-    return JSONResponse(
-        status_code=exc.status_code,
-        content={"detail": exc.detail},
-        headers={
-            "Access-Control-Allow-Origin": request.headers.get("origin", "*"),
-            "Access-Control-Allow-Credentials": "true",
-        }
-    )
-
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
