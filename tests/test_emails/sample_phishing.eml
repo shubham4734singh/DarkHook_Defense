@@ -1,0 +1,33 @@
+From: PayPal Support <security@paypa1-support.ru>
+Reply-To: PayPal Security <no-reply@paypa1-login.com>
+To: victim@example.com
+Subject: Urgent: Your PayPal account is suspended
+Date: Sun, 1 Mar 2026 10:00:00 +0000
+Message-ID: <1234567890@example.com>
+MIME-Version: 1.0
+Content-Type: multipart/alternative; boundary="BOUNDARY123"
+Authentication-Results: example.com; spf=fail (sender IP 203.0.113.5) smtp.mailfrom=paypa1-support.ru; dkim=fail header.d=paypa1-support.ru; dmarc=fail action=quarantine header.from=paypa1-support.ru
+Received-SPF: fail (example.com: domain of security@paypa1-support.ru does not designate 203.0.113.5 as permitted sender)
+
+--BOUNDARY123
+Content-Type: text/plain; charset="utf-8"
+
+Your account is suspended. Click here to verify immediately.
+This is an urgent security alert. Please verify your account now:
+http://paypa1-login.com/verify
+
+--BOUNDARY123
+Content-Type: text/html; charset="utf-8"
+
+<html>
+  <body>
+    <p><strong>Important account notice</strong></p>
+    <p>Your account is suspended due to suspicious activity.</p>
+    <p>This is an <strong>urgent</strong> security alert. You must
+    <a href="http://paypa1-login.com/verify">click here to verify immediately</a>
+    to restore access to your PayPal account.</p>
+  </body>
+</html>
+
+--BOUNDARY123--
+
