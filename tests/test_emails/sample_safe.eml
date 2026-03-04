@@ -1,0 +1,52 @@
+From: Example Newsletter <newsletter@example.com>
+Reply-To: Example Newsletter <newsletter@example.com>
+To: user@example.com
+Subject: Your weekly news from Example
+Date: Sun, 1 Mar 2026 09:00:00 +0000
+Message-ID: <abcdef123456@example.com>
+MIME-Version: 1.0
+Content-Type: multipart/alternative; boundary="SAFEBOUNDARY"
+Authentication-Results: example.com; spf=pass smtp.mailfrom=example.com; dkim=pass header.d=example.com; dmarc=pass action=none header.from=example.com
+Received-SPF: pass (example.com: domain of newsletter@example.com designates 198.51.100.8 as permitted sender)
+
+--SAFEBOUNDARY
+Content-Type: text/plain; charset="utf-8"
+
+Hello from Example!
+
+Here is your weekly newsletter with updates, articles, and recommended reads
+tailored for you.
+
+You are receiving this email because you subscribed on our website.
+You can manage your preferences or unsubscribe at any time.
+
+Visit us at https://www.example.com for more information.
+
+Best regards,
+The Example Team
+
+--SAFEBOUNDARY
+Content-Type: text/html; charset="utf-8"
+
+<html>
+  <body>
+    <p>Hello from <strong>Example</strong>!</p>
+    <p>
+      Here is your weekly newsletter with updates, articles, and recommended
+      reads tailored for you.
+    </p>
+    <p>
+      You are receiving this email because you subscribed on our website.
+      You can manage your preferences or unsubscribe at any time.
+    </p>
+    <p>
+      Visit us at
+      <a href="https://www.example.com">https://www.example.com</a>
+      for more information.
+    </p>
+    <p>Best regards,<br/>The Example Team</p>
+  </body>
+</html>
+
+--SAFEBOUNDARY--
+
