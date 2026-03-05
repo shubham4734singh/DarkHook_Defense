@@ -217,7 +217,7 @@ WEIGHTS = {
     # --------------------------------------------------------
     "invalid_image_format"       : 30,
     "suspicious_exif"            : 15,
-    "wiped_exif"                 : 20,
+    "wiped_exif"                 : 5,
     "edited_image"               : 15,
     "ocr_failed"                 : 10,
     "low_text_density"           : 15,

@@ -55,6 +55,19 @@ export interface UserResponse {
   email: string;
 }
 
+export interface EmailOtpRequestBody {
+  email: string;
+}
+
+export interface EmailOtpVerifyBody {
+  email: string;
+  otp: string;
+}
+
+export interface MessageResponse {
+  message: string;
+}
+
 class ApiService {
   private baseUrl: string;
 
@@ -126,6 +139,40 @@ class ApiService {
       console.warn('Failed to get current user:', error);
       return null;
     }
+  }
+
+  async requestEmailOtp(email: string): Promise<MessageResponse> {
+    const response = await fetch(`${this.baseUrl}/auth/email-otp/request`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ email } satisfies EmailOtpRequestBody),
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ detail: 'OTP request failed' }));
+      throw new Error(error.detail || 'OTP request failed');
+    }
+
+    return response.json();
+  }
+
+  async verifyEmailOtp(email: string, otp: string): Promise<MessageResponse> {
+    const response = await fetch(`${this.baseUrl}/auth/email-otp/verify`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ email, otp } satisfies EmailOtpVerifyBody),
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ detail: 'OTP verification failed' }));
+      throw new Error(error.detail || 'OTP verification failed');
+    }
+
+    return response.json();
   }
 
   async scanUrl(url: string): Promise<any> {

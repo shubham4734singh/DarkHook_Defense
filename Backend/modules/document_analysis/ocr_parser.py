@@ -308,8 +308,9 @@ URL_SHORTENERS = [
     "goo.gl", "ow.ly", "is.gd",
     "buff.ly", "rebrand.ly", "cutt.ly",
     "shorturl.at", "tiny.cc", "rb.gy",
+    "qrfy.io", "qrfy.com", "qr.io",
+    "qrco.de", "qrd.by", "q-r.to",
 ]
-
 
 # Suspicious TLDs
 SUSPICIOUS_TLDS = [
@@ -630,10 +631,20 @@ def technique2_exif_metadata(file_path):
         exif = img._getexif() if hasattr(img, "_getexif") else None
 
         if exif is None:
-            findings.append("wiped_exif")
-            details.append(
-                "No EXIF metadata — may have been wiped!"
-            )
+            filename_lower = os.path.basename(
+                file_path
+            ).lower()
+
+            if "whatsapp" in filename_lower:
+                details.append(
+                    "No EXIF — WhatsApp removes metadata "
+                    "automatically — safe ✅"
+                )
+            else:
+                findings.append("wiped_exif")
+                details.append(
+                    "No EXIF metadata — may have been wiped!"
+                )
         else:
             details.append("EXIF data found — analyzing...")
             for tag_id, value in exif.items():
@@ -1069,17 +1080,22 @@ def technique8_pixel_manipulation(file_path):
         entropy = calculate_entropy(raw_bytes[:2000])
         details.append("File entropy: " + str(entropy))
 
-        if entropy > 7.8:
+        if entropy > 7.95:
             findings.append("steganography_indicator")
             details.append(
-                "CRITICAL: Very high entropy (" +
+                "CRITICAL: Extremely high entropy (" +
                 str(entropy) + ") — possible steganography!"
             )
-        elif entropy > 7.5:
+        elif entropy > 7.9:
             findings.append("high_entropy_image")
             details.append(
-                "High entropy (" + str(entropy) +
+                "Very high entropy (" + str(entropy) +
                 ") — review manually"
+            )
+        else:
+            details.append(
+                "Entropy normal for photo (" +
+                str(entropy) + ") — safe ✅"
             )
 
         if PIL_AVAILABLE:
@@ -1284,14 +1300,36 @@ def technique11_multilang_ocr(file_path):
             raw = f.read()
 
         # Look for Devanagari Unicode range (Hindi)
-        # Devanagari: U+0900 to U+097F
-        devanagari_pattern = re.compile(
-            "[\u0900-\u097f]+"
-        )
-        if devanagari_pattern.search(raw.decode("utf-8", errors="ignore")):
-            findings.append("mixed_script_detected")
+        # Must check OCR extracted text NOT raw bytes
+        # Raw bytes of PNG files accidentally match
+        # Hindi Unicode range giving false positives!
+        try:
+            if TESSERACT_AVAILABLE and PIL_AVAILABLE:
+                img_lang = Image.open(file_path)
+                if img_lang.mode not in ["RGB", "L"]:
+                    img_lang = img_lang.convert("RGB")
+                extracted = pytesseract.image_to_string(
+                    img_lang,
+                    config="--psm 6",
+                ).strip()
+                img_lang.close()
+
+                devanagari_pattern = re.compile(
+                    "[\u0900-\u097f]+"
+                )
+                if devanagari_pattern.search(extracted):
+                    findings.append("mixed_script_detected")
+                    details.append(
+                        "Devanagari (Hindi) script detected "
+                        "in image text ✅"
+                    )
+                else:
+                    details.append(
+                        "No Devanagari script in image text ✅"
+                    )
+        except Exception as e:
             details.append(
-                "Devanagari (Hindi) script detected in file"
+                "Script detection error: " + str(e)
             )
 
         if not findings:
@@ -1701,8 +1739,8 @@ def technique15_ui_layout(file_path, ocr_text):
         # Login pages are usually taller than wide
         if h > w * 1.5:
             details.append(
-                "Image is portrait orientation — "
-                "consistent with login page screenshot"
+                "Portrait orientation — "
+                "normal for phone photos ✅"
             )
 
         img.close()
@@ -1851,7 +1889,6 @@ def technique17_ocr_confidence(file_path):
         if img.mode not in ["RGB", "L"]:
             img = img.convert("RGB")
 
-        # Get detailed OCR data including confidence scores
         ocr_data = pytesseract.image_to_data(
             img,
             lang="eng",
@@ -1869,34 +1906,73 @@ def technique17_ocr_confidence(file_path):
 
         if confidences:
             avg_confidence = sum(confidences) / len(confidences)
+            word_count     = len(confidences)
+
             details.append(
                 "Average OCR confidence: " +
                 str(round(avg_confidence, 1)) + "%"
             )
             details.append(
-                "Words analyzed: " + str(len(confidences))
+                "Words analyzed: " + str(word_count)
             )
 
-            # Low confidence = blurred or noisy image
-            if avg_confidence < 30:
+            # Only flag blur if image has enough text
+            # Photos with no text naturally have low confidence
+            # Minimum 20 words needed before flagging
+           
+ # Count only HIGH confidence words
+            # High confidence = OCR is sure it is real text
+            high_conf_words = [
+                c for c in confidences if c > 60
+            ]
+            real_word_count = len(high_conf_words)
+
+            details.append(
+                "High confidence words: " +
+                str(real_word_count)
+            )
+
+            # Need at least 15 REAL words before judging blur
+            # This ignores noise words from photos
+            if real_word_count < 15:
+                details.append(
+                    "Too few real words (" +
+                    str(real_word_count) +
+                    ") to judge blur — likely a photo "
+                )
+            elif avg_confidence < 30:
                 findings.append("blur_evasion_detected")
                 details.append(
                     "CRITICAL: Very low OCR confidence (" +
                     str(round(avg_confidence, 1)) +
-                    "%) — image may be intentionally blurred "
-                    "to bypass OCR scanners!"
+                    "%) — image may be intentionally blurred!"
                 )
             elif avg_confidence < 50:
                 findings.append("low_ocr_confidence")
                 details.append(
                     "Low OCR confidence (" +
                     str(round(avg_confidence, 1)) +
-                    "%) — review image manually"
+                    "%) — review manually"
+                )
+            elif avg_confidence < 30:
+                findings.append("very_low_ocr_confidence")
+                details.append(
+                    "CRITICAL: Very low OCR confidence (" +
+                    str(round(avg_confidence, 1)) +
+                    "%) — image may be intentionally blurred!"
+                )
+            elif avg_confidence < 50:
+                findings.append("low_ocr_confidence")
+                details.append(
+                    "Low OCR confidence (" +
+                    str(round(avg_confidence, 1)) +
+                    "%) — review manually"
                 )
             else:
                 details.append(
-                    "OCR confidence is acceptable"
+                    "OCR confidence acceptable"
                 )
+              
         else:
             details.append("No confidence data available")
 

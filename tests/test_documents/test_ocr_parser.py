@@ -13,8 +13,7 @@ from Backend.modules.document_analysis.ocr_parser import parse_image
 from Backend.modules.document_analysis.scorer import calculate_score
 
 # PUT YOUR IMAGE FILE PATH HERE
-IMAGE_PATH = r"C:\Users\sonip\Pictures\WhatsApp Image 2025-04-18 at 3.45.09 PM.jpeg"
-
+IMAGE_PATH = r"C:\Users\sonip\Downloads\Untitled.png"
 
 def separator(char="=", width=62):
     print(char * width)
