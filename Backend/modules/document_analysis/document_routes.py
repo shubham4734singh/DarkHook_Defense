@@ -165,14 +165,14 @@ async def scan_document(file: UploadFile = File(...)):
             # Format score breakdown
             score_breakdown = []
             if score_result.get("breakdown"):
-                for finding_type, points in sorted(
+                for finding_type, details in sorted(
                     score_result["breakdown"].items(),
-                    key=lambda x: x[1],
+                    key=lambda x: x[1]["score"],
                     reverse=True
                 ):
                     score_breakdown.append({
                         "finding_type": finding_type.replace("_", " ").title(),
-                        "score": points
+                        "score": details["score"]
                     })
             
             # Build response

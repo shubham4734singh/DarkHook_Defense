@@ -1,13 +1,14 @@
-import { Shield, Menu, X } from 'lucide-react';
+import { Shield, Menu, X, LayoutDashboard, LogIn } from 'lucide-react';
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { useNavigate } from 'react-router';
-import { ScanNowDropdown } from './ScanNowDropdown';
+import { useNavigate, Link } from 'react-router';
+import { useAuth } from '../contexts/AuthContext';
 import logo from '../../assets/eabe0015a9a1edfe92cb4ac7f5415daf9aa9241d.png';
 
 export function Navbar() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
 
   const scrollToSection = (sectionId: string) => {
     const element = document.getElementById(sectionId);
@@ -46,7 +47,23 @@ export function Navbar() {
           >
             Team
           </button>
-          <ScanNowDropdown className="w-full" />
+          {isAuthenticated ? (
+            <Link
+              to="/dashboard"
+              className="px-6 py-2 bg-[#00C2FF] text-[#060D1A] rounded-[10px] font-semibold hover:bg-[#00A8E0] transition-all shadow-[0_0_24px_rgba(0,194,255,0.35)] flex items-center gap-2"
+            >
+              <LayoutDashboard className="w-4 h-4" />
+              Dashboard
+            </Link>
+          ) : (
+            <Link
+              to="/login"
+              className="px-6 py-2 bg-[#00C2FF] text-[#060D1A] rounded-[10px] font-semibold hover:bg-[#00A8E0] transition-all shadow-[0_0_24px_rgba(0,194,255,0.35)] flex items-center gap-2"
+            >
+              <LogIn className="w-4 h-4" />
+              Login
+            </Link>
+          )}
         </div>
 
         {/* Mobile Menu Button */}
@@ -92,7 +109,23 @@ export function Navbar() {
               >
                 Team
               </button>
-              <ScanNowDropdown className="w-full" />
+              {isAuthenticated ? (
+                <Link
+                  to="/dashboard"
+                  className="flex items-center gap-2 px-6 py-2 bg-[#00C2FF] text-[#060D1A] rounded-[10px] font-semibold hover:bg-[#00A8E0] transition-all text-center justify-center"
+                >
+                  <LayoutDashboard className="w-4 h-4" />
+                  Dashboard
+                </Link>
+              ) : (
+                <Link
+                  to="/login"
+                  className="flex items-center gap-2 px-6 py-2 bg-[#00C2FF] text-[#060D1A] rounded-[10px] font-semibold hover:bg-[#00A8E0] transition-all text-center justify-center"
+                >
+                  <LogIn className="w-4 h-4" />
+                  Login
+                </Link>
+              )}
             </div>
           </motion.div>
         )}

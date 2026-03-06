@@ -68,6 +68,24 @@ export interface MessageResponse {
   message: string;
 }
 
+export interface ScoreBreakdownItem {
+  finding_type: string;
+  score: number;
+}
+
+export interface DocumentScanResult {
+  fileName: string;
+  fileSize: string;
+  fileHash: string;
+  riskScore: number;
+  verdict: string;
+  scanTime: number;
+  totalFindings: number;
+  findings: string[];
+  scoreBreakdown: ScoreBreakdownItem[];
+  details: string[];
+}
+
 class ApiService {
   private baseUrl: string;
 
@@ -173,6 +191,30 @@ class ApiService {
     }
 
     return response.json();
+  }
+
+  async scanDocument(file: File): Promise<DocumentScanResult> {
+    const fullUrl = `${this.baseUrl}/scan/document`;
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const response = await fetch(fullUrl, {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ detail: 'Document scan failed' }));
+        throw new Error(error.detail || `HTTP ${response.status}: Document scan failed`);
+      }
+
+      return response.json();
+    } catch (error) {
+      console.error('Document scan failed:', error);
+      throw error;
+    }
   }
 
   async scanUrl(url: string): Promise<any> {

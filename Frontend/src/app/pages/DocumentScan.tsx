@@ -3,37 +3,13 @@ import { Shield, FileText, Upload, AlertTriangle, CheckCircle, XCircle, ArrowLef
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { useAuth } from '../contexts/AuthContext';
+import { api, type DocumentScanResult } from '../services/api';
 import logo from '@/assets/eabe0015a9a1edfe92cb4ac7f5415daf9aa9241d.png';
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
-
-interface Finding {
-  name: string;
-  severity: string;
-}
-
-interface ScoreBreakdownItem {
-  finding_type: string;
-  score: number;
-}
-
-interface ScanResult {
-  fileName: string;
-  fileSize: string;
-  fileHash: string;
-  riskScore: number;
-  verdict: string;
-  scanTime: number;
-  totalFindings: number;
-  findings: string[];
-  scoreBreakdown: ScoreBreakdownItem[];
-  details: string[];
-}
 
 export function DocumentScan() {
   const [file, setFile] = useState<File | null>(null);
   const [scanning, setScanning] = useState(false);
-  const [result, setResult] = useState<ScanResult | null>(null);
+  const [result, setResult] = useState<DocumentScanResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
   const { logout } = useAuth();
@@ -50,19 +26,7 @@ export function DocumentScan() {
     setError(null);
     
     try {
-      const formData = new FormData();
-      formData.append('file', file);
-      
-      const response = await fetch(`${API_BASE_URL}/scan/document`, {
-        method: 'POST',
-        body: formData,
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to scan document');
-      }
-      
-      const data: ScanResult = await response.json();
+      const data = await api.scanDocument(file);
       setResult(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred while scanning');
@@ -112,18 +76,18 @@ export function DocumentScan() {
       <nav className="fixed top-0 left-0 right-0 z-50 h-[68px] bg-[#0D1F38]/95 backdrop-blur-xl border-b border-[#1E3A5F]">
         <div className="max-w-[1440px] mx-auto px-4 h-full flex items-center justify-between">
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-2 cursor-pointer">
+          <Link to="/dashboard" className="flex items-center gap-2 cursor-pointer">
             <img src={logo} alt="Darkhook Defense" className="h-14" />
           </Link>
 
           {/* Nav Items */}
           <div className="flex items-center gap-6">
             <Link
-              to="/"
+              to="/dashboard"
               className="flex items-center gap-2 text-[#8BA3BC] hover:text-[#00C2FF] transition-colors"
             >
               <ArrowLeft className="w-4 h-4" />
-              <span className="hidden sm:inline">Back to Home</span>
+              <span className="hidden sm:inline">Dashboard</span>
             </Link>
             <button
               onClick={handleLogout}
@@ -173,7 +137,7 @@ export function DocumentScan() {
                 />
                 <label
                   htmlFor="document-upload"
-                  className="flex flex-col items-center justify-center gap-3 px-6 py-12 bg-[#060D1A] border-2 border-dashed border-[#1E3A5F] rounded-lg cursor-pointer hover:border-[#00C2FF] transition-all"
+                  className="flex flex-col items-center justify-center gap-3 px-4 py-8 sm:px-6 sm:py-12 bg-[#060D1A] border-2 border-dashed border-[#1E3A5F] rounded-lg cursor-pointer hover:border-[#00C2FF] transition-all"
                 >
                   <Upload className="w-8 h-8 text-[#00C2FF]" />
                   <div className="text-center">

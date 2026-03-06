@@ -43,13 +43,13 @@ export function HowItWorksSection() {
           <p className="text-[#00C2FF] font-medium text-sm tracking-[3px] mb-4 uppercase">
             // How It Works
           </p>
-          <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
+          <h2 className="text-2xl sm:text-4xl md:text-5xl font-bold text-white mb-6">
             Three Steps Between You and a Threat.
           </h2>
         </motion.div>
 
         {/* Steps */}
-        <div className="grid md:grid-cols-4 gap-8 mb-12 relative">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-8 mb-12 relative">
           {steps.map((step, index) => (
             <motion.div
               key={step.number}
@@ -79,7 +79,7 @@ export function HowItWorksSection() {
 
               {/* Arrow for desktop - positioned between cards */}
               {index < steps.length - 1 && (
-                <div className="hidden md:block absolute left-[calc(100%+0.5rem)] top-1/2 -translate-y-1/2 z-20 w-8">
+                <div className="hidden lg:block absolute left-[calc(100%+0.5rem)] top-1/2 -translate-y-1/2 z-20 w-8">
                   <motion.div
                     animate={{ x: [0, 5, 0] }}
                     transition={{ duration: 1.5, repeat: Infinity, delay: index * 0.2 }}

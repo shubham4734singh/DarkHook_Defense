@@ -27,7 +27,7 @@ export function ComparisonSection() {
           <p className="text-[#00C2FF] font-medium text-sm tracking-[3px] mb-4 uppercase">
             // Why Darkhook
           </p>
-          <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
+          <h2 className="text-2xl sm:text-4xl md:text-5xl font-bold text-white mb-6">
             We See What Others Miss.
           </h2>
         </motion.div>
@@ -42,12 +42,16 @@ export function ComparisonSection() {
         >
           {/* Header Row */}
           <div className="grid grid-cols-4 bg-[#060D1A] border-b border-[#1E3A5F]">
-            <div className="p-4 font-semibold text-white">Feature</div>
-            <div className="p-4 font-semibold text-[#00C2FF] border-l-4 border-[#00C2FF] bg-[#00C2FF]/5">
-              Darkhook Defense
+            <div className="p-3 sm:p-4 font-semibold text-white text-xs sm:text-base">Feature</div>
+            <div className="p-3 sm:p-4 font-semibold text-[#00C2FF] border-l-4 border-[#00C2FF] bg-[#00C2FF]/5 text-xs sm:text-base">
+              <span className="hidden sm:inline">Darkhook Defense</span>
+              <span className="sm:hidden">Darkhook</span>
             </div>
-            <div className="p-4 font-semibold text-white">VirusTotal</div>
-            <div className="p-4 font-semibold text-white">Manual Check</div>
+            <div className="p-3 sm:p-4 font-semibold text-white text-xs sm:text-base">VirusTotal</div>
+            <div className="p-3 sm:p-4 font-semibold text-white text-xs sm:text-base">
+              <span className="hidden sm:inline">Manual Check</span>
+              <span className="sm:hidden">Manual</span>
+            </div>
           </div>
 
           {/* Data Rows */}
@@ -58,26 +62,26 @@ export function ComparisonSection() {
                 index % 2 === 0 ? 'bg-[#0D1F38]' : 'bg-[#0a1829]'
               }`}
             >
-              <div className="p-4 text-[#8BA3BC]">{feature.name}</div>
-              <div className="p-4 border-l-4 border-[#00C2FF] bg-[#00C2FF]/5">
+              <div className="p-3 sm:p-4 text-[#8BA3BC] text-xs sm:text-base">{feature.name}</div>
+              <div className="p-3 sm:p-4 border-l-4 border-[#00C2FF] bg-[#00C2FF]/5 flex items-center">
                 {feature.darkhook ? (
-                  <Check className="w-5 h-5 text-[#00D68F]" />
+                  <Check className="w-4 h-4 sm:w-5 sm:h-5 text-[#00D68F]" />
                 ) : (
-                  <X className="w-5 h-5 text-[#FF3B3B]" />
+                  <X className="w-4 h-4 sm:w-5 sm:h-5 text-[#FF3B3B]" />
                 )}
               </div>
-              <div className="p-4">
+              <div className="p-3 sm:p-4 flex items-center">
                 {feature.virustotal ? (
-                  <Check className="w-5 h-5 text-[#00D68F]" />
+                  <Check className="w-4 h-4 sm:w-5 sm:h-5 text-[#00D68F]" />
                 ) : (
-                  <X className="w-5 h-5 text-[#FF3B3B]" />
+                  <X className="w-4 h-4 sm:w-5 sm:h-5 text-[#FF3B3B]" />
                 )}
               </div>
-              <div className="p-4">
+              <div className="p-3 sm:p-4 flex items-center">
                 {feature.manual ? (
-                  <Check className="w-5 h-5 text-[#00D68F]" />
+                  <Check className="w-4 h-4 sm:w-5 sm:h-5 text-[#00D68F]" />
                 ) : (
-                  <X className="w-5 h-5 text-[#FF3B3B]" />
+                  <X className="w-4 h-4 sm:w-5 sm:h-5 text-[#FF3B3B]" />
                 )}
               </div>
             </div>

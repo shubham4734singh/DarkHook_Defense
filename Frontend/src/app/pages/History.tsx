@@ -49,16 +49,16 @@ export function History() {
       {/* Header */}
       <header className="sticky top-0 z-50 bg-[#0D1F38]/95 backdrop-blur-xl border-b border-[#1E3A5F]">
         <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-2">
+          <Link to="/dashboard" className="flex items-center gap-2">
             <img src={logo} alt="Darkhook Defense" className="h-14" />
           </Link>
           <div className="flex items-center gap-4">
             <Link
-              to="/"
+              to="/dashboard"
               className="flex items-center gap-2 text-[#8BA3BC] hover:text-[#00C2FF] transition-colors"
             >
               <ArrowLeft className="w-4 h-4" />
-              <span className="hidden sm:inline">Back to Home</span>
+              <span className="hidden sm:inline">Dashboard</span>
             </Link>
             <button
               onClick={handleLogout}

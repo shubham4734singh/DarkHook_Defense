@@ -71,18 +71,18 @@ export function EmailScan() {
       <nav className="fixed top-0 left-0 right-0 z-50 h-[68px] bg-[#0D1F38]/95 backdrop-blur-xl border-b border-[#1E3A5F]">
         <div className="max-w-[1440px] mx-auto px-4 h-full flex items-center justify-between">
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-2 cursor-pointer">
+          <Link to="/dashboard" className="flex items-center gap-2 cursor-pointer">
             <img src={logo} alt="Darkhook Defense" className="h-14" />
           </Link>
 
           {/* Nav Items */}
           <div className="flex items-center gap-6">
             <Link
-              to="/"
+              to="/dashboard"
               className="flex items-center gap-2 text-[#8BA3BC] hover:text-[#00C2FF] transition-colors"
             >
               <ArrowLeft className="w-4 h-4" />
-              <span className="hidden sm:inline">Back to Home</span>
+              <span className="hidden sm:inline">Dashboard</span>
             </Link>
             <button
               onClick={handleLogout}

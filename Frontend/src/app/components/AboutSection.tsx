@@ -53,7 +53,7 @@ export function AboutSection() {
               <p className="text-[#00C2FF] font-medium text-sm tracking-[3px] mb-4 uppercase">
                 // About the Project
               </p>
-              <h2 className="text-4xl md:text-5xl font-bold text-white mb-6 leading-tight">
+              <h2 className="text-2xl sm:text-4xl md:text-5xl font-bold text-white mb-6 leading-tight">
                 Built in the Dark.<br />Designed to Protect.
               </h2>
               <div className="space-y-4 text-[#ffffff99] text-base leading-relaxed">
@@ -70,7 +70,7 @@ export function AboutSection() {
             </motion.div>
 
             {/* Stat Cards */}
-            <div className="grid grid-cols-3 gap-4 mt-8">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-8">
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 whileInView={{ opacity: 1, y: 0 }}

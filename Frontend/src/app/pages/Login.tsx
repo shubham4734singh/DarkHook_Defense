@@ -23,7 +23,7 @@ export function Login() {
 
   // Redirect already-authenticated users away from the login page
   if (!authLoading && isAuthenticated) {
-    return <Navigate to="/scan/url" replace />;
+    return <Navigate to="/dashboard" replace />;
   }
 
   const startOtpFlow = async (targetEmail: string) => {
@@ -59,7 +59,7 @@ export function Login() {
         localStorage.removeItem('darkhook_redirect');
         navigate(redirectPath);
       } else {
-        navigate('/scan/url');
+        navigate('/dashboard');
       }
     } catch (err: any) {
       setError(err.message || 'OTP verification failed.');
@@ -93,8 +93,7 @@ export function Login() {
         localStorage.removeItem('darkhook_redirect');
         navigate(redirectPath);
       } else {
-        // Default to URL scan page
-        navigate('/scan/url');
+        navigate('/dashboard');
       }
     } catch (err: any) {
       const message = err.message || 'Authentication failed. Please try again.';

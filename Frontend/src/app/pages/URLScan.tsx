@@ -66,18 +66,18 @@ export function URLScan() {
       <nav className="fixed top-0 left-0 right-0 z-50 h-[68px] bg-[#0D1F38]/95 backdrop-blur-xl border-b border-[#1E3A5F]">
         <div className="max-w-[1440px] mx-auto px-4 h-full flex items-center justify-between">
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-2 cursor-pointer">
+          <Link to="/dashboard" className="flex items-center gap-2 cursor-pointer">
             <img src={logo} alt="Darkhook Defense" className="h-14" />
           </Link>
 
           {/* Nav Items */}
           <div className="flex items-center gap-6">
             <Link
-              to="/"
+              to="/dashboard"
               className="flex items-center gap-2 text-[#8BA3BC] hover:text-[#00C2FF] transition-colors"
             >
               <ArrowLeft className="w-4 h-4" />
-              <span className="hidden sm:inline">Back to Home</span>
+              <span className="hidden sm:inline">Dashboard</span>
             </Link>
             <button
               onClick={handleLogout}
@@ -184,7 +184,7 @@ export function URLScan() {
               {/* Technical Details */}
               <div className="bg-[#0D1F38] border border-[#1E3A5F] rounded-2xl p-8">
                 <h3 className="text-xl font-bold text-white mb-4">Technical Analysis</h3>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="p-4 bg-[#060D1A] border border-[#1E3A5F] rounded-lg">
                     <p className="text-[#8BA3BC] text-xs mb-1">HTTPS</p>
                     <p className="text-white font-semibold">{result.feature_summary?.is_https ? '✓ Enabled' : '✗ Disabled'}</p>

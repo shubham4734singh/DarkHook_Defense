@@ -40,7 +40,7 @@ export function RiskScoreSection() {
           <p className="text-[#00C2FF] font-medium text-sm tracking-[3px] mb-4 uppercase">
             // Risk Score
           </p>
-          <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
+          <h2 className="text-2xl sm:text-4xl md:text-5xl font-bold text-white mb-6">
             What Does Your Score Mean?
           </h2>
         </motion.div>
@@ -54,30 +54,30 @@ export function RiskScoreSection() {
           className="max-w-[700px] mx-auto mb-16"
         >
           {/* Gradient Bar */}
-          <div className="relative h-3 rounded-full mb-8 overflow-hidden" style={{
+          <div className="relative h-4 sm:h-3 rounded-full mb-8 overflow-hidden" style={{
             background: 'linear-gradient(90deg, #00D68F 0%, #FFAA00 50%, #FF3B3B 100%)'
           }}>
           </div>
 
           {/* Markers */}
-          <div className="flex justify-between text-center mb-8">
+          <div className="flex justify-between text-center mb-8 gap-2">
             <div className="flex-1">
-              <p className="text-[#00C2FF] font-semibold text-lg mb-1">0</p>
-              <p className="text-[#8BA3BC] text-sm">0–39</p>
-              <p className="text-[#00D68F] font-semibold text-lg mt-3">🟢 SAFE</p>
-              <p className="text-[#8BA3BC] text-sm mt-1">No threat found</p>
+              <p className="text-[#00C2FF] font-semibold text-sm sm:text-lg mb-1">0</p>
+              <p className="text-[#8BA3BC] text-xs sm:text-sm">0–39</p>
+              <p className="text-[#00D68F] font-semibold text-sm sm:text-lg mt-3">🟢 SAFE</p>
+              <p className="text-[#8BA3BC] text-xs sm:text-sm mt-1">No threat found</p>
             </div>
             <div className="flex-1">
-              <p className="text-[#00C2FF] font-semibold text-lg mb-1">40–69</p>
-              <p className="text-[#8BA3BC] text-sm">Medium Risk</p>
-              <p className="text-[#FFAA00] font-semibold text-lg mt-3">🟡 SUSPICIOUS</p>
-              <p className="text-[#8BA3BC] text-sm mt-1">Proceed carefully</p>
+              <p className="text-[#00C2FF] font-semibold text-sm sm:text-lg mb-1">40–69</p>
+              <p className="text-[#8BA3BC] text-xs sm:text-sm">Medium Risk</p>
+              <p className="text-[#FFAA00] font-semibold text-sm sm:text-lg mt-3">🟡 SUSPICIOUS</p>
+              <p className="text-[#8BA3BC] text-xs sm:text-sm mt-1">Proceed carefully</p>
             </div>
             <div className="flex-1">
-              <p className="text-[#00C2FF] font-semibold text-lg mb-1">100</p>
-              <p className="text-[#8BA3BC] text-sm">70–100</p>
-              <p className="text-[#FF3B3B] font-semibold text-lg mt-3">🔴 PHISHING</p>
-              <p className="text-[#8BA3BC] text-sm mt-1">Do not open</p>
+              <p className="text-[#00C2FF] font-semibold text-sm sm:text-lg mb-1">100</p>
+              <p className="text-[#8BA3BC] text-xs sm:text-sm">70–100</p>
+              <p className="text-[#FF3B3B] font-semibold text-sm sm:text-lg mt-3">🔴 PHISHING</p>
+              <p className="text-[#8BA3BC] text-xs sm:text-sm mt-1">Do not open</p>
             </div>
           </div>
         </motion.div>

@@ -71,7 +71,8 @@ app = FastAPI(
     title="DarkHook Defense API",
     description="Phishing detection engine for URLs, Emails, and Documents",
     version="1.0.0",
-    lifespan=lifespan
+    lifespan=lifespan,
+    redirect_slashes=False
 )
 
 # -------------------------

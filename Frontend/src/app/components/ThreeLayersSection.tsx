@@ -70,7 +70,7 @@ export function ThreeLayersSection() {
           <p className="text-[#00C2FF] font-medium text-sm tracking-[3px] mb-4 uppercase">
             ⚡ Three Layers of Defense
           </p>
-          <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
+          <h2 className="text-2xl sm:text-4xl md:text-5xl font-bold text-white mb-6">
             One Threat Missed Is One Too Many.
           </h2>
           <p className="text-[#ffffff99] text-lg max-w-[600px] mx-auto">

@@ -1,6 +1,7 @@
 import { createBrowserRouter } from "react-router";
 import Home from "./pages/Home";
 import { Login } from "./pages/Login";
+import { Dashboard } from "./pages/Dashboard";
 import { URLScan } from "./pages/URLScan";
 import { EmailScan } from "./pages/EmailScan";
 import { DocumentScan } from "./pages/DocumentScan";
@@ -21,6 +22,14 @@ export const router = createBrowserRouter([
       {
         path: "login",
         Component: Login,
+      },
+      {
+        path: "dashboard",
+        element: (
+          <ProtectedRoute>
+            <Dashboard />
+          </ProtectedRoute>
+        ),
       },
       {
         path: "scan/url",

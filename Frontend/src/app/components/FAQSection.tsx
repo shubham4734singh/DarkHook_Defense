@@ -42,7 +42,7 @@ export function FAQSection() {
           <p className="text-[#00C2FF] font-medium text-sm tracking-[3px] mb-4 uppercase">
             // FAQ
           </p>
-          <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
+          <h2 className="text-2xl sm:text-4xl md:text-5xl font-bold text-white mb-6">
             Got Questions? We've Got Answers.
           </h2>
         </motion.div>

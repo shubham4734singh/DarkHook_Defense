@@ -52,7 +52,7 @@ export function ThreatStatsSection() {
           <p className="text-[#00C2FF] font-medium text-sm tracking-[3px] mb-4 uppercase">
             // Threats Caught
           </p>
-          <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
+          <h2 className="text-2xl sm:text-4xl md:text-5xl font-bold text-white mb-6">
             Darkhook Is Always Watching.
           </h2>
         </motion.div>
@@ -69,7 +69,7 @@ export function ThreatStatsSection() {
             <div className="mb-4">
               <LinkIcon className="w-12 h-12 text-[#00C2FF] mx-auto" />
             </div>
-            <div className="text-5xl font-semibold text-white mb-2">
+            <div className="text-3xl sm:text-4xl md:text-5xl font-semibold text-white mb-2">
               <CountUpAnimation end={12847} />
               <span>+</span>
             </div>
@@ -87,7 +87,7 @@ export function ThreatStatsSection() {
             <div className="mb-4">
               <Mail className="w-12 h-12 text-[#00C2FF] mx-auto" />
             </div>
-            <div className="text-5xl font-semibold text-white mb-2">
+            <div className="text-3xl sm:text-4xl md:text-5xl font-semibold text-white mb-2">
               <CountUpAnimation end={8203} />
               <span>+</span>
             </div>
@@ -105,7 +105,7 @@ export function ThreatStatsSection() {
             <div className="mb-4">
               <FileText className="w-12 h-12 text-[#00C2FF] mx-auto" />
             </div>
-            <div className="text-5xl font-semibold text-white mb-2">
+            <div className="text-3xl sm:text-4xl md:text-5xl font-semibold text-white mb-2">
               <CountUpAnimation end={3991} />
               <span>+</span>
             </div>

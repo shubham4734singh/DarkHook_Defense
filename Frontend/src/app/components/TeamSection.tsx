@@ -1,5 +1,5 @@
 import { motion } from 'motion/react';
-import { Github, Linkedin, Code, AtSign, FileText, Sparkles } from 'lucide-react';
+import { Github, Linkedin, Code, AtSign, FileText, Sparkles, Globe } from 'lucide-react';
 
 const team = [
   {
@@ -76,7 +76,7 @@ export function TeamSection() {
           <p className="text-[#00C2FF] font-medium text-sm tracking-[3px] mb-4 uppercase">
             // The Team
           </p>
-          <h2 className="text-4xl md:text-5xl font-bold text-white mb-6">
+          <h2 className="text-2xl sm:text-4xl md:text-5xl font-bold text-white mb-6">
             Four Minds. One Mission. Zero Phishing.
           </h2>
           <p className="text-[#8BA3BC] text-lg">
@@ -107,7 +107,7 @@ export function TeamSection() {
               <div className="mb-4 relative inline-block">
                 {/* Avatar with Gradient Background */}
                 <div 
-                  className="w-24 h-24 rounded-full mx-auto flex items-center justify-center relative"
+                  className="w-20 h-20 sm:w-24 sm:h-24 rounded-full mx-auto flex items-center justify-center relative"
                   style={{
                     background: member.gradient,
                     border: '3px solid #A9CBE0',
@@ -181,6 +181,16 @@ export function TeamSection() {
                 >
                   <Linkedin className="w-5 h-5" />
                 </a>
+                {member.portfolio && (
+                  <a
+                    href={member.portfolio}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-[#8BA3BC] hover:text-[#00C2FF] transition-colors"
+                  >
+                    <Globe className="w-5 h-5" />
+                  </a>
+                )}
               </div>
             </motion.div>
           ))}

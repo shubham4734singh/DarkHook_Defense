@@ -1,9 +1,13 @@
 import { motion } from 'motion/react';
-import { Zap, Play, Shield } from 'lucide-react';
+import { Zap, Play, LayoutDashboard } from 'lucide-react';
+import { Link } from 'react-router';
 import { ScanNowDropdown } from './ScanNowDropdown';
 import { HeroScanWidget } from './HeroScanWidget';
+import { useAuth } from '../contexts/AuthContext';
 
 export function HeroSection() {
+  const { isAuthenticated } = useAuth();
+
   return (
     <section id="hero" className="relative min-h-screen bg-[#060D1A] flex items-center justify-center overflow-hidden pt-[68px]">
       {/* Dot Grid Background */}
@@ -52,7 +56,7 @@ export function HeroSection() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6 }}
-          className="text-5xl md:text-7xl font-bold text-white mb-4"
+          className="text-3xl sm:text-5xl md:text-6xl lg:text-7xl font-bold text-white mb-4"
           style={{ letterSpacing: '-1px' }}
         >
           Darkhook Defense
@@ -63,7 +67,7 @@ export function HeroSection() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.2 }}
-          className="text-2xl md:text-3xl font-semibold text-[#00C2FF] mb-6"
+          className="text-xl sm:text-2xl md:text-3xl font-semibold text-[#00C2FF] mb-6"
         >
           We Hook Threats Before They Hook You.
         </motion.h2>
@@ -85,7 +89,17 @@ export function HeroSection() {
           transition={{ duration: 0.6, delay: 0.4 }}
           className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-6"
         >
-          <ScanNowDropdown />
+          {isAuthenticated ? (
+            <Link
+              to="/dashboard"
+              className="px-8 py-3 bg-[#00C2FF] text-[#060D1A] rounded-[10px] font-semibold hover:bg-[#00A8E0] transition-all shadow-[0_0_24px_rgba(0,194,255,0.35)] flex items-center gap-2"
+            >
+              <LayoutDashboard className="w-5 h-5" />
+              Go to Dashboard
+            </Link>
+          ) : (
+            <ScanNowDropdown />
+          )}
           <button
             onClick={() => document.getElementById('how-it-works')?.scrollIntoView({ behavior: 'smooth' })}
             className="px-8 py-3 border-2 border-[#00C2FF] text-[#00C2FF] rounded-[10px] font-semibold hover:bg-[#00C2FF]/10 transition-all flex items-center gap-2"
