@@ -1,7 +1,7 @@
 import { motion } from 'motion/react';
 import { Mail, Lock, ArrowRight, Loader2 } from 'lucide-react';
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router';
+import { Link, useNavigate, Navigate } from 'react-router';
 import { useAuth } from '../contexts/AuthContext';
 import { api } from '../services/api';
 import logo from '@/assets/164bd3b4c66bb15268339b22ae1165b91c7ea4e9.png';
@@ -19,7 +19,12 @@ export function Login() {
   const [otp, setOtp] = useState('');
   const [otpLoading, setOtpLoading] = useState(false);
   const navigate = useNavigate();
-  const { login, register } = useAuth();
+  const { login, register, isAuthenticated, loading: authLoading } = useAuth();
+
+  // Redirect already-authenticated users away from the login page
+  if (!authLoading && isAuthenticated) {
+    return <Navigate to="/scan/url" replace />;
+  }
 
   const startOtpFlow = async (targetEmail: string) => {
     setError('');
