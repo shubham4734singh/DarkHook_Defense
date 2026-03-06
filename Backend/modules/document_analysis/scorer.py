@@ -211,7 +211,48 @@ WEIGHTS = {
     "suspicious_connection"      : 40,
     "ole_db_connection"          : 30,
     "external_data_connection"   : 30,
+    # --------------------------------------------------------
+    # OCR AND IMAGE FINDINGS — NEW
+    # From: ocr_parser
+    # --------------------------------------------------------
+    "invalid_image_format"       : 30,
+    "suspicious_exif"            : 15,
+    "wiped_exif"                 : 5,
+    "edited_image"               : 15,
+    "ocr_failed"                 : 10,
+    "low_text_density"           : 15,
+    "single_image_content"       : 20,
+    "qr_code_detected"           : 15,
+    "qr_malicious_url"           : 40,
+    "qr_suspicious_url"          : 25,
+    "fake_login_page"            : 35,
+    "blurred_image"              : 20,
+    "high_entropy_image"         : 25,
+    "suspicious_file_size"       : 20,
+    "steganography_indicator"    : 35,
+    "multilang_phishing_text"    : 25,
+    "hindi_phishing_detected"    : 25,
+    "mixed_script_detected"      : 20,
+    "lookalike_domain"           : 30,
+    "char_substitution"          : 25,
+    "hidden_text_overlay"        : 40,
+    "low_contrast_text"          : 30,
+    "transparent_layer"          : 35,
+    "known_phishing_template"    : 45,
+    "template_reuse_detected"    : 40,
+    "fake_login_form_detected"   : 40,
+    "password_field_detected"    : 30,
+    "fake_submit_button"         : 25,
+    "fake_browser_ui"            : 35,
+    "fake_address_bar"           : 40,
+    "fake_padlock_detected"      : 30,
+    "low_ocr_confidence"         : 20,
+    "blur_evasion_detected"      : 30,
+    "credential_theft_chain"     : 40,
+    "qr_phishing_chain"          : 40,
+    "impersonation_chain"        : 35,
 }
+
 
 
 # ============================================================
