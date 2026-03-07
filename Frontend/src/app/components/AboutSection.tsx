@@ -79,8 +79,8 @@ export function AboutSection() {
                 className="bg-[#060D1A] border-t-3 border-t-[#00C2FF] rounded-xl p-5"
               >
                 <div className="text-3xl font-semibold text-[#00C2FF] mb-1 flex items-baseline">
-                  <CountUpAnimation end={240} />
-                  <span>K+</span>
+                  <CountUpAnimation end={12} />
+                  <span>Lac+</span>
                 </div>
                 <p className="text-[#8BA3BC] text-xs">URLs Trained On</p>
               </motion.div>
@@ -93,7 +93,7 @@ export function AboutSection() {
                 className="bg-[#060D1A] border-t-3 border-t-[#00C2FF] rounded-xl p-5"
               >
                 <div className="text-3xl font-semibold text-[#00C2FF] mb-1 flex items-baseline">
-                  <CountUpAnimation end={95} />
+                  <CountUpAnimation end={90} />
                   <span>%+</span>
                 </div>
                 <p className="text-[#8BA3BC] text-xs">Detection Accuracy</p>

@@ -9,7 +9,7 @@ const layers = [
     title: 'URL Shield',
     subtitle: 'Catch the hook in the link',
     features: [
-      '20+ feature extraction',
+      '31+ feature extraction',
       'Typosquatting detection',
       'IP address pattern check',
       'Random Forest + XGBoost',
