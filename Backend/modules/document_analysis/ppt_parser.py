@@ -53,88 +53,10 @@ except ImportError:
 # ================================================================
 # CONFIGURATION
 # ================================================================
-
+# NOTE: Scoring weights are now centralized in scorer.py
 WEIGHTS = {
-    # File structure
-    "invalid_ppt_format"         : 30,
-    "file_type_mismatch"         : 40,
-    "double_extension"           : 35,
-    "malformed_zip"              : 25,
-    "pps_file"                   : 20,
-    # Metadata
-    "suspicious_metadata"        : 15,
-    "wiped_metadata"             : 20,
-    "metadata_mismatch"          : 20,
-    "suspicious_author"          : 15,
-    "low_revision_count"         : 10,
-    # Macro findings
-    "vba_macro_detected"         : 30,
-    "autorun_macro"              : 40,
-    "ppt_autoopen"               : 40,
-    "hidden_macro_stream"        : 35,
-    # VBA behavior
-    "suspicious_vba_api"         : 30,
-    "powershell_in_vba"          : 40,
-    "network_call_in_vba"        : 35,
-    "file_system_access"         : 25,
-    "registry_access"            : 30,
-    "process_creation"           : 35,
-    "shell_command"              : 40,
-    # Animation triggers
-    "suspicious_animation"       : 30,
-    "cmd_trigger_found"          : 40,
-    "zero_delay_trigger"         : 25,
-    "mouseover_trigger"          : 20,
-    # Embedded objects
-    "embedded_ole_object"        : 30,
-    "embedded_executable"        : 45,
-    "embedded_script"            : 40,
-    "package_object"             : 35,
-    "mz_header_found"            : 45,
-    # External links
-    "external_relationship"      : 25,
-    "suspicious_external_url"    : 30,
-    "ip_based_external"          : 35,
-    "template_injection"         : 40,
-    "image_tracker"              : 20,
-    # Content findings
-    "phishing_keyword"           : 10,
-    "urgent_tone_detected"       : 15,
-    "financial_terms_detected"   : 15,
-    "credential_harvesting"      : 20,
-    "enable_macro_lure"          : 35,
-    # URL findings
-    "suspicious_url"             : 15,
-    "ip_based_url"               : 30,
-    "shortened_url"              : 20,
-    "suspicious_tld"             : 20,
-    "at_symbol_trick"            : 25,
-    # Hidden slides
-    "hidden_slide"               : 25,
-    "hidden_slide_with_content"  : 35,
-    # Obfuscation
-    "base64_payload"             : 35,
-    "char_concat_obfuscation"    : 25,
-    "string_split_obfuscation"   : 25,
-    "high_entropy_string"        : 25,
-    # Action buttons
-    "action_button_found"        : 20,
-    "run_program_action"         : 45,
-    "macro_action_button"        : 40,
-    "mouseover_action"           : 30,
-    "invisible_button"           : 35,
-    # Media files
-    "suspicious_media_file"      : 25,
-    "media_type_mismatch"        : 35,
-    "large_media_file"           : 15,
-    "high_entropy_media"         : 25,
-    # Attack chain
-    "dropper_pattern"            : 40,
-    "remote_template_attack"     : 40,
-    "social_engineering_chain"   : 35,
-    "hidden_payload_chain"       : 40,
-    "click_execute_chain"        : 40,
-    "multistage_indicator"       : 35,
+    # Kept for documentation only
+    "pps_file": 20,
 }
 
 
@@ -2276,42 +2198,10 @@ def technique14_attack_chain(all_findings):
 # SCORING FUNCTION
 # ================================================================
 
+# DEPRECATED: calculate_final_score
+# NOTE: Scoring is now handled by scorer.py (centralized system)
 def calculate_final_score(all_findings):
-    """
-    Converts all findings into weighted danger score.
-    """
-    total_score = 0
-    breakdown   = {}
-
-    for finding in all_findings:
-        weight = WEIGHTS.get(finding, 5)
-        total_score += weight
-
-        if finding in breakdown:
-            breakdown[finding]["count"] += 1
-            breakdown[finding]["score"] += weight
-        else:
-            breakdown[finding] = {
-                "count" : 1,
-                "score" : weight,
-            }
-
-    total_score = min(total_score, 100)
-
-    if total_score <= 25:
-        verdict  = "Low Risk"
-        severity = "LOW"
-    elif total_score <= 55:
-        verdict  = "Medium Risk"
-        severity = "MEDIUM"
-    elif total_score <= 79:
-        verdict  = "High Risk"
-        severity = "HIGH"
-    else:
-        verdict  = "Critical — Likely Phishing"
-        severity = "CRITICAL"
-
-    return total_score, verdict, severity, breakdown
+    return 0, "Deprecated", "LOW", {}
 
 
 # ================================================================
@@ -2431,41 +2321,12 @@ def parse_ppt(file_path):
         all_findings.extend(f14)
         all_details.extend(d14)
 
-        # Final scoring
-        score, verdict, severity, breakdown = (
-            calculate_final_score(all_findings)
-        )
-
         all_details.append("")
-        all_details.append(
-            "--- FINAL SCORING ---"
-        )
-        all_details.append(
-            "Total techniques run : 14"
-        )
-        all_details.append(
-            "Total findings       : " +
-            str(len(all_findings))
-        )
-        all_details.append(
-            "Danger score         : " +
-            str(score) + "/100"
-        )
-        all_details.append(
-            "Severity             : " + severity
-        )
-        all_details.append(
-            "Verdict              : " + verdict
-        )
+        all_details.append("--- ANALYSIS COMPLETE ---")
+        all_details.append("Total techniques run : 14")
+        all_details.append("Total findings       : " + str(len(all_findings)))
         all_details.append("")
-        all_details.append("Score breakdown:")
-
-        for finding, data in breakdown.items():
-            all_details.append(
-                "  " + finding.ljust(35) +
-                " count=" + str(data["count"]) +
-                " score=" + str(data["score"])
-            )
+        all_details.append("Note: Final scoring calculated by centralized scorer.py")
 
     except Exception as error:
         all_details.append(

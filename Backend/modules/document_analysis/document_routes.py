@@ -1,240 +1,185 @@
 """
-Document Analysis Router - PDF, DOCX, Excel, PPT scanning
+Document Analysis Router.
 """
 
-import os
-import hashlib
-from fastapi import APIRouter, UploadFile, File, HTTPException
-from pydantic import BaseModel
-from typing import List, Dict, Any
-import tempfile
+from __future__ import annotations
 
-from ..document_analysis.pdf_parser import parse_pdf
-from ..document_analysis.docx_parser import parse_docx
-from ..document_analysis.scorer import calculate_score
+import hashlib
+import importlib
+import os
+import tempfile
+from time import perf_counter
+from typing import Any, Dict, List, Tuple
+
+from fastapi import APIRouter, File, HTTPException, UploadFile
+from pydantic import BaseModel
+
+from ..document_analysis.scorer import WEIGHTS, calculate_score
 
 router = APIRouter()
 
 
-# ================================================================
-# RESPONSE MODELS
-# ================================================================
-
 class FindingItem(BaseModel):
-    """Individual finding/threat detected"""
     name: str
-    severity: str  # safe, warning, danger, critical
+    findingType: str
+    severity: str
+    score: int
 
 
 class ScoreBreakdown(BaseModel):
-    """Score breakdown by finding type"""
     finding_type: str
     count: int
     score: int
 
 
 class DocumentScanResult(BaseModel):
-    """Complete scan result for a document"""
     fileName: str
     fileSize: str
     fileHash: str
     riskScore: int
     verdict: str
+    severity: str
     scanTime: float
     totalFindings: int
     findings: List[str]
-    scoreBreakdown: List[Dict[str, Any]]
+    findingsDetailed: List[FindingItem]
+    scoreBreakdown: List[ScoreBreakdown]
     details: List[str]
 
 
-# ================================================================
-# HELPER FUNCTIONS
-# ================================================================
+SUPPORTED_PARSERS: Dict[str, Tuple[str, str, str, str]] = {
+    ".pdf": ("PDF", "Portable Document Format", "modules.document_analysis.pdf_parser", "parse_pdf"),
+    ".docx": ("Word", "Microsoft Word Document", "modules.document_analysis.docx_parser", "parse_docx"),
+    ".xlsx": ("Excel", "Microsoft Excel Spreadsheet", "modules.document_analysis.excel_parser", "parse_excel"),
+    ".xls": ("Excel", "Microsoft Excel Spreadsheet (legacy)", "modules.document_analysis.excel_parser", "parse_excel"),
+    ".pptx": ("PowerPoint", "Microsoft PowerPoint Presentation", "modules.document_analysis.ppt_parser", "parse_ppt"),
+    ".png": ("Image", "Portable Network Graphics", "modules.document_analysis.ocr_parser", "parse_image"),
+    ".jpg": ("Image", "JPEG image", "modules.document_analysis.ocr_parser", "parse_image"),
+    ".jpeg": ("Image", "JPEG image", "modules.document_analysis.ocr_parser", "parse_image"),
+}
+
 
 def get_file_hash(file_data: bytes) -> str:
-    """Calculate SHA256 hash of file"""
     return hashlib.sha256(file_data).hexdigest()
 
 
 def map_severity(finding_type: str) -> str:
-    """Map finding types to severity levels"""
-    critical_findings = [
-        "javascript_detected",
-        "embedded_executable",
-        "powershell_detected",
-        "dropper_pattern",
-        "openaction_detected",
-        "launch_action_detected",
-    ]
-    
-    high_findings = [
-        "base64_payload",
-        "hex_payload",
-        "malicious_macro",
-        "credential_harvesting",
-        "ip_based_url",
-        "homograph_domain",
-        "at_symbol_trick",
-    ]
-    
-    medium_findings = [
-        "embedded_file_detected",
-        "high_entropy_string",
-        "suspicious_url",
-        "shortened_url",
-        "suspicious_tld",
-        "external_network_call",
-    ]
-    
-    if finding_type in critical_findings:
+    score = WEIGHTS.get(finding_type, 5)
+    if score >= 40:
         return "critical"
-    elif finding_type in high_findings:
+    if score >= 30:
         return "danger"
-    elif finding_type in medium_findings:
+    if score >= 15:
         return "warning"
-    else:
-        return "safe"
+    return "safe"
 
 
-# ================================================================
-# ENDPOINTS
-# ================================================================
+def _format_file_size_kb(file_size_bytes: int) -> str:
+    return f"{file_size_bytes / 1024:.2f} KB"
+
+
+def _load_parser(module_path: str, function_name: str):
+    module = importlib.import_module(module_path)
+    return getattr(module, function_name)
+
 
 @router.post("/document", response_model=DocumentScanResult)
 async def scan_document(file: UploadFile = File(...)):
-    """
-    Scan a document (PDF, DOCX, Excel, PPT) for phishing threats
-    
-    Currently supported:
-    - PDF (.pdf) - Full analysis with 4-layer detection
-    
-    Coming soon:
-    - Word (.docx) - Macro and embedded object analysis
-    - Excel (.xlsx, .xls) - Formula and macro detection
-    - PowerPoint (.pptx) - Embedded file and macro analysis
-    """
-    
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="Filename is required.")
+
+    file_data = await file.read()
+    if not file_data:
+        raise HTTPException(status_code=400, detail="Uploaded file is empty.")
+
+    suffix = os.path.splitext(file.filename)[1].lower()
+    parser_entry = SUPPORTED_PARSERS.get(suffix)
+    if not parser_entry:
+        supported = ", ".join(sorted(SUPPORTED_PARSERS.keys()))
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported file format: {suffix}. Supported formats: {supported}",
+        )
+
+    _, _, module_path, function_name = parser_entry
+    file_hash = get_file_hash(file_data)
+
+    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp_file:
+        tmp_file.write(file_data)
+        tmp_path = tmp_file.name
+
+    started = perf_counter()
     try:
-        # Read file data
-        file_data = await file.read()
-        file_hash = get_file_hash(file_data)
-        file_size = len(file_data)
-        
-        # Save to temporary file
-        suffix = os.path.splitext(file.filename)[1].lower()
-        
-        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp_file:
-            tmp_file.write(file_data)
-            tmp_path = tmp_file.name
-        
-        try:
-            # Parse based on file type
-            if suffix == ".pdf":
-                result = parse_pdf(tmp_path)
-            elif suffix == ".docx":
-                result = parse_docx(tmp_path)
-            elif suffix in [".xlsx", ".xls"]:
-                # Excel parser coming soon
-                raise HTTPException(
-                    status_code=501,
-                    detail="Excel analysis coming soon. Currently supporting PDF only."
+        parser_fn = _load_parser(module_path, function_name)
+        parse_result = parser_fn(tmp_path) or {}
+        findings = parse_result.get("findings") or []
+        details = parse_result.get("details") or []
+        score_result = calculate_score(findings)
+
+        score_breakdown: List[ScoreBreakdown] = []
+        for finding_type, item in sorted(
+            score_result.get("breakdown", {}).items(),
+            key=lambda row: row[1]["score"],
+            reverse=True,
+        ):
+            score_breakdown.append(
+                ScoreBreakdown(
+                    finding_type=finding_type.replace("_", " ").title(),
+                    count=item["count"],
+                    score=item["score"],
                 )
-            elif suffix == ".pptx":
-                # PowerPoint parser coming soon
-                raise HTTPException(
-                    status_code=501,
-                    detail="PowerPoint analysis coming soon. Currently supporting PDF only."
-                )
-            else:
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"Unsupported file format: {suffix}. Currently supporting: .pdf"
-                )
-            
-            # Calculate score using centralized scorer for all document types
-            score_result = calculate_score(result["findings"])
-            
-            # Format findings with severity
-            findings_with_severity = []
-            for finding in result["findings"]:
-                findings_with_severity.append({
-                    "name": finding.replace("_", " ").title(),
-                    "severity": map_severity(finding)
-                })
-            
-            # Format score breakdown
-            score_breakdown = []
-            if score_result.get("breakdown"):
-                for finding_type, details in sorted(
-                    score_result["breakdown"].items(),
-                    key=lambda x: x[1]["score"],
-                    reverse=True
-                ):
-                    score_breakdown.append({
-                        "finding_type": finding_type.replace("_", " ").title(),
-                        "score": details["score"]
-                    })
-            
-            # Build response
-            response = DocumentScanResult(
-                fileName=file.filename,
-                fileSize=f"{file_size / 1024:.2f} KB",
-                fileHash=file_hash,
-                riskScore=score_result["score"],
-                verdict=score_result["verdict"],
-                scanTime=0.1,  # Could be tracked in parsers
-                totalFindings=len(result["findings"]),
-                findings=result["findings"],
-                scoreBreakdown=score_breakdown,
-                details=result["details"]
             )
-            
-            return response
-            
-        finally:
-            # Clean up temp file
-            try:
-                os.unlink(tmp_path)
-            except:
-                pass
-    
+
+        findings_detailed: List[FindingItem] = []
+        for finding in findings:
+            findings_detailed.append(
+                FindingItem(
+                    name=finding.replace("_", " ").title(),
+                    findingType=finding,
+                    severity=map_severity(finding),
+                    score=WEIGHTS.get(finding, 5),
+                )
+            )
+
+        return DocumentScanResult(
+            fileName=file.filename,
+            fileSize=_format_file_size_kb(len(file_data)),
+            fileHash=file_hash,
+            riskScore=score_result["score"],
+            verdict=score_result["verdict"],
+            severity=score_result["severity"],
+            scanTime=round(perf_counter() - started, 4),
+            totalFindings=len(findings),
+            findings=findings,
+            findingsDetailed=findings_detailed,
+            scoreBreakdown=score_breakdown,
+            details=details,
+        )
     except HTTPException:
         raise
-    except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Error scanning document: {str(e)}"
-        )
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Error scanning document: {exc}") from exc
+    finally:
+        try:
+            os.unlink(tmp_path)
+        except OSError:
+            pass
 
 
 @router.get("/document/formats")
 async def supported_formats():
-    """Get list of supported document formats"""
-    return {
-        "formats": [
+    formats = []
+    seen = set()
+    for ext, (name, description, _, _) in SUPPORTED_PARSERS.items():
+        if ext in seen:
+            continue
+        seen.add(ext)
+        formats.append(
             {
-                "name": "PDF",
-                "extension": ".pdf",
-                "description": "Portable Document Format - Fully Supported",
-                "supported": True
-            },
-            {
-                "name": "Word",
-                "extension": ".docx",
-                "description": "Microsoft Word Document - Fully Supported",
-                "supported": True
-            },
-            {
-                "name": "Excel",
-                "extension": ".xlsx, .xls",
-                "description": "Microsoft Excel Spreadsheet - Coming Soon",
-                "supported": False
-            },
-            {
-                "name": "PowerPoint",
-                "extension": ".pptx",
-                "description": "Microsoft PowerPoint Presentation - Coming Soon",
-                "supported": False
+                "name": name,
+                "extension": ext,
+                "description": f"{description} - Supported",
+                "supported": True,
             }
-        ]
-    }
+        )
+    return {"formats": formats}

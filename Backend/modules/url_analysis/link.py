@@ -170,6 +170,8 @@ def detect_brand_impersonation(domain: str, url: str) -> tuple[bool, str, float]
 	# Remove TLD for analysis
 	domain_name = domain.split('.')[0] if '.' in domain else domain
 	decoded_domain = decode_leetspeak(domain_name)
+	domain_tokens = [token for token in re.split(r"[-_]", domain_name) if token]
+	decoded_tokens = [decode_leetspeak(token) for token in domain_tokens]
 	
 	for brand in POPULAR_BRANDS:
 		# Direct substring match
@@ -182,13 +184,15 @@ def detect_brand_impersonation(domain: str, url: str) -> tuple[bool, str, float]
 				return True, brand, 1.0
 		
 		# Fuzzy matching for typosquatting (e.g., "gooogle", "faceb00k")
-		distance = levenshtein_distance(decoded_domain, brand)
-		max_distance = max(2, len(brand) // 4)  # Allow 25% character changes
-		
-		if distance <= max_distance and distance > 0:
-			similarity = 1.0 - (distance / len(brand))
-			if similarity >= 0.75:
-				return True, brand, similarity
+		candidates = [decoded_domain] + decoded_tokens
+		for candidate in candidates:
+			distance = levenshtein_distance(candidate, brand)
+			max_distance = max(2, len(brand) // 4)  # Allow 25% character changes
+			
+			if distance <= max_distance and distance > 0:
+				similarity = 1.0 - (distance / len(brand))
+				if similarity >= 0.75:
+					return True, brand, similarity
 	
 	return False, "", 0.0
 
@@ -571,6 +575,8 @@ def compute_heuristic_score(feature_map: dict, url: str) -> int:
 
 	keyword_hits = int(feature_map["keyword_hits"])
 	score += min(25, keyword_hits * 8)  # Increased multiplier for keywords
+	if feature_map["suspicious_tld"] == 1 and keyword_hits >= 2:
+		score += 18
 	
 	# Check for digit substitution in domain (common typosquatting technique)
 	# e.g., paypa1.com, g00gle.com, micros0ft.com
@@ -603,6 +609,9 @@ def compute_heuristic_score(feature_map: dict, url: str) -> int:
 			score += 35  # Free hosting + one keyword = still suspicious
 		else:
 			score += 25  # Free hosting alone = moderately suspicious
+
+	if int(feature_map.get("is_shortener", 0)) == 1:
+		score += 55
 
 	if feature_map["url_entropy"] >= 4.5:
 		score += 10
