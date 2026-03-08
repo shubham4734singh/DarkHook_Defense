@@ -1,4 +1,5 @@
 import { Shield, Heart } from 'lucide-react';
+import logo from '../../assets/164bd3b4c66bb15268339b22ae1165b91c7ea4e9.png';
 
 export function Footer() {
   const scrollToSection = (sectionId: string) => {
@@ -16,7 +17,7 @@ export function Footer() {
           {/* Left */}
           <div>
             <div className="flex items-center gap-2 mb-2">
-              <Shield className="w-6 h-6 text-[#00C2FF]" />
+              <img src={logo} alt="Darkhook Defense" className="h-14" />
               <span className="font-bold text-white text-xl">Darkhook Defense</span>
             </div>
             <p className="text-[#8BA3BC] text-sm">
