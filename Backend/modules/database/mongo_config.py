@@ -69,7 +69,7 @@ def get_mongo_client() -> MongoClient:
                     username, password = creds.split(":", 1)
                     # URL-encode the password
                     encoded_password = quote_plus(password)
-                MONGO_URI = f"{prefix}{username}:{encoded_password}@{host_part}"
+                    MONGO_URI = f"{prefix}{username}:{encoded_password}@{host_part}"
         except Exception:
             pass  # If parsing fails, use the original URI
     

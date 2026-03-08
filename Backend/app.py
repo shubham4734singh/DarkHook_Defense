@@ -19,6 +19,7 @@ from modules.database.mongo_config import get_client, close_connection
 from auth.auth_routes import router as auth_router
 from modules.url_analysis.link import router as url_router
 from modules.document_analysis.document_routes import router as document_router
+from modules.email_analysis.email_routes import router as email_router
 
 # Configuration
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
@@ -59,7 +60,7 @@ async def lifespan(app: FastAPI):
     try:
         close_connection()
         print("✓ MongoDB connection closed")
-    except:
+    except Exception:
         pass
 
 
@@ -136,6 +137,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 app.include_router(auth_router, prefix="/auth", tags=["Authentication"])
 app.include_router(url_router, prefix="/scan", tags=["URL Analysis"])
 app.include_router(document_router, prefix="/scan", tags=["Document Analysis"])
+app.include_router(email_router, prefix="/scan", tags=["Email Analysis"])
 
 
 # -------------------------

@@ -652,8 +652,8 @@ def compute_heuristic_score(feature_map: dict, url: str) -> int:
 
 def map_verdict(score: int) -> tuple[str, str]:
 	if score >= 70:
-		return "Phishing", "dangerous"
-	if score >= 45:
+		return "Phishing", "phishing"
+	if score >= 40:
 		return "Suspicious", "suspicious"
 	return "Safe", "safe"
 
@@ -714,10 +714,10 @@ def analyze_url(payload: URLAnalyzeRequest):
 			score = heuristic_score
 		
 		# Apply trusted domain override to avoid false positives
-		if is_trusted_domain(normalized) and score >= 45:
+		if is_trusted_domain(normalized) and score >= 40:
 			score = min(score, 30)  # Cap score below suspicious threshold for trusted domains
 		elif is_low_risk_legit_pattern(feature_map, normalized) and score >= 70:
-			score = min(score, 44)  # Prevent benign HTTPS URLs from being marked dangerous
+			score = min(score, 39)  # Prevent benign HTTPS URLs from being marked phishing
 		
 		verdict, status = map_verdict(score)
 		flags = build_flags(normalized, score, feature_map)
@@ -749,8 +749,8 @@ def analyze_url(payload: URLAnalyzeRequest):
 		
 		# Generate explanation summary
 		explanation = []
-		if status == "dangerous":
-			explanation.append(f"This URL scored {score}/100 indicating a HIGH RISK of phishing.")
+		if status == "phishing":
+			explanation.append(f"This URL scored {score}/100. PHISHING detected. Do not open.")
 			if feature_map["has_ip"] == 1:
 				explanation.append("IP addresses are used by attackers to hide domain identity.")
 			if feature_map["suspicious_tld"] == 1:
@@ -769,11 +769,11 @@ def analyze_url(payload: URLAnalyzeRequest):
 			if float(feature_map.get("anomaly_score", 0)) >= 0.6:
 				explanation.append("Statistical anomalies indicate this URL significantly deviates from normal patterns.")
 		elif status == "suspicious":
-			explanation.append(f"This URL scored {score}/100 indicating MODERATE RISK.")
-			explanation.append("Exercise caution and verify the source before interacting.")
+			explanation.append(f"This URL scored {score}/100. Medium Risk (SUSPICIOUS).")
+			explanation.append("Proceed carefully.")
 		else:
-			explanation.append(f"This URL scored {score}/100 indicating LOW RISK.")
-			explanation.append("No major phishing indicators detected, but always verify the true sender.")
+			explanation.append(f"This URL scored {score}/100. SAFE.")
+			explanation.append("No threat found.")
 
 		# Add ML service status message if unavailable
 		explanation_str = " ".join(explanation)

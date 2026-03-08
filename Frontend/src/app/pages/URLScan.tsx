@@ -8,6 +8,7 @@ export function URLScan() {
   const [url, setUrl] = useState('');
   const [scanning, setScanning] = useState(false);
   const [result, setResult] = useState<any>(null);
+  const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
   const { logout } = useAuth();
 
@@ -21,6 +22,7 @@ export function URLScan() {
     
     setScanning(true);
     setResult(null);
+    setError(null);
     
     console.log('🚀 === SCAN START ===');
     console.log('Input URL:', url);
@@ -37,7 +39,7 @@ export function URLScan() {
       console.error('Error object:', error);
       console.error('Error type:', typeof error);
       console.error('Error message:', error instanceof Error ? error.message : 'Unknown');
-      alert(`Scan failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      setError(error instanceof Error ? error.message : 'Scan failed. Please try again.');
     } finally {
       setScanning(false);
     }
@@ -47,7 +49,7 @@ export function URLScan() {
     switch (status) {
       case 'safe': return '#00D68F';
       case 'suspicious': return '#FFAA00';
-      case 'dangerous': return '#FF3B3B';
+      case 'phishing': return '#FF3B3B';
       default: return '#1E3A5F';
     }
   };
@@ -134,6 +136,20 @@ export function URLScan() {
             </button>
           </motion.div>
 
+          {/* Error Message */}
+          {error && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mb-8 p-4 bg-red-900/30 border border-red-500/50 rounded-lg"
+            >
+              <div className="flex items-center gap-3">
+                <XCircle className="w-5 h-5 text-red-400 shrink-0" />
+                <p className="text-red-300 text-sm">{error}</p>
+              </div>
+            </motion.div>
+          )}
+
           {/* Results */}
           {result && (
             <motion.div
@@ -149,7 +165,7 @@ export function URLScan() {
                     <span className="text-4xl font-bold text-white">{result.score}</span>
                   </div>
                   <h3 className="text-2xl font-bold mb-2" style={{ color: getStatusColor(result.status) }}>
-                    {result.status === 'safe' ? '🟢 SAFE' : result.status === 'suspicious' ? '🟡 SUSPICIOUS' : '🔴 DANGEROUS'}
+                    {result.status === 'safe' ? '🟢 SAFE' : result.status === 'suspicious' ? '🟡 SUSPICIOUS' : '🔴 PHISHING'}
                   </h3>
                   <p className="text-[#8BA3BC] mb-4">
                     {result.verdict} - Confidence: {(result.confidence * 100).toFixed(0)}%

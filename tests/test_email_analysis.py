@@ -6,9 +6,10 @@ from typing import Any, Dict
 
 import httpx
 import pytest
+import pytest_asyncio
 from fastapi import FastAPI
 
-from Backend.modules.email_analysis import routes as email_routes
+from Backend.modules.email_analysis import email_routes
 from Backend.modules.email_analysis.email_parser import EmailAnalyzer
 from Backend.modules.email_analysis.header_parser import analyze_headers
 
@@ -66,7 +67,7 @@ def app() -> FastAPI:
     return app
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def async_client(app: FastAPI) -> httpx.AsyncClient:
     """
     Provide an HTTPX AsyncClient bound to the FastAPI ASGI app.
@@ -89,38 +90,38 @@ async def test_analyze_phishing_email_integration(async_client: httpx.AsyncClien
     the test is deterministic and does not depend on local model files.
     """
 
-    def fake_ml_phishing_probability(_: str) -> float:
+    def fake_ml_phishing_probability(self, _: str) -> float:
         return 0.95
 
     # Ensure any call into the ML scorer yields a strong phishing signal.
     monkeypatch.setattr(
-        email_routes._email_analyzer,
+        EmailAnalyzer,
         "_ml_phishing_probability",
         fake_ml_phishing_probability,
         raising=False,
     )
 
-    phishing_eml_path = BASE_DIR / "sample_phishing.eml"
+    phishing_eml_path = BASE_DIR / "test_emails" / "sample_phishing.eml"
     assert phishing_eml_path.exists(), "Sample phishing .eml file is missing."
 
     eml_bytes = phishing_eml_path.read_bytes()
 
     files = {
-        "uploaded_file": (
+        "file": (
             "sample_phishing.eml",
             eml_bytes,
             "message/rfc822",
         )
     }
 
-    response = await async_client.post("/analyze/email", files=files)
+    response = await async_client.post("/email", files=files)
 
-    assert response.status_code == 200
+    assert response.status_code == 200, f"Expected 200, got {response.status_code}: {response.text}"
     data = response.json()
 
     assert data["verdict"] == "PHISHING"
-    assert data["score"] > 70
-    assert "http://paypa1-login.com/verify" in data["extracted_urls"]
+    assert data["riskScore"] > 70
+    assert "http://paypa1-login.com/verify" in data["extractedUrls"]
 
 
 @pytest.mark.asyncio
@@ -133,14 +134,14 @@ async def test_uploading_non_eml_file_returns_client_error(async_client: httpx.A
     fake_content = b"This is just a plain text file, not a real email."
 
     files = {
-        "uploaded_file": (
+        "file": (
             "not_an_email.txt",
             fake_content,
             "text/plain",
         )
     }
 
-    response = await async_client.post("/analyze/email", files=files)
+    response = await async_client.post("/email", files=files)
 
     # Our router raises a 400, but allow 422 if validation changes.
     assert response.status_code in (400, 422)

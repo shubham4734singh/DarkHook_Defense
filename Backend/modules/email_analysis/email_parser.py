@@ -322,7 +322,12 @@ class EmailAnalyzer:
         )
         score = int(round(max(0.0, min(1.0, combined)) * 100))
 
-        verdict = "PHISHING" if score >= 60 else "SAFE"
+        if score >= 70:
+            verdict = "PHISHING"
+        elif score >= 40:
+            verdict = "SUSPICIOUS"
+        else:
+            verdict = "SAFE"
         return score, verdict
 
     def analyze(self, file_path: Union[str, Path]) -> Dict[str, Any]:
@@ -332,7 +337,7 @@ class EmailAnalyzer:
         Returns JSON-serializable structure:
             {
                 "score": int (0-100),
-                "verdict": "PHISHING" | "SAFE",
+                "verdict": "SAFE" | "SUSPICIOUS" | "PHISHING",
                 "header_flags": List[str],
                 "body_flags": List[str],
                 "extracted_urls": List[str],

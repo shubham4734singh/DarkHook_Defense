@@ -16,13 +16,18 @@ from Backend.modules.document_analysis.scorer import calculate_score
 
 
 # ================================================================
-# PUT YOUR WORD FILE PATH HERE
-# Examples:
-# DOCX_PATH = r"C:\Users\sonip\Downloads\invoice.docx"
-# DOCX_PATH = r"C:\Users\sonip\Desktop\assignment.docx"
+# PUT YOUR WORD FILE PATH HERE (or pass as command-line argument)
+# Usage: python test_docx_parser.py <path_to_docx>
 # ================================================================
 
-DOCX_PATH = r"C:\Users\sonip\Documents\PU placement policy 2.0 - Final 2027 Batch.docx"
+DOCX_PATH = sys.argv[1] if len(sys.argv) > 1 else None
+if not DOCX_PATH:
+    print("Usage: python test_docx_parser.py <path_to_docx_file>")
+    print("Example: python test_docx_parser.py C:\\Users\\user\\Documents\\test.docx")
+    sys.exit(1)
+if not os.path.isfile(DOCX_PATH):
+    print(f"Error: File not found: {DOCX_PATH}")
+    sys.exit(1)
 
 
 # ================================================================
@@ -306,7 +311,7 @@ def print_keywords_table(details):
                 f"  │  {category:<22} "
                 f"{keyword:<24} ×{count_part:<4}  │"
             )
-        except:
+        except Exception:
             pass
 
     print("  └" + "─" * 56 + "┘")

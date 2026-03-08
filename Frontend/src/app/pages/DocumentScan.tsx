@@ -45,10 +45,10 @@ export function DocumentScan() {
   };
 
   const getVerdictColor = (verdict: string) => {
-    if (verdict.includes('Safe')) return '#00D68F';
-    if (verdict.includes('Suspicious')) return '#FFAA00';
-    if (verdict.includes('High Risk')) return '#FF6633';
-    if (verdict.includes('Dangerous')) return '#FF3B3B';
+    const normalized = verdict.toLowerCase();
+    if (normalized.includes('safe')) return '#00D68F';
+    if (normalized.includes('suspicious')) return '#FFAA00';
+    if (normalized.includes('phishing')) return '#FF3B3B';
     return '#1E3A5F';
   };
 
@@ -205,7 +205,7 @@ export function DocumentScan() {
                     <span className="text-4xl font-bold text-white">{result.riskScore}</span>
                   </div>
                   <h3 className="text-2xl font-bold mb-2" style={{ color: getVerdictColor(result.verdict) }}>
-                    {result.riskScore < 30 ? '🟢 SAFE' : result.riskScore < 60 ? '🟡 SUSPICIOUS' : result.riskScore < 80 ? '🟠 HIGH RISK' : '🔴 CRITICAL'}
+                    {result.riskScore <= 39 ? '🟢 SAFE' : result.riskScore <= 69 ? '🟡 SUSPICIOUS' : '🔴 PHISHING'}
                   </h3>
                   <p className="text-[#8BA3BC]">
                     {result.verdict}

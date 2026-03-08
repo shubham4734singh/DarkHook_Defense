@@ -435,7 +435,7 @@ def is_ip_url(url):
             r'^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$'
         )
         return bool(ip_pattern.match(host))
-    except:
+    except Exception:
         return False
 
 
@@ -651,7 +651,7 @@ def structural_analysis(file_path, raw_text):
                         "🚨 CRITICAL: Executable (EXE) embedded inside PDF!"
                     )
                     break
-    except:
+    except Exception:
         pass
 
     details.append(
@@ -1016,14 +1016,12 @@ def heuristic_scoring(all_findings):
     total_score = min(total_score, 100)
 
     # Verdict based on score
-    if total_score < 30:
-        verdict = "Low Risk ✅"
-    elif total_score < 60:
-        verdict = "Medium Risk ⚠️"
-    elif total_score < 80:
-        verdict = "High Risk 🔴"
+    if total_score <= 39:
+        verdict = "Safe"
+    elif total_score <= 69:
+        verdict = "Suspicious"
     else:
-        verdict = "Critical — Likely Phishing ☠️"
+        verdict = "Phishing"
 
     return total_score, verdict, breakdown
 
@@ -1053,7 +1051,7 @@ def parse_pdf(file_path):
         try:
             with open(file_path, "rb") as f:
                 sha256_hash = hashlib.sha256(f.read()).hexdigest()
-        except:
+        except Exception:
             sha256_hash = "Could not calculate"
 
         all_details.append("=" * 50)
@@ -1092,7 +1090,7 @@ def parse_pdf(file_path):
         try:
             with open(file_path, "rb") as f:
                 raw_text = f.read().decode("latin-1")
-        except:
+        except Exception:
             all_details.append("⚠️ Could not read raw PDF bytes")
 
         # ----------------------------------------------

@@ -14,13 +14,18 @@ from Backend.modules.document_analysis.excel_parser import parse_excel
 from Backend.modules.document_analysis.scorer import calculate_score
 
 # ================================================================
-# PUT YOUR EXCEL FILE PATH HERE
-# Example:
-# EXCEL_PATH = r"C:\Users\sonip\Downloads\salary.xlsx"
-# EXCEL_PATH = r"C:\Users\sonip\Desktop\invoice.xlsm"
+# PUT YOUR EXCEL FILE PATH HERE (or pass as command-line argument)
+# Usage: python test_excel_parser.py <path_to_excel>
 # ================================================================
 
-EXCEL_PATH = r"C:\Users\sonip\Desktop\6th sem\minor project\AlwaysVerify_15Week_MasterPlan (1).xlsx"
+EXCEL_PATH = sys.argv[1] if len(sys.argv) > 1 else None
+if not EXCEL_PATH:
+    print("Usage: python test_excel_parser.py <path_to_excel_file>")
+    print("Example: python test_excel_parser.py C:\\Users\\user\\Documents\\test.xlsx")
+    sys.exit(1)
+if not os.path.isfile(EXCEL_PATH):
+    print(f"Error: File not found: {EXCEL_PATH}")
+    sys.exit(1)
 
 
 def separator(char="=", width=62):

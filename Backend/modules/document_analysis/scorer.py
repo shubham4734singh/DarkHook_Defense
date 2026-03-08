@@ -226,18 +226,15 @@ WEIGHTS: Dict[str, int] = {
 
 def get_verdict(score: int) -> str:
     """
-    0 to 25   -> Safe
-    26 to 55  -> Suspicious
-    56 to 79  -> High Risk
-    80 to 100 -> Dangerous
+    0 to 39   -> Safe
+    40 to 69  -> Suspicious
+    70 to 100 -> Phishing
     """
-    if score <= 25:
+    if score <= 39:
         return "Safe"
-    if score <= 55:
+    if score <= 69:
         return "Suspicious"
-    if score <= 79:
-        return "High Risk"
-    return "Dangerous - Likely Phishing"
+    return "Phishing"
 
 
 def calculate_score(findings: Iterable[str]) -> Dict[str, Any]:
@@ -264,12 +261,10 @@ def calculate_score(findings: Iterable[str]) -> Dict[str, Any]:
     total_score = min(total_score, 100)
     verdict = get_verdict(total_score)
 
-    if total_score <= 25:
+    if total_score <= 39:
         severity = "LOW"
-    elif total_score <= 55:
+    elif total_score <= 69:
         severity = "MEDIUM"
-    elif total_score <= 79:
-        severity = "HIGH"
     else:
         severity = "CRITICAL"
 

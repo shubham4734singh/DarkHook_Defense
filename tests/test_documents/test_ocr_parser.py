@@ -12,8 +12,16 @@ import time
 from Backend.modules.document_analysis.ocr_parser import parse_image
 from Backend.modules.document_analysis.scorer import calculate_score
 
-# PUT YOUR IMAGE FILE PATH HERE
-IMAGE_PATH = r"C:\Users\sonip\Downloads\Untitled.png"
+# PUT YOUR IMAGE FILE PATH HERE (or pass as command-line argument)
+# Usage: python test_ocr_parser.py <path_to_image>
+IMAGE_PATH = sys.argv[1] if len(sys.argv) > 1 else None
+if not IMAGE_PATH:
+    print("Usage: python test_ocr_parser.py <path_to_image_file>")
+    print("Example: python test_ocr_parser.py C:\\Users\\user\\Downloads\\screenshot.png")
+    sys.exit(1)
+if not os.path.isfile(IMAGE_PATH):
+    print(f"Error: File not found: {IMAGE_PATH}")
+    sys.exit(1)
 
 def separator(char="=", width=62):
     print(char * width)

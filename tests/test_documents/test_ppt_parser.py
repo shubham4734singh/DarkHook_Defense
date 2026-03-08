@@ -16,7 +16,16 @@ import time
 from modules.document_analysis.ppt_parser import parse_ppt
 from modules.document_analysis.scorer import calculate_score
 
-PPT_PATH = r"C:\Users\sonip\Downloads\PPT_TESTING.pptx"
+# PUT YOUR PPT FILE PATH HERE (or pass as command-line argument)
+# Usage: python test_ppt_parser.py <path_to_ppt>
+PPT_PATH = sys.argv[1] if len(sys.argv) > 1 else None
+if not PPT_PATH:
+    print("Usage: python test_ppt_parser.py <path_to_ppt_file>")
+    print("Example: python test_ppt_parser.py C:\\Users\\user\\Downloads\\test.pptx")
+    sys.exit(1)
+if not os.path.isfile(PPT_PATH):
+    print(f"Error: File not found: {PPT_PATH}")
+    sys.exit(1)
 
 
 def separator(char="=", width=62):

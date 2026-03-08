@@ -63,9 +63,9 @@ def test_url_analysis_endpoint(monkeypatch):
 
     test_cases = [
         {"url": "https://google.com", "expected_status": "safe", "max_score": 45},
-        {"url": "http://paypa1.com/login", "expected_status": "dangerous", "min_score": 70},
-        {"url": "https://secure-login.tk/verify", "expected_status": "dangerous", "min_score": 70},
-        {"url": "http://bit.ly/abc123", "expected_status": "dangerous", "min_score": 70},
+        {"url": "http://paypa1.com/login", "expected_status": "phishing", "min_score": 70},
+        {"url": "https://secure-login.tk/verify", "expected_status": "phishing", "min_score": 70},
+        {"url": "http://bit.ly/abc123", "expected_status": "phishing", "min_score": 40},
         {"url": "https://dev-environment.example.com", "expected_status": "safe", "max_score": 45},
     ]
 

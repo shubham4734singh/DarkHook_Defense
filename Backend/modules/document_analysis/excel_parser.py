@@ -1371,17 +1371,14 @@ def technique12_scoring(all_findings):
 
     total_score = min(total_score, 100)
 
-    if total_score < 30:
-        verdict  = "Low Risk"
+    if total_score <= 39:
+        verdict  = "Safe"
         severity = "LOW"
-    elif total_score < 60:
-        verdict  = "Medium Risk"
+    elif total_score <= 69:
+        verdict  = "Suspicious"
         severity = "MEDIUM"
-    elif total_score < 80:
-        verdict  = "High Risk"
-        severity = "HIGH"
     else:
-        verdict  = "Critical — Likely Phishing"
+        verdict  = "Phishing"
         severity = "CRITICAL"
 
     return total_score, verdict, severity, breakdown

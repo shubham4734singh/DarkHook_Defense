@@ -61,80 +61,13 @@ try:
 except ImportError:
     PYZBAR_AVAILABLE = False
 
+# Import centralized scoring
+from .scorer import calculate_score
+
 
 # ================================================================
-# CONFIGURATION
+# CONFIGURATION — Scoring weights moved to scorer.py (centralized)
 # ================================================================
-
-WEIGHTS = {
-    # File structure
-    "invalid_image_format"       : 30,
-    "file_type_mismatch"         : 40,
-    "double_extension"           : 35,
-    # Metadata
-    "suspicious_exif"            : 15,
-    "wiped_exif"                 : 20,
-    "edited_image"               : 15,
-    # OCR findings
-    "ocr_failed"                 : 10,
-    "ocr_phishing_text"          : 10,
-    "phishing_keyword"           : 10,
-    "low_text_density"           : 15,
-    # Tone findings
-    "urgent_tone_detected"       : 15,
-    "financial_terms_detected"   : 15,
-    "credential_harvesting"      : 20,
-    # URL findings
-    "suspicious_url"             : 15,
-    "ip_based_url"               : 30,
-    "shortened_url"              : 20,
-    "suspicious_tld"             : 20,
-    "at_symbol_trick"            : 25,
-    "mismatched_anchor"          : 25,
-    # QR findings
-    "qr_code_detected"           : 15,
-    "qr_malicious_url"           : 40,
-    "qr_suspicious_url"          : 25,
-    # Visual deception
-    "fake_login_page"            : 35,
-    "blurred_image"              : 20,
-    "single_image_content"       : 20,
-    # Pixel manipulation
-    "high_entropy_image"         : 25,
-    "suspicious_file_size"       : 20,
-    "steganography_indicator"    : 35,
-    # Multi-language
-    "multilang_phishing_text"    : 25,
-    "hindi_phishing_detected"    : 25,
-    "mixed_script_detected"      : 20,
-    # Homograph
-    "homograph_domain"           : 35,
-    "lookalike_domain"           : 30,
-    "char_substitution"          : 25,
-    # Hidden overlay
-    "hidden_text_overlay"        : 40,
-    "low_contrast_text"          : 30,
-    "transparent_layer"          : 35,
-    # Template matching
-    "known_phishing_template"    : 45,
-    "template_reuse_detected"    : 40,
-    # UI layout
-    "fake_login_form_detected"   : 40,
-    "password_field_detected"    : 30,
-    "fake_submit_button"         : 25,
-    # Fake browser
-    "fake_browser_ui"            : 35,
-    "fake_address_bar"           : 40,
-    "fake_padlock_detected"      : 30,
-    # OCR confidence
-    "low_ocr_confidence"         : 20,
-    "blur_evasion_detected"      : 30,
-    # Attack chain
-    "dropper_pattern"            : 40,
-    "credential_theft_chain"     : 40,
-    "qr_phishing_chain"          : 40,
-    "impersonation_chain"        : 35,
-}
 
 
 # ----------------------------------------------------------------
@@ -1190,48 +1123,6 @@ def technique9_attack_chain(all_findings):
 
 
 # ================================================================
-# TECHNIQUE 10 — Heuristic Risk Scoring
-# ================================================================
-
-def technique10_scoring(all_findings):
-    """
-    Converts all findings into final weighted score.
-    """
-    total_score = 0
-    breakdown   = {}
-
-    for finding in all_findings:
-        weight = WEIGHTS.get(finding, 5)
-        total_score += weight
-
-        if finding in breakdown:
-            breakdown[finding]["count"] += 1
-            breakdown[finding]["score"] += weight
-        else:
-            breakdown[finding] = {
-                "count" : 1,
-                "score" : weight,
-            }
-
-    total_score = min(total_score, 100)
-
-    if total_score < 30:
-        verdict  = "Low Risk"
-        severity = "LOW"
-    elif total_score < 60:
-        verdict  = "Medium Risk"
-        severity = "MEDIUM"
-    elif total_score < 80:
-        verdict  = "High Risk"
-        severity = "HIGH"
-    else:
-        verdict  = "Critical — Likely Phishing"
-        severity = "CRITICAL"
-
-    return total_score, verdict, severity, breakdown
-
-
-# ================================================================
 # TECHNIQUE 11 — Multi-Language OCR Detection
 # ================================================================
 
@@ -2128,9 +2019,12 @@ def parse_image(file_path):
         all_details.extend(d17)
 
         # Technique 10 — Final scoring (runs last with all findings)
-        score, verdict, severity, breakdown = (
-            technique10_scoring(all_findings)
-        )
+        # Use centralized scorer.py for consistent scoring across all parsers
+        score_result = calculate_score(all_findings)
+        score = score_result["score"]
+        verdict = score_result["verdict"]
+        severity = score_result["severity"]
+        breakdown = score_result["breakdown"]
 
         all_details.append("")
         all_details.append(

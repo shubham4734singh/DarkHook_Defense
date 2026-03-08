@@ -86,6 +86,18 @@ export interface DocumentScanResult {
   details: string[];
 }
 
+export interface EmailScanResult {
+  fileName: string;
+  riskScore: number;
+  verdict: string;
+  severity: string;
+  scanTime: number;
+  headerFlags: string[];
+  bodyFlags: string[];
+  extractedUrls: string[];
+  extractedAttachments: string[];
+}
+
 class ApiService {
   private baseUrl: string;
 
@@ -200,8 +212,15 @@ class ApiService {
       const formData = new FormData();
       formData.append('file', file);
 
+      const token = localStorage.getItem('darkhook_token');
+      const headers: HeadersInit = {};
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
       const response = await fetch(fullUrl, {
         method: 'POST',
+        headers,
         body: formData,
       });
 
@@ -256,6 +275,37 @@ class ApiService {
     } catch (error) {
       console.error(`❌ === API CALL FAILED ===\n`);
       console.error(`Error:`, error);
+      throw error;
+    }
+  }
+
+  async scanEmail(file: File): Promise<EmailScanResult> {
+    const fullUrl = `${this.baseUrl}/scan/email`;
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const token = localStorage.getItem('darkhook_token');
+      const headers: HeadersInit = {};
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      const response = await fetch(fullUrl, {
+        method: 'POST',
+        headers,
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ detail: 'Email scan failed' }));
+        throw new Error(error.detail || `HTTP ${response.status}: Email scan failed`);
+      }
+
+      return response.json();
+    } catch (error) {
+      console.error('Email scan failed:', error);
       throw error;
     }
   }

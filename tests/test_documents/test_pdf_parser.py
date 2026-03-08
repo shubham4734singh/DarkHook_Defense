@@ -13,14 +13,18 @@ from Backend.modules.document_analysis.pdf_parser import parse_pdf
 from Backend.modules.document_analysis.scorer import calculate_score
 
 # ============================================================
-# PUT YOUR PDF PATH HERE
-# Examples:
-# PDF_PATH = r"C:\Users\sonip\Downloads\invoice.pdf"
-# PDF_PATH = r"C:\Users\sonip\Desktop\assignment.pdf"
-# PDF_PATH = r"C:\Users\sonip\Downloads\notice.pdf"
+# PUT YOUR PDF PATH HERE (or pass as command-line argument)
+# Usage: python test_pdf_parser.py <path_to_pdf>
 # ============================================================
 
-PDF_PATH = r"C:\Users\sonip\Desktop\6th sem\MEAN"
+PDF_PATH = sys.argv[1] if len(sys.argv) > 1 else None
+if not PDF_PATH:
+    print("Usage: python test_pdf_parser.py <path_to_pdf_file>")
+    print("Example: python test_pdf_parser.py C:\\Users\\user\\Downloads\\test.pdf")
+    sys.exit(1)
+if not os.path.isfile(PDF_PATH):
+    print(f"Error: File not found: {PDF_PATH}")
+    sys.exit(1)
 
 # ============================================================
 # RUN THE SCAN
