@@ -1,11 +1,10 @@
 <div align="center">
 
-<img src="https://capsule-render.vercel.app/api?type=waving&color=0:0d1b2a,50:1b2838,100:00e5ff&height=220&section=header&text=🛡️%20DarkHook%20Defense&fontSize=52&fontColor=00e5ff&animation=fadeIn&fontAlignY=35&desc=AI-Powered%20Phishing%20Detection%20System&descSize=18&descAlignY=55&descColor=94a3b8" width="100%" />
+<img src="https://capsule-render.vercel.app/api?type=waving&color=0:0d1b2a,50:1b2838,100:00e5ff&height=220&section=header&text=%20DarkHook%20Defense&fontSize=52&fontColor=00e5ff&animation=fadeIn&fontAlignY=35&desc=AI-Powered%20Phishing%20Detection%20System&descSize=18&descAlignY=55&descColor=94a3b8" width="100%" />
 
 <br/>
 
-<h3>
-  <code>🔗 URLs</code> &nbsp;&nbsp;•&nbsp;&nbsp; <code>📧 Emails</code> &nbsp;&nbsp;•&nbsp;&nbsp; <code>📄 Documents</code>
+<h3><code>URLs</code> &nbsp;&nbsp;•&nbsp;&nbsp; <code>Emails</code> &nbsp;&nbsp;•&nbsp;&nbsp; <code>Documents</code>
 </h3>
 
 <p><em>Detect. Analyze. Defend.</em></p>
@@ -21,7 +20,7 @@
 
 <br/>
 
-[![Live](https://img.shields.io/badge/🌐_Live-darkhookdefense.online-00e5ff?style=for-the-badge)](https://darkhookdefense.online)
+[![Live](https://img.shields.io/badge/_Live-darkhookdefense.online-00e5ff?style=for-the-badge)](https://darkhookdefense.online)
 [![Status](https://img.shields.io/badge/Status-Active_Development-brightgreen?style=for-the-badge)]()
 [![License](https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge)](LICENSE)
 
@@ -80,20 +79,20 @@
 <!-- ═══════════════════════════ TABLE OF CONTENTS ═══════════════════════════ -->
 
 <details open>
-<summary><h2>📌 Table of Contents</h2></summary>
+<summary><h2>Table of Contents</h2></summary>
 
-&nbsp;&nbsp;&nbsp;&nbsp;[🔍 About The Project](#-about-the-project) <br/>
-&nbsp;&nbsp;&nbsp;&nbsp;[✨ Key Features](#-key-features) <br/>
-&nbsp;&nbsp;&nbsp;&nbsp;[🏗️ System Architecture](#️-system-architecture) <br/>
-&nbsp;&nbsp;&nbsp;&nbsp;[🛠️ Tech Stack](#️-tech-stack) <br/>
-&nbsp;&nbsp;&nbsp;&nbsp;[📁 Project Structure](#-project-structure) <br/>
-&nbsp;&nbsp;&nbsp;&nbsp;[🚀 Getting Started](#-getting-started) <br/>
-&nbsp;&nbsp;&nbsp;&nbsp;[📦 Module Breakdown](#-module-breakdown) <br/>
-&nbsp;&nbsp;&nbsp;&nbsp;[🖥️ Screenshots](#️-screenshots) <br/>
-&nbsp;&nbsp;&nbsp;&nbsp;[👥 Team](#-team) <br/>
-&nbsp;&nbsp;&nbsp;&nbsp;[📊 Model Performance](#-model-performance) <br/>
-&nbsp;&nbsp;&nbsp;&nbsp;[🚀 Future Enhancements](#-future-enhancements-7th-sem) <br/>
-&nbsp;&nbsp;&nbsp;&nbsp;[📄 License](#-license) <br/>
+&nbsp;&nbsp;&nbsp;&nbsp;[About The Project](#about-the-project) <br/>
+&nbsp;&nbsp;&nbsp;&nbsp;[Key Features](#key-features) <br/>
+&nbsp;&nbsp;&nbsp;&nbsp;[System Architecture](#system-architecture) <br/>
+&nbsp;&nbsp;&nbsp;&nbsp;[Tech Stack](#tech-stack) <br/>
+&nbsp;&nbsp;&nbsp;&nbsp;[Project Structure](#project-structure-click-to-expand) <br/>
+&nbsp;&nbsp;&nbsp;&nbsp;[Getting Started](#getting-started) <br/>
+&nbsp;&nbsp;&nbsp;&nbsp;[Module Breakdown](#module-breakdown) <br/>
+&nbsp;&nbsp;&nbsp;&nbsp;[Screenshots](#screenshots) <br/>
+&nbsp;&nbsp;&nbsp;&nbsp;[Team](#team) <br/>
+&nbsp;&nbsp;&nbsp;&nbsp;[Model Performance](#model-performance) <br/>
+&nbsp;&nbsp;&nbsp;&nbsp;[Future Enhancements](#future-enhancements-7th-sem) <br/>
+&nbsp;&nbsp;&nbsp;&nbsp;[License](#license) <br/>
 
 </details>
 
@@ -102,7 +101,7 @@
 
 <img src="https://capsule-render.vercel.app/api?type=rect&color=0d1b2a&height=1&section=header" width="100%" />
 
-## 🔍 About The Project
+## About The Project
 
 <div align="center">
 <table>
@@ -113,10 +112,10 @@
 
 Unlike traditional tools that rely on external paid APIs, DarkHook Defense is powered by:
 
-🤖 **HuggingFace ML model** for URL classification + **40+ feature heuristic engine** with zero-day detection <br/>
-📊 **Naive Bayes on TF-IDF** for email scoring with header analysis fusion <br/>
-📄 **150+ weighted rule engine** for document analysis across 6 file formats <br/>
-🐍 **Open-source Python libraries** for parsing and feature extraction <br/>
+ **HuggingFace ML model** for URL classification + **40+ feature heuristic engine** with zero-day detection <br/>
+ **Naive Bayes on TF-IDF** for email scoring with header analysis fusion <br/>
+ **150+ weighted rule engine** for document analysis across 6 file formats <br/>
+ **Open-source Python libraries** for parsing and feature extraction <br/>
 
 Every scan returns a **risk score (0–100)** with a detailed breakdown of exactly *why* something was flagged.
 
@@ -160,7 +159,7 @@ Every scan returns a **risk score (0–100)** with a detailed breakdown of exact
 
 <img src="https://capsule-render.vercel.app/api?type=rect&color=0d1b2a&height=1&section=header" width="100%" />
 
-## ✨ Key Features
+## Key Features
 
 <div align="center">
 <table>
@@ -168,17 +167,17 @@ Every scan returns a **risk score (0–100)** with a detailed breakdown of exact
 
 <td align="center" width="50%">
 
-### 🔗 Link Analysis
+### Link Analysis
 
 <p align="left">
 
-✅ **40+ feature extraction** — entropy, TLDs, character counts <br/>
-✅ Typosquatting via Levenshtein distance <br/>
-✅ **Zero-day detection** — leet-speak, homograph, IDN attacks <br/>
-✅ Brand impersonation (PayPal, Google, Amazon…) <br/>
-✅ Free hosting & URL shortener detection (40+ each) <br/>
-✅ **Hybrid ML + Heuristic** — HuggingFace + fallback engine <br/>
-✅ Trusted domain whitelist
+ **40+ feature extraction** — entropy, TLDs, character counts <br/>
+ Typosquatting via Levenshtein distance <br/>
+ **Zero-day detection** — leet-speak, homograph, IDN attacks <br/>
+ Brand impersonation (PayPal, Google, Amazon…) <br/>
+ Free hosting & URL shortener detection (40+ each) <br/>
+ **Hybrid ML + Heuristic** — HuggingFace + fallback engine <br/>
+ Trusted domain whitelist
 
 </p>
 
@@ -186,17 +185,17 @@ Every scan returns a **risk score (0–100)** with a detailed breakdown of exact
 
 <td align="center" width="50%">
 
-### 📧 Email Analysis
+### Email Analysis
 
 <p align="left">
 
-✅ Full `.eml` file parsing (Python `email` lib) <br/>
-✅ SPF / DKIM / DMARC result detection <br/>
-✅ Sender spoofing & brand impersonation <br/>
-✅ Reply-To vs From domain mismatch <br/>
-✅ 30+ urgency keyword scoring <br/>
-✅ HTML-to-text ratio analysis <br/>
-✅ **ML fusion:** 60% ML + 20% header + 15% urgency + 5% HTML
+ Full `.eml` file parsing (Python `email` lib) <br/>
+ SPF / DKIM / DMARC result detection <br/>
+ Sender spoofing & brand impersonation <br/>
+ Reply-To vs From domain mismatch <br/>
+ 30+ urgency keyword scoring <br/>
+ HTML-to-text ratio analysis <br/>
+ **ML fusion:** 60% ML + 20% header + 15% urgency + 5% HTML
 
 </p>
 
@@ -207,17 +206,17 @@ Every scan returns a **risk score (0–100)** with a detailed breakdown of exact
 
 <td align="center" width="50%">
 
-### 📄 Document Analysis
+### Document Analysis
 
 <p align="left">
 
-✅ Supports **PDF, DOCX, XLSX, PPTX, PNG, JPG** <br/>
-✅ **150+ weighted findings** with centralized scorer <br/>
-✅ Macro detection via `olevba` <br/>
-✅ OCR text extraction via pytesseract <br/>
-✅ QR code detection & URL scoring <br/>
-✅ JS-in-PDF, Base64, PowerShell, droppers <br/>
-✅ Formula injection, DDE, hidden sheets/slides
+ Supports **PDF, DOCX, XLSX, PPTX, PNG, JPG** <br/>
+ **150+ weighted findings** with centralized scorer <br/>
+ Macro detection via `olevba` <br/>
+ OCR text extraction via pytesseract <br/>
+ QR code detection & URL scoring <br/>
+ JS-in-PDF, Base64, PowerShell, droppers <br/>
+ Formula injection, DDE, hidden sheets/slides
 
 </p>
 
@@ -225,17 +224,17 @@ Every scan returns a **risk score (0–100)** with a detailed breakdown of exact
 
 <td align="center" width="50%">
 
-### 🔐 Auth & Dashboard
+### Auth & Dashboard
 
 <p align="left">
 
-✅ JWT auth with secure token management <br/>
-✅ Email OTP via **Brevo API** + SMTP fallback <br/>
-✅ SHA-256 hashed OTPs with TTL auto-expiry <br/>
-✅ Protected routes with offline handling <br/>
-✅ Risk score (0–100) with flag breakdown <br/>
-✅ Dark navy theme + cyan accents + animations <br/>
-✅ Mobile responsive with 30+ Radix UI components
+ JWT auth with secure token management <br/>
+ Email OTP via **Brevo API** + SMTP fallback <br/>
+ SHA-256 hashed OTPs with TTL auto-expiry <br/>
+ Protected routes with offline handling <br/>
+ Risk score (0–100) with flag breakdown <br/>
+ Dark navy theme + cyan accents + animations <br/>
+ Mobile responsive with 30+ Radix UI components
 
 </p>
 
@@ -250,18 +249,18 @@ Every scan returns a **risk score (0–100)** with a detailed breakdown of exact
 
 <img src="https://capsule-render.vercel.app/api?type=rect&color=0d1b2a&height=1&section=header" width="100%" />
 
-## 🏗️ System Architecture
+## System Architecture
 
 <div align="center">
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
-│               ⚛️  React 18 Frontend (Vite 6)                 │
+│                 React 18 Frontend (Vite 6)                 │
 │      Tailwind CSS 4  │  Radix UI  │  Motion  │  Recharts    │
 └───────────────────────────────┬──────────────────────────────┘
                                 │  HTTP REST (Fetch API)
 ┌───────────────────────────────▼──────────────────────────────┐
-│                      ⚡ FastAPI Backend                       │
+│                       FastAPI Backend                       │
 │                                                               │
 │   ┌──────────────┐  ┌──────────────┐  ┌──────────────────┐  │
 │   │ /scan/url    │  │ /scan/email  │  │ /scan/document   │  │
@@ -272,12 +271,12 @@ Every scan returns a **risk score (0–100)** with a detailed breakdown of exact
 │   └──────┬───────┘  └──────┬───────┘  └────────┬─────────┘  │
 │          └─────────────────┼────────────────────┘            │
 │                            │                                  │
-│   🔐 /auth/*         ML Engine + Rule Engine                  │
+│    /auth/*         ML Engine + Rule Engine                  │
 │   JWT + OTP           Score: 0-100 + Verdict                  │
 └────────────────────────────┼─────────────────────────────────┘
                              │
 ┌────────────────────────────▼─────────────────────────────────┐
-│                   🍃 MongoDB Atlas (TLS 1.2+)                 │
+│                    MongoDB Atlas (TLS 1.2+)                 │
 │                  users  │  email_otps                         │
 └──────────────────────────────────────────────────────────────┘
 ```
@@ -289,7 +288,7 @@ Every scan returns a **risk score (0–100)** with a detailed breakdown of exact
 
 <img src="https://capsule-render.vercel.app/api?type=rect&color=0d1b2a&height=1&section=header" width="100%" />
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 <div align="center">
 
@@ -341,7 +340,7 @@ Every scan returns a **risk score (0–100)** with a detailed breakdown of exact
 <img src="https://capsule-render.vercel.app/api?type=rect&color=0d1b2a&height=1&section=header" width="100%" />
 
 <details>
-<summary><h2>📁 Project Structure (click to expand)</h2></summary>
+<summary><h2>Project Structure (click to expand)</h2></summary>
 
 ```
 DARKHOOK_DEFENSE/                          ← Main project (on GitHub)
@@ -353,110 +352,110 @@ DARKHOOK_DEFENSE/                          ← Main project (on GitHub)
 ├── render.yaml                            ← Render deployment config
 │
 │
-├── Frontend/                              ← REACT FRONTEND 🎨
-│   ├── 📁 src
-│   │   ├── 📁 app
-│   │   │   ├── 📁 components
-│   │   │   │   ├── 📁 figma
-│   │   │   │   │   └── 📄 ImageWithFallback.tsx
-│   │   │   │   ├── 📁 ui
-│   │   │   │   │   ├── 📄 accordion.tsx
-│   │   │   │   │   ├── 📄 alert-dialog.tsx
-│   │   │   │   │   ├── 📄 alert.tsx
-│   │   │   │   │   ├── 📄 aspect-ratio.tsx
-│   │   │   │   │   ├── 📄 avatar.tsx
-│   │   │   │   │   ├── 📄 badge.tsx
-│   │   │   │   │   ├── 📄 breadcrumb.tsx
-│   │   │   │   │   ├── 📄 button.tsx
-│   │   │   │   │   ├── 📄 calendar.tsx
-│   │   │   │   │   ├── 📄 card.tsx
-│   │   │   │   │   ├── 📄 carousel.tsx
-│   │   │   │   │   ├── 📄 chart.tsx
-│   │   │   │   │   ├── 📄 checkbox.tsx
-│   │   │   │   │   ├── 📄 collapsible.tsx
-│   │   │   │   │   ├── 📄 command.tsx
-│   │   │   │   │   ├── 📄 context-menu.tsx
-│   │   │   │   │   ├── 📄 dialog.tsx
-│   │   │   │   │   ├── 📄 drawer.tsx
-│   │   │   │   │   ├── 📄 dropdown-menu.tsx
-│   │   │   │   │   ├── 📄 form.tsx
-│   │   │   │   │   ├── 📄 hover-card.tsx
-│   │   │   │   │   ├── 📄 input-otp.tsx
-│   │   │   │   │   ├── 📄 input.tsx
-│   │   │   │   │   ├── 📄 label.tsx
-│   │   │   │   │   ├── 📄 menubar.tsx
-│   │   │   │   │   ├── 📄 navigation-menu.tsx
-│   │   │   │   │   ├── 📄 pagination.tsx
-│   │   │   │   │   ├── 📄 popover.tsx
-│   │   │   │   │   ├── 📄 progress.tsx
-│   │   │   │   │   ├── 📄 radio-group.tsx
-│   │   │   │   │   ├── 📄 resizable.tsx
-│   │   │   │   │   ├── 📄 scroll-area.tsx
-│   │   │   │   │   ├── 📄 select.tsx
-│   │   │   │   │   ├── 📄 separator.tsx
-│   │   │   │   │   ├── 📄 sheet.tsx
-│   │   │   │   │   ├── 📄 sidebar.tsx
-│   │   │   │   │   ├── 📄 skeleton.tsx
-│   │   │   │   │   ├── 📄 slider.tsx
-│   │   │   │   │   ├── 📄 sonner.tsx
-│   │   │   │   │   ├── 📄 switch.tsx
-│   │   │   │   │   ├── 📄 table.tsx
-│   │   │   │   │   ├── 📄 tabs.tsx
-│   │   │   │   │   ├── 📄 textarea.tsx
-│   │   │   │   │   ├── 📄 toggle-group.tsx
-│   │   │   │   │   ├── 📄 toggle.tsx
-│   │   │   │   │   ├── 📄 tooltip.tsx
-│   │   │   │   │   ├── 📄 use-mobile.ts
-│   │   │   │   │   └── 📄 utils.ts
-│   │   │   │   ├── 📄 AboutSection.tsx
-│   │   │   │   ├── 📄 ComparisonSection.tsx
-│   │   │   │   ├── 📄 FAQSection.tsx
-│   │   │   │   ├── 📄 Footer.tsx
-│   │   │   │   ├── 📄 HeroScanWidget.tsx
-│   │   │   │   ├── 📄 HeroSection.tsx
-│   │   │   │   ├── 📄 HowItWorksSection.tsx
-│   │   │   │   ├── 📄 Navbar.tsx
-│   │   │   │   ├── 📄 ProtectedRoute.tsx
-│   │   │   │   ├── 📄 RiskScoreSection.tsx
-│   │   │   │   ├── 📄 RootLayout.tsx
-│   │   │   │   ├── 📄 ScanDemoSection.tsx
-│   │   │   │   ├── 📄 ScanNowDropdown.tsx
-│   │   │   │   ├── 📄 TeamSection.tsx
-│   │   │   │   ├── 📄 ThreatStatsSection.tsx
-│   │   │   │   └── 📄 ThreeLayersSection.tsx
-│   │   │   ├── 📁 contexts
-│   │   │   │   └── 📄 AuthContext.tsx
-│   │   │   ├── 📁 pages
-│   │   │   │   ├── 📄 Dashboard.tsx
-│   │   │   │   ├── 📄 DocumentScan.tsx
-│   │   │   │   ├── 📄 EmailScan.tsx
-│   │   │   │   ├── 📄 History.tsx
-│   │   │   │   ├── 📄 Home.tsx
-│   │   │   │   ├── 📄 Login.tsx
-│   │   │   │   ├── 📄 Result.tsx
-│   │   │   │   └── 📄 URLScan.tsx
-│   │   │   ├── 📁 services
-│   │   │   │   └── 📄 api.ts
-│   │   │   ├── 📄 App.tsx
-│   │   │   └── 📄 routes.tsx
-│   │   ├── 📁 assets
-│   │   ├── 📁 styles
-│   │   │   ├── 🎨 fonts.css
-│   │   │   ├── 🎨 index.css
-│   │   │   ├── 🎨 tailwind.css
-│   │   │   └── 🎨 theme.css
-│   │   ├── 📄 image.d.ts
-│   │   ├── 📄 main.tsx
-│   │   └── 📄 vite-env.d.ts
-│   ├── 📁 public
-│   │   └── 📄 ads.txt
-│   ├── 📝 FRONTEND_README.md
-│   ├── 🌐 index.html
-│   ├── ⚙️ package.json
-│   ├── 📄 postcss.config.mjs
-│   ├── ⚙️ tsconfig.json
-│   ├── ⚙️ vercel.json
-│   └── 📄 vite.config.ts
+├── Frontend/                              ← REACT FRONTEND
+│   ├──  src
+│   │   ├──  app
+│   │   │   ├──  components
+│   │   │   │   ├──  figma
+│   │   │   │   │   └──  ImageWithFallback.tsx
+│   │   │   │   ├──  ui
+│   │   │   │   │   ├──  accordion.tsx
+│   │   │   │   │   ├──  alert-dialog.tsx
+│   │   │   │   │   ├──  alert.tsx
+│   │   │   │   │   ├──  aspect-ratio.tsx
+│   │   │   │   │   ├──  avatar.tsx
+│   │   │   │   │   ├──  badge.tsx
+│   │   │   │   │   ├──  breadcrumb.tsx
+│   │   │   │   │   ├──  button.tsx
+│   │   │   │   │   ├──  calendar.tsx
+│   │   │   │   │   ├──  card.tsx
+│   │   │   │   │   ├──  carousel.tsx
+│   │   │   │   │   ├──  chart.tsx
+│   │   │   │   │   ├──  checkbox.tsx
+│   │   │   │   │   ├──  collapsible.tsx
+│   │   │   │   │   ├──  command.tsx
+│   │   │   │   │   ├──  context-menu.tsx
+│   │   │   │   │   ├──  dialog.tsx
+│   │   │   │   │   ├──  drawer.tsx
+│   │   │   │   │   ├──  dropdown-menu.tsx
+│   │   │   │   │   ├──  form.tsx
+│   │   │   │   │   ├──  hover-card.tsx
+│   │   │   │   │   ├──  input-otp.tsx
+│   │   │   │   │   ├──  input.tsx
+│   │   │   │   │   ├──  label.tsx
+│   │   │   │   │   ├──  menubar.tsx
+│   │   │   │   │   ├──  navigation-menu.tsx
+│   │   │   │   │   ├──  pagination.tsx
+│   │   │   │   │   ├──  popover.tsx
+│   │   │   │   │   ├──  progress.tsx
+│   │   │   │   │   ├──  radio-group.tsx
+│   │   │   │   │   ├──  resizable.tsx
+│   │   │   │   │   ├──  scroll-area.tsx
+│   │   │   │   │   ├──  select.tsx
+│   │   │   │   │   ├──  separator.tsx
+│   │   │   │   │   ├──  sheet.tsx
+│   │   │   │   │   ├──  sidebar.tsx
+│   │   │   │   │   ├──  skeleton.tsx
+│   │   │   │   │   ├──  slider.tsx
+│   │   │   │   │   ├──  sonner.tsx
+│   │   │   │   │   ├──  switch.tsx
+│   │   │   │   │   ├──  table.tsx
+│   │   │   │   │   ├──  tabs.tsx
+│   │   │   │   │   ├──  textarea.tsx
+│   │   │   │   │   ├──  toggle-group.tsx
+│   │   │   │   │   ├──  toggle.tsx
+│   │   │   │   │   ├──  tooltip.tsx
+│   │   │   │   │   ├──  use-mobile.ts
+│   │   │   │   │   └──  utils.ts
+│   │   │   │   ├──  AboutSection.tsx
+│   │   │   │   ├──  ComparisonSection.tsx
+│   │   │   │   ├──  FAQSection.tsx
+│   │   │   │   ├──  Footer.tsx
+│   │   │   │   ├──  HeroScanWidget.tsx
+│   │   │   │   ├──  HeroSection.tsx
+│   │   │   │   ├──  HowItWorksSection.tsx
+│   │   │   │   ├──  Navbar.tsx
+│   │   │   │   ├──  ProtectedRoute.tsx
+│   │   │   │   ├──  RiskScoreSection.tsx
+│   │   │   │   ├──  RootLayout.tsx
+│   │   │   │   ├──  ScanDemoSection.tsx
+│   │   │   │   ├──  ScanNowDropdown.tsx
+│   │   │   │   ├──  TeamSection.tsx
+│   │   │   │   ├──  ThreatStatsSection.tsx
+│   │   │   │   └──  ThreeLayersSection.tsx
+│   │   │   ├──  contexts
+│   │   │   │   └──  AuthContext.tsx
+│   │   │   ├──  pages
+│   │   │   │   ├──  Dashboard.tsx
+│   │   │   │   ├──  DocumentScan.tsx
+│   │   │   │   ├──  EmailScan.tsx
+│   │   │   │   ├──  History.tsx
+│   │   │   │   ├──  Home.tsx
+│   │   │   │   ├──  Login.tsx
+│   │   │   │   ├──  Result.tsx
+│   │   │   │   └──  URLScan.tsx
+│   │   │   ├──  services
+│   │   │   │   └──  api.ts
+│   │   │   ├──  App.tsx
+│   │   │   └──  routes.tsx
+│   │   ├──  assets
+│   │   ├──  styles
+│   │   │   ├──  fonts.css
+│   │   │   ├──  index.css
+│   │   │   ├──  tailwind.css
+│   │   │   └──  theme.css
+│   │   ├──  image.d.ts
+│   │   ├──  main.tsx
+│   │   └──  vite-env.d.ts
+│   ├──  public
+│   │   └──  ads.txt
+│   ├──  FRONTEND_README.md
+│   ├──  index.html
+│   ├──  package.json
+│   ├──  postcss.config.mjs
+│   ├──  tsconfig.json
+│   ├──  vercel.json
+│   └──  vite.config.ts
 │
 │
 ├── Backend/                               ← ALL PYTHON CODE
@@ -467,7 +466,7 @@ DARKHOOK_DEFENSE/                          ← Main project (on GitHub)
 │   ├── .env                               ← Environment variables (not in git)
 │   ├── .env.example                       ← Template for .env setup
 │   │
-│   ├── auth/                              ← AUTHENTICATION MODULE 🔐
+│   ├── auth/                              ← AUTHENTICATION MODULE
 │   │   ├── __init__.py
 │   │   └── auth_routes.py                 ← /register, /login, /logout, OTP routes
 │   │
@@ -475,7 +474,7 @@ DARKHOOK_DEFENSE/                          ← Main project (on GitHub)
 │       │
 │       ├── __init__.py                    ← Makes modules a package
 │       │
-│       ├── document_analysis/             ← DOCUMENT ANALYSIS 📄
+│       ├── document_analysis/             ← DOCUMENT ANALYSIS
 │       │   ├── __init__.py
 │       │   ├── document_routes.py         ← FastAPI routes for document scanning
 │       │   ├── pdf_parser.py              ← Reads PDF files
@@ -485,24 +484,24 @@ DARKHOOK_DEFENSE/                          ← Main project (on GitHub)
 │       │   ├── ocr_parser.py              ← Reads text from images (OCR)
 │       │   └── scorer.py                  ← Calculates danger score
 │       │
-│       ├── url_analysis/                  ← URL ANALYSIS 🔗
+│       ├── url_analysis/                  ← URL ANALYSIS
 │       │   ├── __init__.py
 │       │   └── link.py                    ← URL scanning & phishing detection
 │       │
-│       ├── email_analysis/                ← EMAIL ANALYSIS 📧
+│       ├── email_analysis/                ← EMAIL ANALYSIS
 │       │   ├── __init__.py
 │       │   ├── email_parser.py            ← Reads email content
 │       │   ├── email_routes.py            ← FastAPI routes for email scanning
 │       │   └── header_parser.py           ← Checks email headers
 │       │
-│       └── database/                      ← DATABASE 🗄️
+│       └── database/                      ← DATABASE
 │           ├── __init__.py
 │           └── mongo_config.py            ← MongoDB connection setup
 │
 │
 └── tests/                                 ← TESTING FOLDER (Everyone)
     │
-    ├── test_documents/                    ← DOCUMENT PARSER TESTS 📄
+    ├── test_documents/                    ← DOCUMENT PARSER TESTS
     │   ├── test_pdf_parser.py             ← PDF parser tests
     │   ├── test_docx_parser.py            ← DOCX parser tests
     │   ├── test_excel_parser.py           ← Excel parser tests
@@ -510,7 +509,7 @@ DARKHOOK_DEFENSE/                          ← Main project (on GitHub)
     │   ├── test_ocr_parser.py             ← OCR parser tests
     │   └── testscore.py                   ← Scorer tests
     │
-    ├── test_emails/                       ← EMAIL TEST FILES 📧
+    ├── test_emails/                       ← EMAIL TEST FILES
     │   ├── sample_phishing.eml
     │   └── sample_safe.eml
     │
@@ -530,7 +529,7 @@ DARKHOOK_DEFENSE/                          ← Main project (on GitHub)
 
 <img src="https://capsule-render.vercel.app/api?type=rect&color=0d1b2a&height=1&section=header" width="100%" />
 
-## 🚀 Getting Started
+## Getting Started
 
 <table>
 <tr>
@@ -549,14 +548,14 @@ MongoDB Atlas       # Free account at mongodb.com
 </tr>
 </table>
 
-### 1️⃣ Clone the Repository
+### 1. Clone the Repository
 
 ```bash
 git clone https://github.com/your-username/darkhook-defense.git
 cd darkhook-defense
 ```
 
-### 2️⃣ Backend Setup
+### 2. Backend Setup
 
 ```bash
 cd Backend
@@ -576,7 +575,7 @@ pip install -r requirements.txt
 # BREVO_API_KEY=your_brevo_api_key  (optional, for email OTP)
 ```
 
-### 3️⃣ Run Backend
+### 3. Run Backend
 
 ```bash
 uvicorn app:app --reload --port 8000
@@ -585,7 +584,7 @@ uvicorn app:app --reload --port 8000
 # Swagger docs at:    http://localhost:8000/docs
 ```
 
-### 4️⃣ Frontend Setup
+### 4. Frontend Setup
 
 ```bash
 cd Frontend
@@ -602,10 +601,10 @@ npm run dev
 
 <img src="https://capsule-render.vercel.app/api?type=rect&color=0d1b2a&height=1&section=header" width="100%" />
 
-## 📦 Module Breakdown
+## Module Breakdown
 
 <details open>
-<summary><h3>🔗 Link Analyzer — Shubham</h3></summary>
+<summary><h3>Link Analyzer — Shubham</h3></summary>
 
 **Endpoint:** `POST /scan/url`
 
@@ -622,10 +621,10 @@ npm run dev
   "verdict": "Phishing",
   "status": "phishing",
   "flags": [
-    "⚠️ No HTTPS encryption - Data transmitted in plain text",
-    "🔴 Suspicious TLD '.xyz' - Commonly abused for phishing",
-    "🎯 Typosquatting detected - Domain mimics legitimate brand",
-    "⚡ High phishing keyword density (3 keywords)"
+    " No HTTPS encryption - Data transmitted in plain text",
+    " Suspicious TLD '.xyz' - Commonly abused for phishing",
+    " Typosquatting detected - Domain mimics legitimate brand",
+    " High phishing keyword density (3 keywords)"
   ],
   "feature_summary": {
     "is_https": 0, "suspicious_tld": 1, "keyword_hits": 3,
@@ -662,7 +661,7 @@ npm run dev
 ---
 
 <details open>
-<summary><h3>📧 Email Analyzer — Naman</h3></summary>
+<summary><h3>Email Analyzer — Naman</h3></summary>
 
 **Endpoint:** `POST /scan/email`
 
@@ -696,7 +695,7 @@ Accepts: `.eml` file upload
 ---
 
 <details open>
-<summary><h3>📄 Document Analyzer — Poonam</h3></summary>
+<summary><h3>Document Analyzer — Poonam</h3></summary>
 
 **Endpoint:** `POST /scan/document`
 
@@ -728,23 +727,21 @@ Accepts: PDF, DOCX, XLSX, PPTX, PNG, JPG
 **Centralized Scoring:** 150+ weighted findings, score capped at 100. Verdicts: Safe (0-39), Suspicious (40-69), Phishing (70-100).
 
 </details>
-
-
 <br/>
 
 <img src="https://capsule-render.vercel.app/api?type=rect&color=0d1b2a&height=1&section=header" width="100%" />
 
-## 🖥️ Screenshots
+## Screenshots
 
 <div align="center">
 
-| 🏠 Landing Page | 🔐 Auth Flow |
+|  Landing Page |  Auth Flow |
 |:---:|:---:|
 | Hero with animated gradients | JWT Login + Email OTP |
 | 10+ animated sections | Protected route redirects |
 | Interactive scan widget | Styled HTML email template |
 
-| 🔗 URL Scan | 📧 Email Scan | 📄 Doc Scan |
+|  URL Scan |  Email Scan |  Doc Scan |
 |:---:|:---:|:---:|
 | Paste URL → instant scan | Upload `.eml` file | Upload PDF/DOCX/XLSX/PPTX/PNG/JPG |
 | 40+ feature analysis | ML + header fusion | 150+ weighted findings |
@@ -752,16 +749,13 @@ Accepts: PDF, DOCX, XLSX, PPTX, PNG, JPG
 
 <br/>
 
-> 🌐 **Live at** → [**darkhookdefense.online**](https://darkhookdefense.online)
+>  **Live at** → [**darkhookdefense.online**](https://darkhookdefense.online)
 
 </div>
-
-
 <br/>
-
 <img src="https://capsule-render.vercel.app/api?type=rect&color=0d1b2a&height=1&section=header" width="100%" />
 
-## 👥 Team
+## Team
 
 <div align="center">
 
@@ -771,28 +765,28 @@ Accepts: PDF, DOCX, XLSX, PPTX, PNG, JPG
 <br/>
 <strong>Shubham</strong><br/>
 <sub>Backend + ML</sub><br/>
-<code>🔗 URL Analysis</code><br/>
+<code> URL Analysis</code><br/>
 <br/>
 </td>
 <td align="center" width="200">
 <br/>
 <strong>Naman</strong><br/>
 <sub>Backend + ML</sub><br/>
-<code>📧 Email Analysis</code><br/>
+<code> Email Analysis</code><br/>
 <br/>
 </td>
 <td align="center" width="200">
 <br/>
 <strong>Poonam</strong><br/>
 <sub>Backend + ML</sub><br/>
-<code>📄 Document Analysis</code><br/>
+<code> Document Analysis</code><br/>
 <br/>
 </td>
 <td align="center" width="200">
 <br/>
 <strong>Disha</strong><br/>
 <sub>Frontend</sub><br/>
-<code>🎨 UI / Frontend</code><br/>
+<code> UI / Frontend</code><br/>
 <br/>
 </td>
 </tr>
@@ -807,7 +801,7 @@ Accepts: PDF, DOCX, XLSX, PPTX, PNG, JPG
 
 <img src="https://capsule-render.vercel.app/api?type=rect&color=0d1b2a&height=1&section=header" width="100%" />
 
-## 🚀 Future Enhancements (7th Sem)
+## Future Enhancements (7th Sem)
 
 > The following features are planned for the **Major Project (7th Semester)**
 
@@ -815,39 +809,39 @@ Accepts: PDF, DOCX, XLSX, PPTX, PNG, JPG
 <tr>
 <td>
 
-### 🤖 Advanced ML
-- [ ] **LSTM model** on URL character sequences
-- [ ] **DistilBERT** for email phishing classification
-- [ ] **Image-based phishing** — detect fake bank logos
+### Advanced ML
+- [] **LSTM model** on URL character sequences
+- [] **DistilBERT** for email phishing classification
+- [] **Image-based phishing** — detect fake bank logos
 
-### 🌐 Browser Extension
-- [ ] **Chrome Extension** — real-time URL scanning
-- [ ] Extension popup with instant verdict
+### Browser Extension
+- [] **Chrome Extension** — real-time URL scanning
+- [] Extension popup with instant verdict
 
 </td>
 <td>
 
-### 🔒 Security & Performance
-- [x] ~~JWT authentication~~ ✅
-- [x] ~~Email OTP verification~~ ✅
-- [ ] **Redis cache** for repeated URL lookups
-- [ ] **Celery** for async document processing
-- [ ] Rate limiting + input sanitization
+### Security & Performance
+- [x] ~~JWT authentication~~
+- [x] ~~Email OTP verification~~
+- [] **Redis cache** for repeated URL lookups
+- [] **Celery** for async document processing
+- [] Rate limiting + input sanitization
 
-### 🏗️ Infrastructure
-- [ ] **Docker** containerization
-- [ ] Migrate to AWS / GCP
-- [ ] Microservices architecture
+### Infrastructure
+- [] **Docker** containerization
+- [] Migrate to AWS / GCP
+- [] Microservices architecture
 
 </td>
 </tr>
 <tr>
 <td colspan="2">
 
-### 🎨 UI/UX
-- [x] ~~Landing page with 10+ animated sections~~ ✅ &nbsp;&nbsp; - [x] ~~Dark theme + cyan accents + animated gradients~~ ✅
-- [ ] Admin dashboard — analytics & trends &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; - [ ] Downloadable PDF scan reports
-- [ ] Geographic threat mapping &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; - [ ] Scan history persistence with MongoDB
+### UI/UX
+- [x] ~~Landing page with 10+ animated sections~~  &nbsp;&nbsp; - [x] ~~Dark theme + cyan accents + animated gradients~~
+- [] Admin dashboard — analytics & trends &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; - [] Downloadable PDF scan reports
+- [] Geographic threat mapping &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; - [] Scan history persistence with MongoDB
 
 </td>
 </tr>
@@ -858,15 +852,15 @@ Accepts: PDF, DOCX, XLSX, PPTX, PNG, JPG
 
 <img src="https://capsule-render.vercel.app/api?type=rect&color=0d1b2a&height=1&section=header" width="100%" />
 
-## 📊 Model Performance
+## Model Performance
 
 <div align="center">
 
 | Module | Model | Approach | Key Capabilities |
 |:------:|:-----:|:--------:|:-----------------|
-| 🔗 **URL** | HuggingFace + Heuristic | Hybrid ML + 40+ feature rule engine | Zero-day, brand impersonation, leet-speak, homograph |
-| 📧 **Email** | Naive Bayes (TF-IDF) | ML + heuristic fusion | 60% ML + 20% header + 15% urgency + 5% HTML |
-| 📄 **Document** | Rule-based Engine | 150+ weighted findings | 6 parsers (PDF/DOCX/XLSX/PPTX/PNG/JPG) |
+|  **URL** | HuggingFace + Heuristic | Hybrid ML + 40+ feature rule engine | Zero-day, brand impersonation, leet-speak, homograph |
+|  **Email** | Naive Bayes (TF-IDF) | ML + heuristic fusion | 60% ML + 20% header + 15% urgency + 5% HTML |
+|  **Document** | Rule-based Engine | 150+ weighted findings | 6 parsers (PDF/DOCX/XLSX/PPTX/PNG/JPG) |
 
 </div>
 
@@ -875,7 +869,7 @@ Accepts: PDF, DOCX, XLSX, PPTX, PNG, JPG
 
 <img src="https://capsule-render.vercel.app/api?type=rect&color=0d1b2a&height=1&section=header" width="100%" />
 
-## 📄 License
+## License
 
 ```
 MIT License — Copyright (c) 2025 DarkHook Defense Team
@@ -892,17 +886,14 @@ copies of the Software.
 <div align="center">
 
 <br/>
-
-<img src="https://capsule-render.vercel.app/api?type=waving&color=0:0d1b2a,50:1b2838,100:00e5ff&height=120&section=footer" width="100%" />
-
-**Built with ❤️ by Team DarkHook**
+**Built by Team DarkHook**
 
 `Zero Paid APIs` &nbsp;•&nbsp; `100% Open Source` &nbsp;•&nbsp; `6th Semester Minor Project`
 
 <br/>
 
-[![Website](https://img.shields.io/badge/🌐_Visit_Live_Site-darkhookdefense.online-00e5ff?style=for-the-badge)](https://darkhookdefense.online)
+[![Website](https://img.shields.io/badge/_Visit_Live_Site-darkhookdefense.online-00e5ff?style=for-the-badge)](https://darkhookdefense.online)
 
-<sub>⭐ Star this repo if you found it useful!</sub>
+<sub> Star this repo if you found it useful!</sub>
 
 </div>
