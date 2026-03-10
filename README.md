@@ -1,232 +1,356 @@
 <div align="center">
 
-```
-██████╗  █████╗ ██████╗ ██╗  ██╗██╗  ██╗ ██████╗  ██████╗ ██╗  ██╗
-██╔══██╗██╔══██╗██╔══██╗██║ ██╔╝██║  ██║██╔═══██╗██╔═══██╗██║ ██╔╝
-██║  ██║███████║██████╔╝█████╔╝ ███████║██║   ██║██║   ██║█████╔╝ 
-██║  ██║██╔══██║██╔══██╗██╔═██╗ ██╔══██║██║   ██║██║   ██║██╔═██╗ 
-██████╔╝██║  ██║██║  ██║██║  ██╗██║  ██║╚██████╔╝╚██████╔╝██║  ██╗
-╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝  ╚═════╝ ╚═╝  ╚═╝
-                        D E F E N S E
-```
+<img src="https://capsule-render.vercel.app/api?type=waving&color=0:0d1b2a,50:1b2838,100:00e5ff&height=220&section=header&text=🛡️%20DarkHook%20Defense&fontSize=52&fontColor=00e5ff&animation=fadeIn&fontAlignY=35&desc=AI-Powered%20Phishing%20Detection%20System&descSize=18&descAlignY=55&descColor=94a3b8" width="100%" />
 
-### 🛡️ AI-Powered Phishing Detection System
+<br/>
 
-**Detect. Analyze. Defend.**
+<h3>
+  <code>🔗 URLs</code> &nbsp;&nbsp;•&nbsp;&nbsp; <code>📧 Emails</code> &nbsp;&nbsp;•&nbsp;&nbsp; <code>📄 Documents</code>
+</h3>
 
-[![Made With Python](https://img.shields.io/badge/Made%20with-Python%203.11-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://python.org)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.104-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
-[![React](https://img.shields.io/badge/React-18.x-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://reactjs.org)
+<p><em>Detect. Analyze. Defend.</em></p>
+
+<br/>
+
+[![Python](https://img.shields.io/badge/Python-3.11-3776AB?style=for-the-badge&logo=python&logoColor=white)](https://python.org)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.135-009688?style=for-the-badge&logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
+[![React](https://img.shields.io/badge/React-18-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://reactjs.org)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://typescriptlang.org)
 [![MongoDB](https://img.shields.io/badge/MongoDB-Atlas-47A248?style=for-the-badge&logo=mongodb&logoColor=white)](https://mongodb.com)
-[![License](https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge)](LICENSE)
-[![Status](https://img.shields.io/badge/Status-Active%20Development-brightgreen?style=for-the-badge)]()
+[![Tailwind](https://img.shields.io/badge/Tailwind-4-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white)](https://tailwindcss.com)
 
-> **No external APIs. No paid services. 100% self-built.**
-> Built as a Minor Project for 6th Semester — fully open-source, locally trained ML models.
+<br/>
+
+[![Live](https://img.shields.io/badge/🌐_Live-darkhookdefense.online-00e5ff?style=for-the-badge)](https://darkhookdefense.online)
+[![Status](https://img.shields.io/badge/Status-Active_Development-brightgreen?style=for-the-badge)]()
+[![License](https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge)](LICENSE)
+
+<br/>
+
+> **No paid APIs. 100% self-built.** <br/>
+> 6th Semester Minor Project — custom ML models & rule engines.
 
 </div>
 
----
+<br/>
 
-## 📌 Table of Contents
+<!-- ═══════════════════════════ QUICK STATS ═══════════════════════════ -->
 
-- [About The Project](#-about-the-project)
-- [Key Features](#-key-features)
-- [System Architecture](#-system-architecture)
-- [Tech Stack](#-tech-stack)
-- [Project Structure](#-project-structure)
-- [Getting Started](#-getting-started)
-- [Module Breakdown](#-module-breakdown)
-- [Screenshots](#-screenshots)
-- [Team](#-team)
-- [Future Enhancements](#-future-enhancements-7th-sem)
-- [License](#-license)
+<div align="center">
 
----
+<table>
+<tr>
+<td align="center" width="150">
+<br/>
+<strong>40+</strong><br/>
+<sub>URL Features</sub><br/>
+<br/>
+</td>
+<td align="center" width="150">
+<br/>
+<strong>150+</strong><br/>
+<sub>Document Findings</sub><br/>
+<br/>
+</td>
+<td align="center" width="150">
+<br/>
+<strong>6</strong><br/>
+<sub>File Formats</sub><br/>
+<br/>
+</td>
+<td align="center" width="150">
+<br/>
+<strong>30+</strong><br/>
+<sub>UI Components</sub><br/>
+<br/>
+</td>
+<td align="center" width="150">
+<br/>
+<strong>0–100</strong><br/>
+<sub>Risk Scoring</sub><br/>
+<br/>
+</td>
+</tr>
+</table>
+
+</div>
+
+<br/>
+
+<!-- ═══════════════════════════ TABLE OF CONTENTS ═══════════════════════════ -->
+
+<details open>
+<summary><h2>📌 Table of Contents</h2></summary>
+
+&nbsp;&nbsp;&nbsp;&nbsp;[🔍 About The Project](#-about-the-project) <br/>
+&nbsp;&nbsp;&nbsp;&nbsp;[✨ Key Features](#-key-features) <br/>
+&nbsp;&nbsp;&nbsp;&nbsp;[🏗️ System Architecture](#️-system-architecture) <br/>
+&nbsp;&nbsp;&nbsp;&nbsp;[🛠️ Tech Stack](#️-tech-stack) <br/>
+&nbsp;&nbsp;&nbsp;&nbsp;[📁 Project Structure](#-project-structure) <br/>
+&nbsp;&nbsp;&nbsp;&nbsp;[🚀 Getting Started](#-getting-started) <br/>
+&nbsp;&nbsp;&nbsp;&nbsp;[📦 Module Breakdown](#-module-breakdown) <br/>
+&nbsp;&nbsp;&nbsp;&nbsp;[🖥️ Screenshots](#️-screenshots) <br/>
+&nbsp;&nbsp;&nbsp;&nbsp;[👥 Team](#-team) <br/>
+&nbsp;&nbsp;&nbsp;&nbsp;[📊 Model Performance](#-model-performance) <br/>
+&nbsp;&nbsp;&nbsp;&nbsp;[🚀 Future Enhancements](#-future-enhancements-7th-sem) <br/>
+&nbsp;&nbsp;&nbsp;&nbsp;[📄 License](#-license) <br/>
+
+</details>
+
+
+<br/>
+
+<img src="https://capsule-render.vercel.app/api?type=rect&color=0d1b2a&height=1&section=header" width="100%" />
 
 ## 🔍 About The Project
 
+<div align="center">
+<table>
+<tr>
+<td>
+
 **DarkHook Defense** is a multi-modal phishing detection system capable of analyzing **URLs**, **Emails**, and **Documents** for phishing threats — all from a single unified interface.
 
-Unlike traditional tools that rely on external paid APIs, DarkHook Defense is powered entirely by:
-- **Locally trained Machine Learning models** (Random Forest, XGBoost, Naive Bayes)
-- **Open-source Python libraries** for parsing and feature extraction
-- **Self-built rule engines** for heuristic threat scoring
+Unlike traditional tools that rely on external paid APIs, DarkHook Defense is powered by:
+
+🤖 **HuggingFace ML model** for URL classification + **40+ feature heuristic engine** with zero-day detection <br/>
+📊 **Naive Bayes on TF-IDF** for email scoring with header analysis fusion <br/>
+📄 **150+ weighted rule engine** for document analysis across 6 file formats <br/>
+🐍 **Open-source Python libraries** for parsing and feature extraction <br/>
 
 Every scan returns a **risk score (0–100)** with a detailed breakdown of exactly *why* something was flagged.
 
+</td>
+</tr>
+</table>
+</div>
+
+
+<div align="center">
+
 ```
-Input (URL / Email / Document)
-        │
-        ▼
-┌───────────────────────────────────────────┐
-│           DarkHook Defense Engine          │
-│                                            │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐ │
-│  │   Link   │  │  Email   │  │Document  │ │
-│  │ Analyzer │  │ Analyzer │  │ Analyzer │ │
-│  └────┬─────┘  └────┬─────┘  └────┬─────┘ │
-│       └─────────────┴─────────────┘        │
-│                    │                        │
-│           ┌────────▼────────┐               │
-│           │   ML Engine +   │               │
-│           │   Rule Engine   │               │
-│           └────────┬────────┘               │
-└────────────────────┼───────────────────────┘
-                     │
-                     ▼
-        Risk Score (0–100) + Flags + Verdict
+                    ╔══════════════════════════════════╗
+                    ║   Input: URL / Email / Document  ║
+                    ╚════════════════╤═════════════════╝
+                                     │
+                    ╔════════════════╧═════════════════╗
+                    ║      DarkHook Defense Engine     ║
+                    ║                                  ║
+                    ║  ┌─────────┐ ┌────────┐ ┌──────┐ ║
+                    ║  │  Link   │ │ Email  │ │ Doc  │ ║
+                    ║  │Analyzer │ │Analyzer│ │Scan  │ ║
+                    ║  └────┬────┘ └───┬────┘ └──┬───┘ ║
+                    ║       └──────────┼─────────┘     ║
+                    ║           ┌──────┴──────┐        ║
+                    ║           │ ML + Rules  │        ║
+                    ║           └──────┬──────┘        ║
+                    ╚══════════════════╧═══════════════╝
+                                       │
+                    ╔══════════════════╧═══════════════╗
+                    ║  Risk Score (0–100) + Flags +    ║
+                    ║  Verdict: Safe / Suspicious /    ║
+                    ║           Phishing               ║
+                    ╚══════════════════════════════════╝
 ```
 
----
+</div>
+
+
+<br/>
+
+<img src="https://capsule-render.vercel.app/api?type=rect&color=0d1b2a&height=1&section=header" width="100%" />
 
 ## ✨ Key Features
 
+<div align="center">
+<table>
+<tr>
+
+<td align="center" width="50%">
+
 ### 🔗 Link Analysis
-- 20+ feature extraction (URL entropy, subdomain depth, suspicious TLDs)
-- Typosquatting detection using Levenshtein distance against Top-1000 domains
-- Live page crawling — detects login forms, favicon mismatch, password fields with no HTTPS
-- ML model: **Random Forest + XGBoost** trained on 240,000+ URLs
+
+<p align="left">
+
+✅ **40+ feature extraction** — entropy, TLDs, character counts <br/>
+✅ Typosquatting via Levenshtein distance <br/>
+✅ **Zero-day detection** — leet-speak, homograph, IDN attacks <br/>
+✅ Brand impersonation (PayPal, Google, Amazon…) <br/>
+✅ Free hosting & URL shortener detection (40+ each) <br/>
+✅ **Hybrid ML + Heuristic** — HuggingFace + fallback engine <br/>
+✅ Trusted domain whitelist
+
+</p>
+
+</td>
+
+<td align="center" width="50%">
 
 ### 📧 Email Analysis
-- Full `.eml` file parsing using Python's built-in `email` library
-- SPF / DKIM / DMARC header presence detection
-- Sender spoofing detection — display name vs actual domain mismatch
-- NLP-based urgency keyword scoring (50+ phishing trigger words)
-- ML model: **Naive Bayes on TF-IDF** trained on SpamAssassin + Enron corpus
+
+<p align="left">
+
+✅ Full `.eml` file parsing (Python `email` lib) <br/>
+✅ SPF / DKIM / DMARC result detection <br/>
+✅ Sender spoofing & brand impersonation <br/>
+✅ Reply-To vs From domain mismatch <br/>
+✅ 30+ urgency keyword scoring <br/>
+✅ HTML-to-text ratio analysis <br/>
+✅ **ML fusion:** 60% ML + 20% header + 15% urgency + 5% HTML
+
+</p>
+
+</td>
+
+</tr>
+<tr>
+
+<td align="center" width="50%">
 
 ### 📄 Document Analysis
-- Supports **PDF, DOCX, XLSX, PPTX** — all parsed locally
-- Embedded URL extraction → auto-routed to Link Analyzer
-- Macro detection in Office files via `olevba`
-- **OCR support** — extracts hidden text from images inside documents
-- **QR code detection** — decodes embedded QR codes and scans the URL
-- JavaScript-in-PDF detection
 
-### 🔗 Module Chaining
-```
-Email (.eml)
-    ├── Links in body     ──→  Link Analyzer
-    └── Attachments       ──→  Document Analyzer
-                                    └── URLs in doc  ──→  Link Analyzer
-                                    └── QR codes     ──→  Link Analyzer
-```
+<p align="left">
 
-### 📊 Unified Dashboard
-- Combined risk score across all modules
-- Detailed flag breakdown — *"why was this flagged?"*
-- Scan history with MongoDB persistence
-- Mobile responsive UI
+✅ Supports **PDF, DOCX, XLSX, PPTX, PNG, JPG** <br/>
+✅ **150+ weighted findings** with centralized scorer <br/>
+✅ Macro detection via `olevba` <br/>
+✅ OCR text extraction via pytesseract <br/>
+✅ QR code detection & URL scoring <br/>
+✅ JS-in-PDF, Base64, PowerShell, droppers <br/>
+✅ Formula injection, DDE, hidden sheets/slides
 
----
+</p>
+
+</td>
+
+<td align="center" width="50%">
+
+### 🔐 Auth & Dashboard
+
+<p align="left">
+
+✅ JWT auth with secure token management <br/>
+✅ Email OTP via **Brevo API** + SMTP fallback <br/>
+✅ SHA-256 hashed OTPs with TTL auto-expiry <br/>
+✅ Protected routes with offline handling <br/>
+✅ Risk score (0–100) with flag breakdown <br/>
+✅ Dark navy theme + cyan accents + animations <br/>
+✅ Mobile responsive with 30+ Radix UI components
+
+</p>
+
+</td>
+
+</tr>
+</table>
+</div>
+
+
+<br/>
+
+<img src="https://capsule-render.vercel.app/api?type=rect&color=0d1b2a&height=1&section=header" width="100%" />
 
 ## 🏗️ System Architecture
 
+<div align="center">
+
 ```
-┌─────────────────────────────────────────────────────────┐
-│                  React Frontend (Vite)                   │
-│         Tailwind CSS  |  Recharts  |  Axios              │
-└──────────────────────────┬──────────────────────────────┘
-                           │  HTTP REST
-┌──────────────────────────▼──────────────────────────────┐
-│                   FastAPI Backend                        │
-│                                                          │
-│   /analyze/url    /analyze/email    /analyze/document    │
-│        │                │                  │             │
-│   ┌────▼────┐     ┌─────▼────┐     ┌──────▼──────┐     │
-│   │  Link   │     │  Email   │     │  Document   │     │
-│   │ Module  │     │  Module  │     │   Module    │     │
-│   │(Shubham)│     │ (Naman)  │     │  (Poonam)   │     │
-│   └────┬────┘     └─────┬────┘     └──────┬──────┘     │
-│        └────────────────┴─────────────────┘             │
-│                         │                               │
-│              ┌──────────▼──────────┐                    │
-│              │  Shared ML Engine   │                    │
-│              │  .pkl model files   │                    │
-│              └──────────┬──────────┘                    │
-└─────────────────────────┼───────────────────────────────┘
-                          │
-┌─────────────────────────▼───────────────────────────────┐
-│                    MongoDB Atlas                          │
-│              Scan History  |  Results  |  Flags          │
-└─────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────┐
+│               ⚛️  React 18 Frontend (Vite 6)                 │
+│      Tailwind CSS 4  │  Radix UI  │  Motion  │  Recharts    │
+└───────────────────────────────┬──────────────────────────────┘
+                                │  HTTP REST (Fetch API)
+┌───────────────────────────────▼──────────────────────────────┐
+│                      ⚡ FastAPI Backend                       │
+│                                                               │
+│   ┌──────────────┐  ┌──────────────┐  ┌──────────────────┐  │
+│   │ /scan/url    │  │ /scan/email  │  │ /scan/document   │  │
+│   │              │  │              │  │                   │  │
+│   │  40+ Feature │  │  ML + Header │  │  150+ Weighted   │  │
+│   │  Heuristic + │  │  + Urgency   │  │  Rule Engine     │  │
+│   │  HuggingFace │  │  Fusion      │  │  + OCR + QR      │  │
+│   └──────┬───────┘  └──────┬───────┘  └────────┬─────────┘  │
+│          └─────────────────┼────────────────────┘            │
+│                            │                                  │
+│   🔐 /auth/*         ML Engine + Rule Engine                  │
+│   JWT + OTP           Score: 0-100 + Verdict                  │
+└────────────────────────────┼─────────────────────────────────┘
+                             │
+┌────────────────────────────▼─────────────────────────────────┐
+│                   🍃 MongoDB Atlas (TLS 1.2+)                 │
+│                  users  │  email_otps                         │
+└──────────────────────────────────────────────────────────────┘
 ```
 
----
+</div>
+
+
+<br/>
+
+<img src="https://capsule-render.vercel.app/api?type=rect&color=0d1b2a&height=1&section=header" width="100%" />
 
 ## 🛠️ Tech Stack
 
-### Backend
-| Technology | Purpose |
-|-----------|---------|
-| **Python 3.11** | Core language |
-| **FastAPI** | REST framework for all 3 modules |
-| **Uvicorn** | ASGI server |
-| **scikit-learn** | Random Forest + Naive Bayes ML models |
-| **XGBoost** | Boosted URL classification model |
-| **joblib** | Save / load `.pkl` model files |
-| **pandas / numpy** | Data cleaning & feature engineering |
+<div align="center">
 
-### Link Analysis
-| Library | Purpose |
-|---------|---------|
-| **requests** | Fetch live URL page content |
-| **BeautifulSoup4** | Parse HTML — detect forms, links, favicon |
-| **python-Levenshtein** | Typosquatting distance check |
+### Backend & ML
 
-### Email Analysis
-| Library | Purpose |
-|---------|---------|
-| **email** (built-in) | Parse `.eml` files, extract headers |
-| **mailparser** | Additional email parsing support |
-
-### Document Analysis
-| Library | Purpose |
-|---------|---------|
-| **PyMuPDF (fitz)** | Extract text, URLs, images from PDF |
-| **python-docx** | Parse Word documents |
-| **openpyxl** | Parse Excel files |
-| **python-pptx** | Parse PowerPoint files |
-| **pytesseract** | OCR — extract text from images (runs locally) |
-| **pyzbar** | Detect and decode QR codes |
-| **oletools (olevba)** | Detect macros in DOCX/XLS |
-| **python-magic** | Verify real file type vs extension |
+![Python](https://img.shields.io/badge/Python_3.11-3776AB?style=flat-square&logo=python&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI_0.135-009688?style=flat-square&logo=fastapi&logoColor=white)
+![Uvicorn](https://img.shields.io/badge/Uvicorn-499848?style=flat-square&logo=gunicorn&logoColor=white)
+![Gunicorn](https://img.shields.io/badge/Gunicorn-499848?style=flat-square&logo=gunicorn&logoColor=white)
+![scikit-learn](https://img.shields.io/badge/scikit--learn-F7931E?style=flat-square&logo=scikitlearn&logoColor=white)
+![JWT](https://img.shields.io/badge/JWT_(python--jose)-000000?style=flat-square&logo=jsonwebtokens&logoColor=white)
+![HuggingFace](https://img.shields.io/badge/HuggingFace-FFD21E?style=flat-square&logo=huggingface&logoColor=black)
 
 ### Frontend
-| Technology | Purpose |
-|-----------|---------|
-| **React 18 + Vite** | Frontend framework |
-| **Tailwind CSS** | Styling |
-| **Recharts** | Risk score meter + charts |
-| **Axios** | HTTP calls to backend |
-| **React Router v6** | Page routing |
 
-### Database & Deployment
-| Service | Purpose |
-|---------|---------|
-| **MongoDB Atlas** | Scan history (free 512MB tier) |
-| **Render** | Backend deployment (free tier) |
-| **Vercel** | Frontend deployment (free) |
+![React](https://img.shields.io/badge/React_18-61DAFB?style=flat-square&logo=react&logoColor=black)
+![Vite](https://img.shields.io/badge/Vite_6-646CFF?style=flat-square&logo=vite&logoColor=white)
+![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=flat-square&logo=typescript&logoColor=white)
+![Tailwind](https://img.shields.io/badge/Tailwind_CSS_4-06B6D4?style=flat-square&logo=tailwindcss&logoColor=white)
+![Radix UI](https://img.shields.io/badge/Radix_UI-161618?style=flat-square&logo=radixui&logoColor=white)
+![Framer Motion](https://img.shields.io/badge/Motion-0055FF?style=flat-square&logo=framer&logoColor=white)
+![MUI](https://img.shields.io/badge/Material_UI-007FFF?style=flat-square&logo=mui&logoColor=white)
+![React Router](https://img.shields.io/badge/React_Router_v7-CA4245?style=flat-square&logo=reactrouter&logoColor=white)
 
-### Datasets (downloaded once, used locally)
-| Dataset | Used For |
-|---------|---------|
-| PhiUSIIL Phishing URL Dataset (Kaggle) | Link model training — 235k URLs |
-| UCI Phishing Websites Dataset | Link model training |
-| SpamAssassin Public Corpus | Email model training |
-| Enron Email Dataset | Email model training |
+### Document & Email Parsing
 
-> ⚠️ **Zero external APIs used.** All processing is done locally or via open-source libraries.
+![PyMuPDF](https://img.shields.io/badge/PyMuPDF_(fitz)-red?style=flat-square)
+![python-docx](https://img.shields.io/badge/python--docx-blue?style=flat-square)
+![openpyxl](https://img.shields.io/badge/openpyxl-green?style=flat-square)
+![python-pptx](https://img.shields.io/badge/python--pptx-orange?style=flat-square)
+![pytesseract](https://img.shields.io/badge/pytesseract_(OCR)-purple?style=flat-square)
+![pyzbar](https://img.shields.io/badge/pyzbar_(QR)-darkblue?style=flat-square)
+![oletools](https://img.shields.io/badge/oletools_(macros)-darkred?style=flat-square)
+![Pillow](https://img.shields.io/badge/Pillow-grey?style=flat-square)
+![Brevo](https://img.shields.io/badge/Brevo_API_(OTP)-0B66C2?style=flat-square)
 
----
+### Deployment & Database
 
-## 📁 Project Structure
+![MongoDB](https://img.shields.io/badge/MongoDB_Atlas-47A248?style=flat-square&logo=mongodb&logoColor=white)
+![Render](https://img.shields.io/badge/Render-46E3B7?style=flat-square&logo=render&logoColor=black)
+![Vercel](https://img.shields.io/badge/Vercel-000000?style=flat-square&logo=vercel&logoColor=white)
+![Custom Domain](https://img.shields.io/badge/darkhookdefense.online-00e5ff?style=flat-square&logo=googlechrome&logoColor=white)
+
+</div>
+
+
+<br/>
+
+<img src="https://capsule-render.vercel.app/api?type=rect&color=0d1b2a&height=1&section=header" width="100%" />
+
+<details>
+<summary><h2>📁 Project Structure (click to expand)</h2></summary>
 
 ```
 DARKHOOK_DEFENSE/                          ← Main project (on GitHub)
 │
 ├── .gitignore                             ← What NOT to upload on GitHub
+├── .gitattributes                         ← Git line-ending & diff settings
+├── pytest.ini                             ← Pytest configuration
 ├── README.md                              ← Project description
+├── render.yaml                            ← Render deployment config
 │
 │
 ├── Frontend/                              ← REACT FRONTEND 🎨
@@ -303,6 +427,7 @@ DARKHOOK_DEFENSE/                          ← Main project (on GitHub)
 │   │   │   ├── 📁 contexts
 │   │   │   │   └── 📄 AuthContext.tsx
 │   │   │   ├── 📁 pages
+│   │   │   │   ├── 📄 Dashboard.tsx
 │   │   │   │   ├── 📄 DocumentScan.tsx
 │   │   │   │   ├── 📄 EmailScan.tsx
 │   │   │   │   ├── 📄 History.tsx
@@ -315,8 +440,6 @@ DARKHOOK_DEFENSE/                          ← Main project (on GitHub)
 │   │   │   ├── 📄 App.tsx
 │   │   │   └── 📄 routes.tsx
 │   │   ├── 📁 assets
-│   │   │   ├── 🖼️ 164bd3b4c66bb15268339b22ae1165b91c7ea4e9.png
-│   │   │   └── 🖼️ eabe0015a9a1edfe92cb4ac7f5415daf9aa9241d.png
 │   │   ├── 📁 styles
 │   │   │   ├── 🎨 fonts.css
 │   │   │   ├── 🎨 index.css
@@ -325,13 +448,13 @@ DARKHOOK_DEFENSE/                          ← Main project (on GitHub)
 │   │   ├── 📄 image.d.ts
 │   │   ├── 📄 main.tsx
 │   │   └── 📄 vite-env.d.ts
-│   ├── ⚙️ .gitignore
-│   ├── 📝 ATTRIBUTIONS.md
+│   ├── 📁 public
+│   │   └── 📄 ads.txt
 │   ├── 📝 FRONTEND_README.md
 │   ├── 🌐 index.html
-│   ├── ⚙️ package-lock.json
 │   ├── ⚙️ package.json
 │   ├── 📄 postcss.config.mjs
+│   ├── ⚙️ tsconfig.json
 │   ├── ⚙️ vercel.json
 │   └── 📄 vite.config.ts
 │
@@ -340,361 +463,422 @@ DARKHOOK_DEFENSE/                          ← Main project (on GitHub)
 │   │
 │   ├── app.py                             ← Main FastAPI server (Team)
 │   ├── requirements.txt                   ← All libraries list
-│   ├── config.py                          ← Settings/configuration + SECRET_KEY
-│   ├── ml/                                ← MODEL TRAINING & ARTIFACTS
-│   │   ├── train_link_model.py            ← Training script — URL
-│   │   ├── train_email_model.py           ← Training script — Email
-│   │   └── models/
-│   │       ├── url_rf_model.pkl
-│   │       ├── url_xgb_model.pkl
-│   │       └── email_nb_model.pkl
-│   │
-│   ├── uploads/                           ← Temporary file storage
-│   │   └── .gitkeep                       ← Keeps empty folder on GitHub
+│   ├── runtime.txt                        ← Python version for deployment
+│   ├── .env                               ← Environment variables (not in git)
+│   ├── .env.example                       ← Template for .env setup
 │   │
 │   ├── auth/                              ← AUTHENTICATION MODULE 🔐
 │   │   ├── __init__.py
-│   │   ├── auth_routes.py                 ← /register, /login, /logout routes
-│   │   ├── jwt_handler.py                 ← Generate & verify JWT tokens
-│   │   └── middleware.py                  ← Protect routes (check token)
+│   │   └── auth_routes.py                 ← /register, /login, /logout, OTP routes
 │   │
 │   └── modules/                           ← ALL ANALYSIS MODULES HERE
 │       │
 │       ├── __init__.py                    ← Makes modules a package
 │       │
-│       ├── document_analysis/             ← POONAM'S TERRITORY 📄
+│       ├── document_analysis/             ← DOCUMENT ANALYSIS 📄
 │       │   ├── __init__.py
+│       │   ├── document_routes.py         ← FastAPI routes for document scanning
 │       │   ├── pdf_parser.py              ← Reads PDF files
 │       │   ├── docx_parser.py             ← Reads Word files
 │       │   ├── excel_parser.py            ← Reads Excel files
 │       │   ├── ppt_parser.py              ← Reads PowerPoint files
-│       │   ├── ocr_parser.py              ← Reads text from images
-│       │   ├── qr_scanner.py              ← Scans QR codes
+│       │   ├── ocr_parser.py              ← Reads text from images (OCR)
 │       │   └── scorer.py                  ← Calculates danger score
 │       │
-│       ├── url_analysis/                  ← URL TEAM'S TERRITORY 🔗
+│       ├── url_analysis/                  ← URL ANALYSIS 🔗
 │       │   ├── __init__.py
-│       │   ├── url_scanner.py             ← Scans URLs for phishing
-│       │   ├── domain_checker.py          ← Checks domain reputation
-│       │   └── whois_lookup.py            ← Domain registration info
+│       │   └── link.py                    ← URL scanning & phishing detection
 │       │
-│       ├── email_analysis/                ← EMAIL TEAM'S TERRITORY 📧
+│       ├── email_analysis/                ← EMAIL ANALYSIS 📧
 │       │   ├── __init__.py
 │       │   ├── email_parser.py            ← Reads email content
-│       │   └── header_analyzer.py         ← Checks email headers
+│       │   ├── email_routes.py            ← FastAPI routes for email scanning
+│       │   └── header_parser.py           ← Checks email headers
 │       │
 │       └── database/                      ← DATABASE 🗄️
 │           ├── __init__.py
-│           ├── mongo_config.py            ← MongoDB connection setup
-│           ├── models.py                  ← Data structure definitions
-│           │                                 (users, scan_results schemas)
-│           └── user_repository.py         ← DB functions (save/find user,
-│                                             save scan result, get history)
+│           └── mongo_config.py            ← MongoDB connection setup
 │
 │
 └── tests/                                 ← TESTING FOLDER (Everyone)
     │
-    ├── test_documents/                    ← POONAM'S TEST FILES 📄
-    │   ├── sample_phishing.pdf
-    │   ├── sample_safe.pdf
-    │   ├── sample_macro.docx
-    │   ├── sample_safe.docx
-    │   ├── sample_phishing.xlsx
-    │   ├── sample_safe.xlsx
-    │   ├── sample_phishing.pptx
-    │   └── sample_qr.pdf
+    ├── test_documents/                    ← DOCUMENT PARSER TESTS 📄
+    │   ├── test_pdf_parser.py             ← PDF parser tests
+    │   ├── test_docx_parser.py            ← DOCX parser tests
+    │   ├── test_excel_parser.py           ← Excel parser tests
+    │   ├── test_ppt_parser.py             ← PPT parser tests
+    │   ├── test_ocr_parser.py             ← OCR parser tests
+    │   └── testscore.py                   ← Scorer tests
     │
-    ├── test_urls/                         ← URL TEAM TEST FILES 🔗
-    │   ├── sample_phishing_urls.txt
-    │   └── sample_safe_urls.txt
-    │
-    ├── test_emails/                       ← EMAIL TEAM TEST FILES 📧
+    ├── test_emails/                       ← EMAIL TEST FILES 📧
     │   ├── sample_phishing.eml
     │   └── sample_safe.eml
     │
-    ├── test_auth.py                       ← NEW: Auth tests (login/register)
-    ├── test_document_analysis.py          ← Poonam's test code
-    ├── test_url_analysis.py               ← URL team test code
-    └── test_email_analysis.py             ← Email team test code
+    ├── detection_improvements_report.py   ← Detection improvement analysis
+    ├── test_email_analysis.py             ← Email analysis tests
+    ├── test_email_otp.py                  ← Email OTP verification tests
+    ├── test_malicious_urls.py             ← Malicious URL detection tests
+    ├── test_novel_threats.py              ← Novel threat detection tests
+    ├── test_url_analysis.py               ← URL analysis tests
+    └── test_zeroday_detection.py          ← Zero-day detection tests
 ```
 
----
+</details>
+
+
+<br/>
+
+<img src="https://capsule-render.vercel.app/api?type=rect&color=0d1b2a&height=1&section=header" width="100%" />
 
 ## 🚀 Getting Started
+
+<table>
+<tr>
+<td>
 
 ### Prerequisites
 
 ```bash
-# Python 3.11+
-python --version
-
-# Node.js 18+
-node --version
-
-# Tesseract OCR (for document analysis)
-# Ubuntu/Debian:
-sudo apt install tesseract-ocr
-
-# MongoDB Atlas free account OR local MongoDB
+Python 3.11+        # python --version
+Node.js 18+         # node --version
+Tesseract OCR       # sudo apt install tesseract-ocr  (Linux)
+MongoDB Atlas       # Free account at mongodb.com
 ```
 
-### 1. Clone the Repository
+</td>
+</tr>
+</table>
+
+### 1️⃣ Clone the Repository
 
 ```bash
 git clone https://github.com/your-username/darkhook-defense.git
 cd darkhook-defense
 ```
 
-### 2. Backend Setup
+### 2️⃣ Backend Setup
 
 ```bash
-cd backend
+cd Backend
 
 # Create virtual environment
-python -m venv venv
-source venv/bin/activate        # Linux/Mac
-venv\Scripts\activate           # Windows
+python -m venv .venv
+.venv\Scripts\activate           # Windows
+source .venv/bin/activate        # Linux/Mac
 
 # Install dependencies
 pip install -r requirements.txt
 
 # Set environment variables
-cp .env.example .env
-# Edit .env and add your MongoDB URI:
-# MONGO_URI=mongodb+srv://...
+# Create a .env file with:
+# MONGO_URI=mongodb+srv://<user>:<password>@cluster.mongodb.net/Phishing
+# SECRET_KEY=your-jwt-secret-key
+# BREVO_API_KEY=your_brevo_api_key  (optional, for email OTP)
 ```
 
-### 3. Train ML Models
+### 3️⃣ Run Backend
 
 ```bash
-# Download datasets first (links in /data/README.md)
-# Then run training scripts:
-
-python ml/train_link_model.py      # Trains RF + XGBoost on URL dataset
-python ml/train_email_model.py     # Trains Naive Bayes on email corpus
-
-# Models saved to ml/models/*.pkl
-```
-
-### 4. Run Backend
-
-```bash
-uvicorn main:app --reload --port 8000
+uvicorn app:app --reload --port 8000
 
 # API will be live at: http://localhost:8000
 # Swagger docs at:    http://localhost:8000/docs
 ```
 
-### 5. Frontend Setup
+### 4️⃣ Frontend Setup
 
 ```bash
-cd ../frontend
+cd Frontend
 
 npm install
-
-# Create .env file
-echo "VITE_API_URL=http://localhost:8000" > .env
-
 npm run dev
 
 # Frontend at: http://localhost:5173
+# Auto-detects backend at localhost:8000
 ```
 
----
+
+<br/>
+
+<img src="https://capsule-render.vercel.app/api?type=rect&color=0d1b2a&height=1&section=header" width="100%" />
 
 ## 📦 Module Breakdown
 
-### 🔗 Link Analyzer — Shubham
+<details open>
+<summary><h3>🔗 Link Analyzer — Shubham</h3></summary>
 
-**Endpoint:** `POST /analyze/url`
+**Endpoint:** `POST /scan/url`
 
 ```json
 // Request
-{ "url": "http://paypa1.com/verify-account" }
+{ "url": "http://paypa1-verify.xyz/login" }
 
 // Response
 {
+  "scan_id": "uuid-string",
+  "url": "http://paypa1-verify.xyz/login",
   "score": 87,
-  "verdict": "PHISHING",
-  "confidence": 0.91,
+  "confidence": 0.87,
+  "verdict": "Phishing",
+  "status": "phishing",
   "flags": [
-    "Typosquatting detected: paypa1.com ≈ paypal.com",
-    "Suspicious TLD: .com with numeric substitution",
-    "Login form found but domain mismatch",
-    "No valid SSL certificate"
-  ]
+    "⚠️ No HTTPS encryption - Data transmitted in plain text",
+    "🔴 Suspicious TLD '.xyz' - Commonly abused for phishing",
+    "🎯 Typosquatting detected - Domain mimics legitimate brand",
+    "⚡ High phishing keyword density (3 keywords)"
+  ],
+  "feature_summary": {
+    "is_https": 0, "suspicious_tld": 1, "keyword_hits": 3,
+    "brand_impersonation": 1, "brand_similarity": 0.85,
+    "has_homograph": 0, "anomaly_score": 0.45
+  },
+  "explanation": "This URL scored 87/100. PHISHING detected. Do not open."
 }
 ```
 
-**Features extracted (20+):**
+**Features extracted (40+):**
 
 | Feature | Description |
 |---------|-------------|
 | `url_length` | Total character count |
-| `dot_count` | Number of dots in URL |
+| `dot_count` / `hyphen_count` | Punctuation analysis |
 | `has_ip` | IP address instead of domain |
-| `entropy` | Randomness score of URL string |
+| `entropy` (domain, path, full) | Shannon entropy randomness score |
 | `https_present` | SSL/TLS check |
 | `subdomain_depth` | Number of subdomains |
-| `suspicious_tld` | .xyz, .tk, .ml, .ga etc. |
-| `typosquatting_score` | Levenshtein vs top-1000 domains |
-| `has_login_form` | Login form on crawled page |
-| `favicon_mismatch` | Favicon domain ≠ URL domain |
-| `...and 10 more` | |
+| `suspicious_tld` | 40+ TLDs (.xyz, .tk, .ml, .ga, etc.) |
+| `typosquatting_score` | Levenshtein vs known brands |
+| `brand_impersonation` | Fuzzy matching against brand names |
+| `has_homograph` | IDN/homograph attack detection |
+| `anomaly_score` | Statistical anomaly scoring |
+| `leet_speak` | Leet-speak character substitution detection |
+| `free_hosting` | 40+ free hosting platform detection |
+| `url_shortener` | Short URL service detection |
+| `keyword_hits` | 60+ phishing keywords |
+| `...and 25+ more` | Character diversity, digit ratio, etc. |
+
+</details>
 
 ---
 
-### 📧 Email Analyzer — Naman
+<details open>
+<summary><h3>📧 Email Analyzer — Naman</h3></summary>
 
-**Endpoint:** `POST /analyze/email`
+**Endpoint:** `POST /scan/email`
 
-Accepts: `.eml` file upload OR raw email text paste
+Accepts: `.eml` file upload
 
 ```json
 // Response
 {
-  "score": 74,
+  "fileName": "suspicious_email.eml",
+  "riskScore": 74,
   "verdict": "PHISHING",
-  "header_flags": [
+  "severity": "CRITICAL",
+  "scanTime": 0.1234,
+  "headerFlags": [
     "SPF record: FAIL",
     "Reply-To domain differs from From domain",
-    "Sender display name: 'PayPal Support' but domain: random123@mailserver.ru"
+    "Sender display name spoofing detected"
   ],
-  "body_flags": [
-    "High urgency keyword density: 'verify', 'suspended', 'immediately'",
-    "3 external links found — 2 flagged as phishing",
-    "HTML-to-text ratio: 89% (image-heavy, low text)"
+  "bodyFlags": [
+    "High density of urgency / security keywords in body text"
   ],
-  "linked_url_scores": [78, 91, 12]
+  "extractedUrls": ["https://suspicious-link.xyz/verify"],
+  "extractedAttachments": ["invoice.pdf"]
 }
 ```
 
+**Score Fusion:** 60% ML probability + 20% header flags + 15% urgency score + 5% HTML ratio
+
+</details>
+
 ---
 
-### 📄 Document Analyzer — Poonam
+<details open>
+<summary><h3>📄 Document Analyzer — Poonam</h3></summary>
 
-**Endpoint:** `POST /analyze/document`
+**Endpoint:** `POST /scan/document`
 
-Accepts: PDF, DOCX, XLSX, PPTX (max 10MB)
+Accepts: PDF, DOCX, XLSX, PPTX, PNG, JPG
 
 ```json
 // Response
 {
-  "score": 95,
-  "verdict": "PHISHING",
-  "flags": [
-    "JavaScript embedded in PDF — HIGH RISK",
-    "QR code detected on page 2 → URL score: 88",
-    "Macro detected in document",
-    "OCR found hidden text: 'Enter your bank credentials'"
+  "fileName": "invoice.pdf",
+  "fileSize": "234.56 KB",
+  "fileHash": "sha256-hash",
+  "riskScore": 95,
+  "verdict": "Phishing",
+  "severity": "CRITICAL",
+  "scanTime": 0.5678,
+  "totalFindings": 4,
+  "findings": ["javascript_detected", "phishing_keyword", "suspicious_url", "base64_payload"],
+  "findingsDetailed": [
+    { "name": "Javascript Detected", "severity": "critical", "score": 40 },
+    { "name": "Base64 Payload", "severity": "critical", "score": 35 }
   ],
-  "per_page_analysis": [
-    { "page": 1, "flags": ["suspicious_keywords: 3"] },
-    { "page": 2, "flags": ["qr_code_found", "external_links: 2"] }
+  "scoreBreakdown": [
+    { "finding_type": "Javascript Detected", "count": 1, "score": 40 },
+    { "finding_type": "Base64 Payload", "count": 1, "score": 35 }
   ]
 }
 ```
 
----
+**Centralized Scoring:** 150+ weighted findings, score capped at 100. Verdicts: Safe (0-39), Suspicious (40-69), Phishing (70-100).
+
+</details>
+
+
+<br/>
+
+<img src="https://capsule-render.vercel.app/api?type=rect&color=0d1b2a&height=1&section=header" width="100%" />
 
 ## 🖥️ Screenshots
 
-### Home Page — 3 Analysis Tabs
-```
-┌─────────────────────────────────────────────┐
-│  🛡️ DarkHook Defense                        │
-│                                             │
-│  [ 🔗 URL ]  [ 📧 Email ]  [ 📄 Document ]  │
-│                                             │
-│  ┌─────────────────────────────────────┐   │
-│  │  Paste URL here...                  │   │
-│  └─────────────────────────────────────┘   │
-│                    [ Scan Now → ]           │
-└─────────────────────────────────────────────┘
-```
+<div align="center">
 
-### Result Page — Risk Score
-```
-┌─────────────────────────────────────────────┐
-│           ╔═══════════════╗                 │
-│           ║      87       ║                 │
-│           ║   🔴 PHISHING  ║                 │
-│           ╚═══════════════╝                 │
-│                                             │
-│  🚩 Flags Detected:                         │
-│  ├── Typosquatting: paypa1.com ≈ paypal.com │
-│  ├── Login form found, domain mismatch      │
-│  └── No valid SSL certificate               │
-└─────────────────────────────────────────────┘
-```
+| 🏠 Landing Page | 🔐 Auth Flow |
+|:---:|:---:|
+| Hero with animated gradients | JWT Login + Email OTP |
+| 10+ animated sections | Protected route redirects |
+| Interactive scan widget | Styled HTML email template |
 
-> 📸 *Actual screenshots will be added after UI completion (Week 12)*
+| 🔗 URL Scan | 📧 Email Scan | 📄 Doc Scan |
+|:---:|:---:|:---:|
+| Paste URL → instant scan | Upload `.eml` file | Upload PDF/DOCX/XLSX/PPTX/PNG/JPG |
+| 40+ feature analysis | ML + header fusion | 150+ weighted findings |
+| Zero-day detection flags | SPF/DKIM/DMARC results | Macro + OCR + QR detection |
 
----
+<br/>
+
+> 🌐 **Live at** → [**darkhookdefense.online**](https://darkhookdefense.online)
+
+</div>
+
+
+<br/>
+
+<img src="https://capsule-render.vercel.app/api?type=rect&color=0d1b2a&height=1&section=header" width="100%" />
 
 ## 👥 Team
 
-| Member | Role | Module |
-|--------|------|--------|
-| **Shubham** | Backend + ML | 🔗 Link / URL Analysis |
-| **Naman** | Backend + ML | 📧 Email Analysis |
-| **Poonam** | Backend + ML | 📄 Document Analysis |
-| **Disha** | Frontend | 🎨 UI / Frontend |
+<div align="center">
 
-> 6th Semester Minor Project — Computer Science Engineering
+<table>
+<tr>
+<td align="center" width="200">
+<br/>
+<strong>Shubham</strong><br/>
+<sub>Backend + ML</sub><br/>
+<code>🔗 URL Analysis</code><br/>
+<br/>
+</td>
+<td align="center" width="200">
+<br/>
+<strong>Naman</strong><br/>
+<sub>Backend + ML</sub><br/>
+<code>📧 Email Analysis</code><br/>
+<br/>
+</td>
+<td align="center" width="200">
+<br/>
+<strong>Poonam</strong><br/>
+<sub>Backend + ML</sub><br/>
+<code>📄 Document Analysis</code><br/>
+<br/>
+</td>
+<td align="center" width="200">
+<br/>
+<strong>Disha</strong><br/>
+<sub>Frontend</sub><br/>
+<code>🎨 UI / Frontend</code><br/>
+<br/>
+</td>
+</tr>
+</table>
 
----
+<sub>6th Semester Minor Project — Computer Science Engineering</sub>
+
+</div>
+
+
+<br/>
+
+<img src="https://capsule-render.vercel.app/api?type=rect&color=0d1b2a&height=1&section=header" width="100%" />
 
 ## 🚀 Future Enhancements (7th Sem)
 
-The following features are planned for the **Major Project (7th Semester)**:
+> The following features are planned for the **Major Project (7th Semester)**
 
-### Advanced ML
-- [ ] **LSTM model** on URL character sequences for deeper URL analysis
-- [ ] **DistilBERT** (locally fine-tuned) for email phishing classification
-- [ ] **Image-based phishing detection** — detect fake bank logos inside documents
+<table>
+<tr>
+<td>
 
-### Browser Extension
-- [ ] **Chrome Extension** — real-time URL scanning while browsing
-- [ ] Extension popup showing instant verdict on any webpage
+### 🤖 Advanced ML
+- [ ] **LSTM model** on URL character sequences
+- [ ] **DistilBERT** for email phishing classification
+- [ ] **Image-based phishing** — detect fake bank logos
 
-### Security & Performance
-- [ ] **JWT authentication** for all endpoints
+### 🌐 Browser Extension
+- [ ] **Chrome Extension** — real-time URL scanning
+- [ ] Extension popup with instant verdict
+
+</td>
+<td>
+
+### 🔒 Security & Performance
+- [x] ~~JWT authentication~~ ✅
+- [x] ~~Email OTP verification~~ ✅
 - [ ] **Redis cache** for repeated URL lookups
-- [ ] **Celery task queue** for large document async processing
+- [ ] **Celery** for async document processing
 - [ ] Rate limiting + input sanitization
 
-### Infrastructure
-- [ ] **Docker containerization** of all 3 backend services
-- [ ] Migrate to production cloud (AWS / GCP)
-- [ ] Microservices architecture — each module as independent service
+### 🏗️ Infrastructure
+- [ ] **Docker** containerization
+- [ ] Migrate to AWS / GCP
+- [ ] Microservices architecture
 
-### UI/UX
-- [ ] Admin dashboard — scan analytics, threat trends, top phishing domains
-- [ ] Downloadable PDF scan report generation
-- [ ] Geographic threat mapping
+</td>
+</tr>
+<tr>
+<td colspan="2">
 
----
+### 🎨 UI/UX
+- [x] ~~Landing page with 10+ animated sections~~ ✅ &nbsp;&nbsp; - [x] ~~Dark theme + cyan accents + animated gradients~~ ✅
+- [ ] Admin dashboard — analytics & trends &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; - [ ] Downloadable PDF scan reports
+- [ ] Geographic threat mapping &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; - [ ] Scan history persistence with MongoDB
+
+</td>
+</tr>
+</table>
+
+
+<br/>
+
+<img src="https://capsule-render.vercel.app/api?type=rect&color=0d1b2a&height=1&section=header" width="100%" />
 
 ## 📊 Model Performance
 
-| Module | Model | Dataset | Accuracy | F1 Score |
-|--------|-------|---------|----------|----------|
-| Link | Random Forest | PhiUSIIL + UCI (240k URLs) | ~92% | ~0.91 |
-| Link | XGBoost | PhiUSIIL + UCI (240k URLs) | ~94% | ~0.93 |
-| Email | Naive Bayes (TF-IDF) | SpamAssassin + Enron | ~96% | ~0.95 |
-| Document | Rule-based Engine | Manual test set | ~89% | ~0.87 |
+<div align="center">
 
-> *Values are targets. Actual results will be updated after training completion.*
+| Module | Model | Approach | Key Capabilities |
+|:------:|:-----:|:--------:|:-----------------|
+| 🔗 **URL** | HuggingFace + Heuristic | Hybrid ML + 40+ feature rule engine | Zero-day, brand impersonation, leet-speak, homograph |
+| 📧 **Email** | Naive Bayes (TF-IDF) | ML + heuristic fusion | 60% ML + 20% header + 15% urgency + 5% HTML |
+| 📄 **Document** | Rule-based Engine | 150+ weighted findings | 6 parsers (PDF/DOCX/XLSX/PPTX/PNG/JPG) |
 
----
+</div>
+
+
+<br/>
+
+<img src="https://capsule-render.vercel.app/api?type=rect&color=0d1b2a&height=1&section=header" width="100%" />
 
 ## 📄 License
 
 ```
-MIT License
-
-Copyright (c) 2025 DarkHook Defense Team
+MIT License — Copyright (c) 2025 DarkHook Defense Team
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -707,8 +891,18 @@ copies of the Software.
 
 <div align="center">
 
-**Built with ❤️ — Zero External APIs — 100% Open Source**
+<br/>
 
-*DarkHook Defense — 6th Semester Minor Project*
+<img src="https://capsule-render.vercel.app/api?type=waving&color=0:0d1b2a,50:1b2838,100:00e5ff&height=120&section=footer" width="100%" />
+
+**Built with ❤️ by Team DarkHook**
+
+`Zero Paid APIs` &nbsp;•&nbsp; `100% Open Source` &nbsp;•&nbsp; `6th Semester Minor Project`
+
+<br/>
+
+[![Website](https://img.shields.io/badge/🌐_Visit_Live_Site-darkhookdefense.online-00e5ff?style=for-the-badge)](https://darkhookdefense.online)
+
+<sub>⭐ Star this repo if you found it useful!</sub>
 
 </div>

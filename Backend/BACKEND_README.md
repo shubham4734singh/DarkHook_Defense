@@ -1,92 +1,77 @@
-# 🛡️ DarkHook_Defense — Backend
+# 🛡️ DarkHook Defense — Backend
 
-A multi-module phishing detection engine built with **FastAPI** and **Python**, capable of analyzing URLs, emails (`.eml`), and documents (PDF, DOCX, XLSX, PPTX) for phishing threats. The backend exposes RESTful endpoints consumed by the frontend (designed in Figma / deployed on Vercel).
+A multi-module phishing detection engine built with **FastAPI** and **Python**, capable of analyzing URLs, emails (`.eml`), and documents (PDF, DOCX, XLSX, PPTX, PNG, JPG) for phishing threats. The backend exposes RESTful endpoints consumed by the React frontend deployed on Vercel.
+
+**Live Backend:** `https://darkhook-defense.onrender.com`  
+**Live Frontend:** `https://darkhookdefense.online`
 
 ---
 
 ## 📁 Project Structure
 
 ```
-├── backend/                               ← ALL PYTHON CODE
+├── Backend/                               ← ALL PYTHON CODE
 │   │
-│   ├── app.py                             ← Main Flask server (Team)
+│   ├── app.py                             ← Main FastAPI server (Team)
 │   ├── requirements.txt                   ← All libraries list
-│   ├── config.py                          ← Settings/configuration + SECRET_KEY
-│   ├── ml/                                ← MODEL TRAINING & ARTIFACTS
-│   │   ├── train_link_model.py            ← Training script — URL
-│   │   ├── train_email_model.py           ← Training script — Email
-│   │   └── models/
-│   │       ├── url_rf_model.pkl
-│   │       ├── url_xgb_model.pkl
-│   │       └── email_nb_model.pkl
-│   │
-│   ├── uploads/                           ← Temporary file storage
-│   │   └── .gitkeep                       ← Keeps empty folder on GitHub
+│   ├── runtime.txt                        ← Python version for deployment
+│   ├── .env                               ← Environment variables (not in git)
+│   ├── .env.example                       ← Template for .env setup
 │   │
 │   ├── auth/                              ← AUTHENTICATION MODULE 🔐
 │   │   ├── __init__.py
-│   │   ├── auth_routes.py                 ← /register, /login, /logout routes
-│   │   ├── jwt_handler.py                 ← Generate & verify JWT tokens
-│   │   └── middleware.py                  ← Protect routes (check token)
+│   │   └── auth_routes.py                 ← /register, /login, /logout, OTP routes
 │   │
 │   └── modules/                           ← ALL ANALYSIS MODULES HERE
 │       │
 │       ├── __init__.py                    ← Makes modules a package
 │       │
-│       ├── document_analysis/             ← POONAM'S TERRITORY 📄
+│       ├── document_analysis/             ← DOCUMENT ANALYSIS 📄
 │       │   ├── __init__.py
+│       │   ├── document_routes.py         ← FastAPI routes for document scanning
 │       │   ├── pdf_parser.py              ← Reads PDF files
 │       │   ├── docx_parser.py             ← Reads Word files
 │       │   ├── excel_parser.py            ← Reads Excel files
 │       │   ├── ppt_parser.py              ← Reads PowerPoint files
-│       │   ├── ocr_parser.py              ← Reads text from images
-│       │   ├── qr_scanner.py              ← Scans QR codes
+│       │   ├── ocr_parser.py              ← Reads text from images (OCR)
 │       │   └── scorer.py                  ← Calculates danger score
 │       │
-│       ├── url_analysis/                  ← URL TEAM'S TERRITORY 🔗
+│       ├── url_analysis/                  ← URL ANALYSIS 🔗
 │       │   ├── __init__.py
-│       │   ├── url_scanner.py             ← Scans URLs for phishing
-│       │   ├── domain_checker.py          ← Checks domain reputation
-│       │   └── whois_lookup.py            ← Domain registration info
+│       │   └── link.py                    ← URL scanning & phishing detection
 │       │
-│       ├── email_analysis/                ← EMAIL TEAM'S TERRITORY 📧
+│       ├── email_analysis/                ← EMAIL ANALYSIS 📧
 │       │   ├── __init__.py
 │       │   ├── email_parser.py            ← Reads email content
-│       │   └── header_analyzer.py         ← Checks email headers
+│       │   ├── email_routes.py            ← FastAPI routes for email scanning
+│       │   └── header_parser.py           ← Checks email headers
 │       │
 │       └── database/                      ← DATABASE 🗄️
 │           ├── __init__.py
-│           ├── mongo_config.py            ← MongoDB connection setup
-│           ├── models.py                  ← Data structure definitions
-│           │                                 (users, scan_results schemas)
-│           └── user_repository.py         ← DB functions (save/find user,
-│                                             save scan result, get history)
+│           └── mongo_config.py            ← MongoDB connection setup
 │
 │
 └── tests/                                 ← TESTING FOLDER (Everyone)
     │
-    ├── test_documents/                    ← POONAM'S TEST FILES 📄
-    │   ├── sample_phishing.pdf
-    │   ├── sample_safe.pdf
-    │   ├── sample_macro.docx
-    │   ├── sample_safe.docx
-    │   ├── sample_phishing.xlsx
-    │   ├── sample_safe.xlsx
-    │   ├── sample_phishing.pptx
-    │   └── sample_qr.pdf
+    ├── test_documents/                    ← DOCUMENT PARSER TESTS 📄
+    │   ├── test_pdf_parser.py             ← PDF parser tests
+    │   ├── test_docx_parser.py            ← DOCX parser tests
+    │   ├── test_excel_parser.py           ← Excel parser tests
+    │   ├── test_ppt_parser.py             ← PPT parser tests
+    │   ├── test_ocr_parser.py             ← OCR parser tests
+    │   └── testscore.py                   ← Scorer tests
     │
-    ├── test_urls/                         ← URL TEAM TEST FILES 🔗
-    │   ├── sample_phishing_urls.txt
-    │   └── sample_safe_urls.txt
-    │
-    ├── test_emails/                       ← EMAIL TEAM TEST FILES 📧
+    ├── test_emails/                       ← EMAIL TEST FILES 📧
     │   ├── sample_phishing.eml
     │   └── sample_safe.eml
     │
-    ├── test_auth.py                       ← NEW: Auth tests (login/register)
-    ├── test_document_analysis.py          ← Poonam's test code
-    ├── test_url_analysis.py               ← URL team test code
-    └── test_email_analysis.py             ← Email team test code
+    ├── detection_improvements_report.py   ← Detection improvement analysis
+    ├── test_email_analysis.py             ← Email analysis tests
+    ├── test_email_otp.py                  ← Email OTP verification tests
+    ├── test_malicious_urls.py             ← Malicious URL detection tests
+    ├── test_novel_threats.py              ← Novel threat detection tests
+    ├── test_url_analysis.py               ← URL analysis tests
+    └── test_zeroday_detection.py          ← Zero-day detection tests
 ```
 
 ---
@@ -95,14 +80,17 @@ A multi-module phishing detection engine built with **FastAPI** and **Python**, 
 
 | Layer | Technology |
 |---|---|
-| Framework | FastAPI |
-| ML Models | Scikit-learn (Random Forest), XGBoost |
-| Email Parsing | Python `email`, custom header parser |
-| PDF Analysis | PyMuPDF, pytesseract (OCR) |
-| Office Files | python-docx, openpyxl, olevba |
+| Framework | FastAPI 0.135+ with Uvicorn ASGI server |
+| ML (URL) | HuggingFace hosted model + heuristic engine (40+ features) |
+| ML (Email) | Naive Bayes on TF-IDF (scikit-learn + joblib) |
+| Email Parsing | Python `email` (built-in) + custom `header_parser.py` |
+| PDF Analysis | PyMuPDF (fitz) — structural, content & behavioral analysis |
+| Office Files | python-docx, openpyxl, python-pptx, oletools (olevba) |
+| OCR | pytesseract (Tesseract OCR) + Pillow |
 | QR Detection | pyzbar |
-| Database | MongoDB (via pymongo) |
-| Deployment | Render |
+| Authentication | JWT (python-jose) + bcrypt (passlib) + email OTP (Brevo API / SMTP) |
+| Database | MongoDB Atlas (pymongo) |
+| Deployment | Render (gunicorn + uvicorn workers) |
 
 ---
 
@@ -110,8 +98,8 @@ A multi-module phishing detection engine built with **FastAPI** and **Python**, 
 
 ### Prerequisites
 
-- Python 3.10+
-- MongoDB (local or Atlas)
+- Python 3.11+
+- MongoDB Atlas account (or local MongoDB)
 - Tesseract OCR installed on your system
 
 ```bash
@@ -120,31 +108,33 @@ sudo apt install tesseract-ocr
 
 # macOS
 brew install tesseract
+
+# Windows — download installer from https://github.com/UB-Mannheim/tesseract/wiki
 ```
 
 ### Installation
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/your-org/darkhook-defense-backend.git
-cd darkhook-defense-backend
+git clone https://github.com/your-org/darkhook-defense.git
+cd darkhook-defense/Backend
 
 # 2. Create and activate virtual environment
-python -m venv venv
-source venv/bin/activate        # Windows: venv\Scripts\activate
+python -m venv .venv
+source .venv/bin/activate        # Windows: .venv\Scripts\activate
 
 # 3. Install dependencies
 pip install -r requirements.txt
 
 # 4. Set up environment variables
 cp .env.example .env
-# Edit .env with your MongoDB URI and any secrets
+# Edit .env with your MongoDB URI, SECRET_KEY, and SMTP/Brevo settings
 ```
 
 ### Running the Server
 
 ```bash
-uvicorn app.main:app --reload --port 8000
+uvicorn app:app --reload --port 8000
 ```
 
 The API will be available at `http://localhost:8000`.  
@@ -154,242 +144,278 @@ Interactive docs (Swagger UI): `http://localhost:8000/docs`
 
 ## 📡 API Endpoints
 
-## 🔐 Email OTP Verification (Optional)
+### Health & Root
 
-The backend supports **email OTP verification** (one-time password sent to the user’s email) to confirm ownership of an account.
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/` | API info & status |
+| `GET` | `/health` | Health check (MongoDB ping) |
 
-### Enable / Disable
+### 🔐 Authentication
 
-- By default, OTP endpoints are available, but login is not blocked.
-- To block login for unverified emails, set:
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/auth/register` | Register new user (name, email, password) |
+| `POST` | `/auth/login` | Login → returns JWT access token |
+| `GET` | `/auth/me` | Get current user profile (requires Bearer token) |
+| `POST` | `/auth/email-otp/request` | Send 6-digit OTP to user's email |
+| `POST` | `/auth/email-otp/verify` | Verify OTP → marks email as verified |
 
-```bash
-REQUIRE_EMAIL_VERIFICATION=true
+#### Register
+
+```json
+// POST /auth/register
+// Body:
+{ "name": "Test User", "email": "user@example.com", "password": "Passw0rd!" }
+
+// Response:
+{ "message": "Registration successful. Please verify your email to complete setup.", "email": "user@example.com", "requires_verification": false }
 ```
 
-### Required SMTP Environment Variables
+#### Login
 
-Set these in your `.env` (local) or Render/Vercel environment settings:
+```json
+// POST /auth/login
+// Body:
+{ "email": "user@example.com", "password": "Passw0rd!" }
+
+// Response:
+{ "access_token": "eyJ...", "token_type": "bearer" }
+```
+
+#### Get Current User
+
+```json
+// GET /auth/me
+// Headers: Authorization: Bearer <token>
+
+// Response:
+{ "name": "Test User", "email": "user@example.com" }
+```
+
+---
+
+### 🔗 URL Scan — `POST /scan/url`
+
+Analyzes a URL using a **hybrid ML + heuristic engine** with 40+ extracted features, zero-day detection, and brand impersonation analysis.
+
+**Request:**
+```json
+{ "url": "http://paypa1-verify.xyz/login" }
+```
+
+**Response:**
+```json
+{
+  "scan_id": "uuid-string",
+  "url": "http://paypa1-verify.xyz/login",
+  "score": 87,
+  "confidence": 0.87,
+  "verdict": "Phishing",
+  "status": "phishing",
+  "flags": [
+    "⚠️ No HTTPS encryption - Data transmitted in plain text",
+    "🔴 Suspicious TLD '.xyz' - Commonly abused for phishing",
+    "🎯 Typosquatting detected - Domain mimics legitimate brand",
+    "⚡ High phishing keyword density (3 keywords) - Contains: login, verify, paypal"
+  ],
+  "feature_summary": {
+    "is_https": 0,
+    "has_ip": 0,
+    "suspicious_tld": 1,
+    "keyword_hits": 3,
+    "url_entropy": 3.92,
+    "brand_impersonation": 1,
+    "brand_similarity": 0.85,
+    "has_homograph": 0,
+    "anomaly_score": 0.45,
+    "has_urgency_tactics": 0
+  },
+  "explanation": "This URL scored 87/100. PHISHING detected. Do not open."
+}
+```
+
+**URL Analysis Features (40+):**
+- URL length, domain length, path length, query length
+- Character counts (dots, hyphens, underscores, slashes, digits, `@` signs)
+- HTTPS detection, IP address detection, non-standard port detection
+- Subdomain depth analysis, suspicious TLD detection (40+ TLDs)
+- Phishing keyword matching (60+ keywords including crypto/auth terms)
+- Shannon entropy calculation (domain, path, full URL)
+- Character diversity & digit ratio analysis
+- Typosquatting detection with Levenshtein distance
+- Free hosting platform detection (40+ platforms)
+- URL shortener detection
+- **Zero-day Detection:** Leet-speak decoding, brand impersonation via fuzzy matching, homograph/IDN attack detection, statistical anomaly scoring, urgency manipulation tactics
+- Service prefix impersonation (`servicetrezor`, `serviceapple`, etc.)
+- Consecutive hyphen detection
+- Trusted domain whitelist to reduce false positives
+
+---
+
+### 📧 Email Scan — `POST /scan/email`
+
+Accepts `.eml` file upload. Combines **ML scoring (Naive Bayes on TF-IDF)** with rule-based header analysis.
+
+**Request:** `multipart/form-data` with field `file` (`.eml`)
+
+**Response:**
+```json
+{
+  "fileName": "suspicious_email.eml",
+  "riskScore": 72,
+  "verdict": "PHISHING",
+  "severity": "CRITICAL",
+  "scanTime": 0.1234,
+  "headerFlags": [
+    "SPF record: FAIL",
+    "Reply-To domain differs from From domain",
+    "Sender display name spoofing detected"
+  ],
+  "bodyFlags": [
+    "High density of urgency / security keywords in body text"
+  ],
+  "extractedUrls": ["https://suspicious-link.xyz/verify"],
+  "extractedAttachments": ["invoice.pdf"]
+}
+```
+
+**Email Analysis Capabilities:**
+- Full `.eml` parsing with Python's built-in `email` library
+- SPF / DKIM / DMARC result detection from Authentication-Results headers
+- Sender spoofing detection (display name vs actual domain mismatch)
+- Brand impersonation detection (PayPal, Microsoft, Google, Amazon, etc.)
+- Reply-To vs From domain mismatch
+- Urgency keyword density scoring (30+ phishing trigger words)
+- HTML-to-text ratio analysis (detects image-heavy lures)
+- URL extraction from email body
+- Attachment filename extraction
+- ML model: Naive Bayes on TF-IDF vectors (falls back to heuristic-only if model not available)
+- Combined score fusion: 60% ML + 20% header + 15% urgency + 5% HTML ratio
+
+---
+
+### 📄 Document Scan — `POST /scan/document`
+
+Accepts PDF, DOCX, XLSX, PPTX, PNG, JPG files. Uses **multi-layer rule-based scoring** with 150+ weighted findings.
+
+**Request:** `multipart/form-data` with field `file`
+
+**Response:**
+```json
+{
+  "fileName": "invoice.pdf",
+  "fileSize": "234.56 KB",
+  "fileHash": "sha256-hash-string",
+  "riskScore": 95,
+  "verdict": "Phishing",
+  "severity": "CRITICAL",
+  "scanTime": 0.5678,
+  "totalFindings": 4,
+  "findings": ["javascript_detected", "phishing_keyword", "suspicious_url", "base64_payload"],
+  "findingsDetailed": [
+    { "name": "Javascript Detected", "findingType": "javascript_detected", "severity": "critical", "score": 40 },
+    { "name": "Base64 Payload", "findingType": "base64_payload", "severity": "critical", "score": 35 }
+  ],
+  "scoreBreakdown": [
+    { "finding_type": "Javascript Detected", "count": 1, "score": 40 },
+    { "finding_type": "Base64 Payload", "count": 1, "score": 35 }
+  ],
+  "details": ["Page 1: JavaScript code detected in PDF stream"]
+}
+```
+
+**Supported Formats:**
+```
+GET /scan/document/formats → returns list of supported file formats
+```
+
+| Format | Parser | Detection Techniques |
+|--------|--------|---------------------|
+| PDF | `pdf_parser.py` | 4-layer analysis: structural (JS, OpenAction, Launch, forms), content (80+ phishing keywords, URLs), behavioral (Base64/hex payloads, PowerShell, droppers), image (single-image PDF, clickable overlays) |
+| DOCX | `docx_parser.py` | 13 techniques: file validation, metadata, macros (olevba), auto-execution, VBA behavior, obfuscation, embedded objects, external templates, keywords, URLs, attack chains, entropy |
+| XLSX | `excel_parser.py` | 16 techniques: all DOCX + XLM macros, hidden sheets, formula injection (HYPERLINK, WEBSERVICE, CHAR), Power Query, DDE attacks |
+| PPTX | `ppt_parser.py` | 14 techniques: macros, animation triggers, action buttons, hidden slides, media files, template injection, embedded objects |
+| PNG/JPG | `ocr_parser.py` | 17 techniques: OCR text extraction, QR code detection, fake login/browser detection, visual deception, pixel manipulation, multi-language OCR |
+
+**Centralized Scoring Engine (`scorer.py`):** 150+ weighted findings, score capped at 100. Verdicts: Safe (0-39), Suspicious (40-69), Phishing (70-100).
+
+---
+
+## 🔐 Email OTP Verification
+
+The backend supports **email OTP verification** via **Brevo HTTP API** (preferred) or **SMTP fallback**.
+
+### Features
+- 6-digit OTP with SHA-256 hashing (salted, never stored in plain text)
+- Configurable TTL, resend cooldown, and max attempts
+- Brevo API integration (works on free hosting tiers like Render)
+- SMTP fallback with TLS/SSL and automatic SSL failover
+- Styled HTML email template with OTP digit boxes
+- Account enumeration prevention (generic responses)
+- MongoDB TTL indexes for automatic OTP cleanup
+
+### Environment Variables
 
 ```bash
+# Brevo API (recommended for Render/hosted platforms)
+BREVO_API_KEY=your_brevo_api_key
+
+# SMTP (fallback)
 SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
 SMTP_USERNAME=your_email@gmail.com
 SMTP_PASSWORD=your_app_password
 SMTP_FROM="DarkHook Defense <your_email@gmail.com>"
 SMTP_USE_TLS=true
-
-# Optional: SMTP over SSL (port 465)
-# SMTP_USE_SSL=true
-# SMTP_SSL_PORT=465
-
-# Network tuning / fallback (useful on hosted platforms)
-# Increase timeout if you get "timed out" errors (default: 30 seconds)
-SMTP_TIMEOUT_SECONDS=30
 SMTP_FALLBACK_TO_SSL=true
+SMTP_TIMEOUT_SECONDS=30
 
 # OTP behavior
 OTP_TTL_MINUTES=10
 OTP_RESEND_COOLDOWN_SECONDS=60
 OTP_MAX_ATTEMPTS=5
-```
 
-
-Note: Gmail "App Passwords" are often copied with spaces for readability; the backend strips spaces automatically.
-
-For local development only, you can disable sending and print OTPs to the backend logs:
-
-```bash
-OTP_EMAIL_SENDING_DISABLED=true
-```
-
-### Endpoints
-
-- `POST /auth/email-otp/request`
-  - Body:
-    ```json
-    {"email":"user@example.com"}
-    ```
-  - Response (always generic to avoid account enumeration):
-    ```json
-    {"message":"If the account exists, an OTP has been sent."}
-    ```
-
-- `POST /auth/email-otp/verify`
-  - Body:
-    ```json
-    {"email":"user@example.com","otp":"123456"}
-    ```
-  - Response:
-    ```json
-    {"message":"Email verified successfully."}
-    ```
-
-### Quick Test Flow (curl)
-
-```bash
-# 1) Register normally
-curl -X POST http://localhost:8000/auth/register \
-  -H "Content-Type: application/json" \
-  -d '{"name":"Test","email":"user@example.com","password":"Passw0rd!"}'
-
-# 2) Request OTP
-curl -X POST http://localhost:8000/auth/email-otp/request \
-  -H "Content-Type: application/json" \
-  -d '{"email":"user@example.com"}'
-
-# 3) Verify OTP (replace 123456)
-curl -X POST http://localhost:8000/auth/email-otp/verify \
-  -H "Content-Type: application/json" \
-  -d '{"email":"user@example.com","otp":"123456"}'
-```
-
-### `POST /analyze/url`
-
-Analyzes a URL for phishing indicators using 20+ extracted features and a trained ML model.
-
-**Request Body:**
-```json
-{
-  "url": "http://example-phishing-site.xyz/login"
-}
-```
-
-**Response:**
-```json
-{
-  "scan_id": "abc123",
-  "score": 87,
-  "verdict": "Phishing",
-  "flags": [
-    "Suspicious TLD (.xyz)",
-    "IP address in URL",
-    "No HTTPS",
-    "Typosquatting detected"
-  ]
-}
-```
-
----
-
-### `POST /analyze/email`
-
-Accepts a raw `.eml` file upload or pasted raw email text. Combines ML scoring with rule-based header checks.
-
-**Request:** `multipart/form-data` with field `file` (`.eml`) OR `text/plain` body paste.
-
-**Response:**
-```json
-{
-  "scan_id": "def456",
-  "score": 72,
-  "verdict": "Suspicious",
-  "flags": [
-    "DKIM header missing",
-    "From vs Reply-To mismatch",
-    "Urgency keywords detected (5)",
-    "Attachment: .exe file flagged"
-  ],
-  "chained_url_results": [...]
-}
-```
-
----
-
-### `POST /analyze/document`
-
-Accepts PDF, DOCX, XLSX, or PPTX files (max 10MB). Uses rule-based scoring with OCR and macro detection.
-
-**Request:** `multipart/form-data` with field `file`.
-
-**Response:**
-```json
-{
-  "scan_id": "ghi789",
-  "score": 95,
-  "verdict": "Phishing",
-  "flags": [
-    "JavaScript embedded in PDF (+40)",
-    "Macro detected (olevba) (+35)",
-    "Keyword 'verify your OTP' found (+5)",
-    "QR code detected → URL scanned"
-  ],
-  "per_page_breakdown": [...],
-  "chained_url_results": [...]
-}
-```
-
----
-
-### `GET /scans/history`
-
-Returns paginated scan history from MongoDB.
-
-**Query Params:** `page` (default: 1), `limit` (default: 10)
-
-**Response:**
-```json
-{
-  "total": 48,
-  "page": 1,
-  "scans": [
-    {
-      "scan_id": "abc123",
-      "type": "url",
-      "verdict": "Phishing",
-      "score": 87,
-      "timestamp": "2026-02-24T10:30:00Z"
-    }
-  ]
-}
+# Optional toggles
+REQUIRE_EMAIL_VERIFICATION=false
+OTP_EMAIL_SENDING_DISABLED=false   # Set true for local dev (prints OTP to console)
 ```
 
 ---
 
 ## 🤖 ML Models
 
-### URL Module
-- **Dataset:** PhiUSIIL + UCI Kaggle (~240k URLs)
-- **Model:** Random Forest (primary), XGBoost (compared)
-- **Target Accuracy:** 94%+
-- **Features (20+):** URL length, dot count, `@` symbol, entropy score, HTTPS check, subdomain depth, IP in URL, suspicious TLD, Levenshtein typosquatting distance, favicon domain mismatch, external link count, etc.
+### URL Module — Hybrid ML + Heuristic Engine
+- **Primary ML:** HuggingFace hosted model at `cybersky4734-phising.hf.space/scan`
+- **Fallback:** 40+ feature heuristic engine (always runs)
+- **Final Score:** `max(ML score, heuristic score)` — with trusted domain override
+- **Zero-day Detection:** Leet-speak decoding, fuzzy brand matching (Levenshtein), homograph attack detection, anomaly scoring, urgency manipulation detection
 
-### Email Module
-- **Dataset:** Enron + SpamAssassin corpus
-- **Model:** Naive Bayes on TF-IDF body vectors
-- **Target Accuracy:** 95%+ | FPR < 5%
-- **Features:** SPF/DKIM/DMARC presence, From vs Reply-To mismatch, urgency keyword density, HTML-to-text ratio, ALL_CAPS ratio in subject, link count in body
+### Email Module — Naive Bayes + Heuristic Fusion
+- **ML Model:** Naive Bayes on TF-IDF body vectors (loaded from `.pkl` files via joblib)
+- **Graceful Fallback:** If ML artifacts are missing, heuristic-only scoring is used
+- **Score Fusion:** 60% ML probability + 20% header flags + 15% urgency score + 5% HTML ratio
+- **Header Analysis:** SPF/DKIM/DMARC parsing, sender spoofing detection, brand impersonation
 
-### Document Module
-- Rule-based scoring system:
-  - JavaScript in PDF → +40 pts
-  - Macro detected → +35 pts
-  - Phishing keyword match → +5 pts each
-- OCR (pytesseract) used to scan embedded images for text
-
----
-
-## 🔗 Module Chaining
-
-DarkHook_Defense automatically chains analysis across modules:
-
-- **Email → Document:** Attachments in emails are automatically passed to `/analyze/document`
-- **Email → URL:** All links extracted from email body are passed to `/analyze/url`
-- **Document → URL:** URLs and QR codes found in documents are passed to `/analyze/url`
-
-The combined chain score is returned in each response under `chained_url_results`.
+### Document Module — Multi-Layer Rule Engine
+- **150+ weighted findings** across all document types
+- **Centralized scoring** via `scorer.py` (all parsers share the same engine)
+- **OCR:** pytesseract for text extraction from images/scanned PDFs
+- **QR Code:** pyzbar for QR detection → extracted URLs scored for phishing
 
 ---
 
-## 🗄️ Database (MongoDB)
+## 🗄️ Database (MongoDB Atlas)
 
-Three collections are used:
+Collections used:
+- `users` — user accounts (name, email, hashed password, email verification status)
+- `email_otps` — OTP challenges with TTL auto-expiry index
 
-- `scans` — stores scan ID, type, verdict, score, and timestamp
-- `results` — full result payload per scan
-- `flags` — individual flags raised per scan (for analytics)
-
-Files themselves are **never stored** — only the extracted file hash.
+Connection features:
+- TLS 1.2+ with proper SSL configuration
+- Auto URL-encoding for passwords with special characters
+- Retry writes/reads enabled
+- Configurable timeouts (10s server selection, 20s connect)
 
 ---
 
@@ -399,40 +425,56 @@ Files themselves are **never stored** — only the extracted file hash.
 pytest tests/ -v
 ```
 
-Tests cover:
-- URL feature extraction on known phishing URLs
-- Email header parsing edge cases
-- Document parser on sample phishing PDFs
-- End-to-end endpoint tests via `TestClient`
+Test suites:
+- `test_url_analysis.py` — URL feature extraction & scoring
+- `test_malicious_urls.py` — Malicious URL detection coverage
+- `test_novel_threats.py` — Novel/emerging threat patterns
+- `test_zeroday_detection.py` — Zero-day phishing detection
+- `test_email_analysis.py` — Email parsing & header analysis
+- `test_email_otp.py` — OTP request/verify flow
+- `test_documents/` — Individual parser tests (PDF, DOCX, Excel, PPT, OCR, scoring)
+- `detection_improvements_report.py` — Detection improvement analysis
 
 ---
 
 ## 🌍 Deployment (Render)
 
-The backend is deployed on **Render** as a web service.
+The backend is deployed on **Render** via `render.yaml`:
 
-**Steps:**
-1. Push to GitHub
-2. Connect repo in Render dashboard
-3. Set build command: `pip install -r requirements.txt`
-4. Set start command: `uvicorn app:app --host 0.0.0.0 --port 10000`
-5. Add environment variables (MongoDB URI, etc.) in Render settings
+```yaml
+services:
+  - type: web
+    name: darkhook-defense
+    env: python
+    rootDir: Backend
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn -k uvicorn.workers.UvicornWorker -w 1 --max-requests 250 -b 0.0.0.0:$PORT app:app
+```
 
-> **Note:** Ensure `tesseract-ocr` is available in the Render environment. Add it via a `render.yaml` or a build script if needed.
+### CORS Configuration
+Allowed origins: `localhost:5173`, `localhost:3000`, `dark-hook-defense.vercel.app`, `darkhookdefense.online`, `www.darkhookdefense.online`
 
 ---
 
 ## 🔧 Environment Variables
 
 ```env
-MONGODB_URI=mongodb+srv://<user>:<password>@cluster.mongodb.net/darkhook
-DATABASE_NAME=darkhook_defense
-MAX_FILE_SIZE_MB=10
-URL_SCAN_TIMEOUT_SECONDS=5
+# Required
+MONGO_URI=mongodb+srv://<user>:<password>@cluster.mongodb.net/Phishing
+SECRET_KEY=your-jwt-secret-key
+SMTP_HOST=smtp.gmail.com
+
+# Optional
+DATABASE_NAME=Phishing
+JWT_ALGORITHM=HS256
+ACCESS_TOKEN_EXPIRE_MINUTES=30
+FRONTEND_URL=https://darkhookdefense.online
+BREVO_API_KEY=your_brevo_api_key
+REQUIRE_EMAIL_VERIFICATION=false
 ```
 
 ---
-
 
 ## 📄 License
 
