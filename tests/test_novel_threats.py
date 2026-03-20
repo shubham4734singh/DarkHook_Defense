@@ -32,3 +32,24 @@ def test_novel_threat_detection(url: str, min_score: int):
 
     assert score >= min_score, f"{url} scored {score}, expected >= {min_score}"
     assert flags, f"{url} returned no explanation flags"
+
+
+def test_brand_in_fake_subdomain_chain_is_detected():
+    normalized = normalize_url("https://login.microsoft.com.evil-site.top/auth")
+    feature_map = extract_features(normalized)
+    score = compute_heuristic_score(feature_map, normalized)
+
+    assert feature_map["brand_impersonation"] == 1
+    assert feature_map["num_subdomains"] >= 3
+    assert score >= 70
+
+
+def test_embedded_credentials_are_treated_as_high_risk():
+    normalized = normalize_url("http://paypal.com@evil-site.top/login")
+    feature_map = extract_features(normalized)
+    score = compute_heuristic_score(feature_map, normalized)
+    flags = build_flags(normalized, score, feature_map)
+
+    assert feature_map["has_credentials"] == 1
+    assert score >= 70
+    assert any("credentials" in flag.lower() for flag in flags)

@@ -1,1 +1,0 @@
-# DarkHook Defense Backend Application

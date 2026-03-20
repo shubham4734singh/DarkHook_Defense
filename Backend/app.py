@@ -5,11 +5,13 @@ Multi-module phishing detection engine built with FastAPI
 
 import os
 from contextlib import asynccontextmanager
+from pathlib import Path
 from dotenv import load_dotenv
 from fastapi import FastAPI, Request, status, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
+from fastapi.staticfiles import StaticFiles
 
 # Load environment variables (for local development)
 load_dotenv()
@@ -23,6 +25,8 @@ from modules.email_analysis.email_routes import router as email_router
 
 # Configuration
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
+ARTIFACTS_DIR = Path(__file__).resolve().parent / "runtime_artifacts"
+ARTIFACTS_DIR.mkdir(parents=True, exist_ok=True)
 
 
 # -------------------------
@@ -75,6 +79,8 @@ app = FastAPI(
     lifespan=lifespan,
     redirect_slashes=False
 )
+
+app.mount("/artifacts", StaticFiles(directory=ARTIFACTS_DIR), name="artifacts")
 
 # -------------------------
 # CORS

@@ -98,12 +98,100 @@ export interface EmailScanResult {
   extractedAttachments: string[];
 }
 
+export interface UrlRiskFactor {
+  title: string;
+  severity: 'high' | 'medium' | 'low';
+  category: string;
+  evidence: string;
+  impact: string;
+}
+
+export interface UrlAnalysisDetails {
+  summary: string;
+  parsed_url: {
+    scheme: string;
+    hostname: string;
+    base_domain: string;
+    port: number | null;
+    path: string;
+    query: string;
+    fragment: string;
+    subdomain_count: number;
+  };
+  model_source: string;
+  model_status: string;
+  detected_keywords: string[];
+  top_risks: string[];
+  risk_factors: UrlRiskFactor[];
+  recommendations: string[];
+  dynamic_status?: string;
+  dynamic_summary?: string;
+  dynamic_error?: string | null;
+  dynamic_analysis?: {
+    available: boolean;
+    status?: string;
+    dynamic_score: number;
+    flags: string[];
+    redirect_chain: Array<{
+      status_code: number;
+      url: string;
+      host: string;
+    }>;
+    redirect_count: number;
+    initial_url: string;
+    final_url: string;
+    screenshot?: {
+      available: boolean;
+      error?: string | null;
+      path?: string | null;
+      relative_url?: string | null;
+      url?: string | null;
+    };
+    page?: {
+      title?: string;
+      form_count?: number;
+      password_field_count?: number;
+      hidden_input_count?: number;
+      external_form_actions?: string[];
+      iframe_count?: number;
+      external_script_count?: number;
+      suspicious_script_keywords?: string[];
+      title_brand_keywords?: string[];
+    };
+    tls?: Record<string, string | number | boolean | string[] | null>;
+    headers?: Record<string, string>;
+    errors?: string[];
+  };
+  indicator_snapshot: Record<string, string | number | boolean>;
+}
+
+export interface UrlScanResult {
+  scan_id: string;
+  url: string;
+  score: number;
+  confidence: number;
+  verdict: string;
+  status: string;
+  flags: string[];
+  feature_summary: Record<string, string | number | boolean>;
+  analysis_details?: UrlAnalysisDetails;
+  explanation: string;
+}
+
+export interface UrlArtifactDeleteResult {
+  deleted: boolean;
+}
+
 class ApiService {
   private baseUrl: string;
 
   constructor(baseUrl: string) {
     this.baseUrl = baseUrl;
     console.log(`🔧 API Service initialized with baseUrl: ${baseUrl}`);
+  }
+
+  getBaseUrl(): string {
+    return this.baseUrl;
   }
 
   private getAuthHeaders(): HeadersInit {
@@ -236,7 +324,7 @@ class ApiService {
     }
   }
 
-  async scanUrl(url: string): Promise<any> {
+  async scanUrl(url: string): Promise<UrlScanResult> {
     const fullUrl = `${this.baseUrl}/scan/url`;
     
     console.log(`\n📡 === API CALL START ===`);
@@ -277,6 +365,24 @@ class ApiService {
       console.error(`Error:`, error);
       throw error;
     }
+  }
+
+  async deleteUrlArtifact(relativeUrl: string): Promise<UrlArtifactDeleteResult> {
+    const response = await fetch(`${this.baseUrl}/scan/url/artifact/delete`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ relative_url: relativeUrl }),
+      keepalive: true,
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ detail: 'Artifact cleanup failed' }));
+      throw new Error(error.detail || 'Artifact cleanup failed');
+    }
+
+    return response.json();
   }
 
   async scanEmail(file: File): Promise<EmailScanResult> {

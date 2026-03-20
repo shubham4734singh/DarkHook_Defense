@@ -44,6 +44,7 @@ def test_response_structure(monkeypatch):
         "status",
         "flags",
         "feature_summary",
+        "analysis_details",
         "explanation",
     ]
     for field in required_fields:
@@ -54,6 +55,7 @@ def test_response_structure(monkeypatch):
     assert isinstance(result["confidence"], float)
     assert isinstance(result["flags"], list)
     assert isinstance(result["feature_summary"], dict)
+    assert isinstance(result["analysis_details"], dict)
     assert isinstance(result["explanation"], str)
     assert result["explanation"]
 
