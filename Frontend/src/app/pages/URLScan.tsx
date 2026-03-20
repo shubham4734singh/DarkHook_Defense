@@ -404,6 +404,17 @@ export function URLScan() {
                         </div>
                       )}
 
+                      {!dynamicAnalysis.screenshot?.url && dynamicAnalysis.screenshot?.error && (
+                        <div className="mb-6">
+                          <h4 className="text-white font-semibold mb-3">Website Screenshot</h4>
+                          <div className="p-4 bg-[#060D1A] border border-[#1E3A5F] rounded-lg">
+                            <p className="text-[#8BA3BC] text-sm">
+                              Screenshot capture: {dynamicAnalysis.screenshot.error}
+                            </p>
+                          </div>
+                        </div>
+                      )}
+
                       {dynamicAnalysis.redirect_chain?.length > 0 && (
                         <div className="mb-6">
                           <h4 className="text-white font-semibold mb-3">Redirect Chain</h4>

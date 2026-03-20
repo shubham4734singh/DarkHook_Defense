@@ -42,6 +42,13 @@ SCREENSHOTS_ON_RISK_ONLY = os.getenv("URL_ANALYSIS_SCREENSHOTS_ON_RISK_ONLY", "t
 TLS_LOOKUP_ENABLED = os.getenv("URL_ANALYSIS_TLS_LOOKUP_ENABLED", "false").strip().lower() in {"1", "true", "yes", "on"}
 DYNAMIC_TIMEOUT_SECONDS = int(os.getenv("URL_ANALYSIS_DYNAMIC_TIMEOUT_SECONDS", "6"))
 SCREENSHOT_TIMEOUT_MS = int(os.getenv("URL_ANALYSIS_SCREENSHOT_TIMEOUT_MS", "7000"))
+PLAYWRIGHT_HEADLESS = os.getenv("PLAYWRIGHT_HEADLESS", "true").strip().lower() in {"1", "true", "yes", "on"}
+PLAYWRIGHT_LAUNCH_ARGS = [
+	"--no-sandbox",
+	"--disable-setuid-sandbox",
+	"--disable-dev-shm-usage",
+	"--disable-gpu",
+]
 
 
 def _get_hostname(url: str) -> str:
@@ -175,7 +182,10 @@ def _capture_website_screenshot(url: str, timeout_ms: int = 12000) -> dict[str, 
 
 	try:
 		with sync_playwright() as playwright:
-			browser = playwright.chromium.launch(headless=True)
+			browser = playwright.chromium.launch(
+				headless=PLAYWRIGHT_HEADLESS,
+				args=PLAYWRIGHT_LAUNCH_ARGS,
+			)
 			page = browser.new_page(viewport={"width": 1365, "height": 768})
 			page.goto(url, wait_until="domcontentloaded", timeout=timeout_ms)
 			page.wait_for_timeout(600)
