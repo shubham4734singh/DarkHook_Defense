@@ -291,6 +291,9 @@ def analyze_runtime_url(url: str, timeout: int | None = None) -> dict[str, Any]:
 		)
 	except requests.RequestException as exc:
 		result["errors"].append(str(exc))
+		if SCREENSHOTS_ENABLED:
+			screenshot = _capture_website_screenshot(url, timeout_ms=SCREENSHOT_TIMEOUT_MS)
+			result["screenshot"] = {**screenshot, "url": screenshot.get("relative_url")}
 		return result
 
 	result["available"] = True

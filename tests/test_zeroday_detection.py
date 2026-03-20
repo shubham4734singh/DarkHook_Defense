@@ -162,6 +162,30 @@ def test_dynamic_runtime_analysis_detects_redirect_and_password_form(monkeypatch
     assert any("domain changed" in flag.lower() for flag in result["flags"])
 
 
+def test_dynamic_runtime_analysis_attempts_screenshot_when_fetch_fails(monkeypatch):
+    def _raise_request_error(*args, **kwargs):
+        raise dynamic_module.requests.RequestException("dns failed")
+
+    monkeypatch.setattr("modules.url_analysis.dynamic.requests.Session", lambda: type("FakeSession", (), {"get": _raise_request_error})())
+    monkeypatch.setattr(dynamic_module, "SCREENSHOTS_ENABLED", True)
+    monkeypatch.setattr(
+        dynamic_module,
+        "_capture_website_screenshot",
+        lambda url, timeout_ms=12000: {
+            "available": True,
+            "error": None,
+            "path": "C:/tmp/failure.png",
+            "relative_url": "/artifacts/url_screenshots/failure.png",
+        },
+    )
+
+    result = analyze_runtime_url("https://bad-host.example")
+
+    assert result["available"] is False
+    assert result["errors"]
+    assert result["screenshot"]["relative_url"] == "/artifacts/url_screenshots/failure.png"
+
+
 def test_ml_service_503_becomes_clean_fallback(monkeypatch):
     class FakeResponse:
         status_code = 503

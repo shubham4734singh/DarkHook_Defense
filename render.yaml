@@ -15,3 +15,7 @@ services:
         value: "0"
       - key: URL_ANALYSIS_SCREENSHOTS_ENABLED
         value: "true"
+      - key: URL_ANALYSIS_SCREENSHOTS_ON_RISK_ONLY
+        value: "false"
+      - key: PLAYWRIGHT_HEADLESS
+        value: "true"
