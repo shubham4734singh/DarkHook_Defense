@@ -37,7 +37,7 @@ TITLE_BRAND_KEYWORDS = [
 ]
 SCREENSHOT_DIR = Path(__file__).resolve().parents[2] / "runtime_artifacts" / "url_screenshots"
 SCREENSHOT_DIR.mkdir(parents=True, exist_ok=True)
-SCREENSHOTS_ENABLED = os.getenv("URL_ANALYSIS_SCREENSHOTS_ENABLED", "true").strip().lower() in {"1", "true", "yes", "on"}
+SCREENSHOTS_ENABLED = os.getenv("URL_ANALYSIS_SCREENSHOTS_ENABLED", "false").strip().lower() in {"1", "true", "yes", "on"}
 SCREENSHOTS_ON_RISK_ONLY = os.getenv("URL_ANALYSIS_SCREENSHOTS_ON_RISK_ONLY", "true").strip().lower() in {"1", "true", "yes", "on"}
 TLS_LOOKUP_ENABLED = os.getenv("URL_ANALYSIS_TLS_LOOKUP_ENABLED", "false").strip().lower() in {"1", "true", "yes", "on"}
 DYNAMIC_TIMEOUT_SECONDS = int(os.getenv("URL_ANALYSIS_DYNAMIC_TIMEOUT_SECONDS", "6"))

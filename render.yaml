@@ -4,18 +4,16 @@ services:
     env: python
     rootDir: Backend
     plan: free
-    buildCommand: pip install -r requirements.txt && python -m playwright install chromium
+    buildCommand: pip install -r requirements.txt
     startCommand: gunicorn -k uvicorn.workers.UvicornWorker -w 1 --max-requests 250 --max-requests-jitter 25 -b 0.0.0.0:$PORT app:app
     envVars:
       - key: PYTHON_VERSION
         value: 3.11.11
       - key: URL_ANALYSIS_ML_ENABLED
         value: "false"
-      - key: PLAYWRIGHT_BROWSERS_PATH
-        value: "0"
       - key: URL_ANALYSIS_SCREENSHOTS_ENABLED
-        value: "true"
-      - key: URL_ANALYSIS_SCREENSHOTS_ON_RISK_ONLY
         value: "false"
+      - key: URL_ANALYSIS_SCREENSHOTS_ON_RISK_ONLY
+        value: "true"
       - key: PLAYWRIGHT_HEADLESS
         value: "true"

@@ -50,6 +50,12 @@ export interface AuthResponse {
   token_type: string;
 }
 
+export interface RegisterResponse {
+  message: string;
+  email: string;
+  requires_verification: boolean;
+}
+
 export interface UserResponse {
   name: string;
   email: string;
@@ -222,7 +228,7 @@ class ApiService {
     return response.json();
   }
 
-  async register(name: string, email: string, password: string): Promise<AuthResponse> {
+  async register(name: string, email: string, password: string): Promise<RegisterResponse> {
     const response = await fetch(`${this.baseUrl}/auth/register`, {
       method: 'POST',
       headers: {

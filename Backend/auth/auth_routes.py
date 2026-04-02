@@ -1,6 +1,9 @@
-from fastapi import APIRouter, HTTPException, Depends
+from collections import defaultdict, deque
+from threading import Lock
+
+from fastapi import APIRouter, HTTPException, Depends, Request
 from fastapi.security import OAuth2PasswordBearer
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, field_validator
 from datetime import datetime, timedelta
 import os
 import hashlib
@@ -37,6 +40,11 @@ REQUIRE_EMAIL_VERIFICATION = os.getenv("REQUIRE_EMAIL_VERIFICATION", "false").st
 OTP_TTL_MINUTES = int(os.getenv("OTP_TTL_MINUTES", "10"))
 OTP_RESEND_COOLDOWN_SECONDS = int(os.getenv("OTP_RESEND_COOLDOWN_SECONDS", "60"))
 OTP_MAX_ATTEMPTS = int(os.getenv("OTP_MAX_ATTEMPTS", "5"))
+AUTH_RATE_LIMIT_WINDOW_SECONDS = int(os.getenv("AUTH_RATE_LIMIT_WINDOW_SECONDS", "300"))
+AUTH_LOGIN_MAX_ATTEMPTS = int(os.getenv("AUTH_LOGIN_MAX_ATTEMPTS", "10"))
+AUTH_REGISTER_MAX_ATTEMPTS = int(os.getenv("AUTH_REGISTER_MAX_ATTEMPTS", "5"))
+AUTH_OTP_REQUEST_MAX_ATTEMPTS = int(os.getenv("AUTH_OTP_REQUEST_MAX_ATTEMPTS", "5"))
+AUTH_OTP_VERIFY_MAX_ATTEMPTS = int(os.getenv("AUTH_OTP_VERIFY_MAX_ATTEMPTS", "10"))
 
 # Brevo API Configuration (preferred over SMTP on free hosting)
 BREVO_API_KEY = os.getenv("BREVO_API_KEY")  # Get from https://app.brevo.com/settings/keys/api
@@ -56,6 +64,8 @@ SMTP_FALLBACK_TO_SSL = os.getenv("SMTP_FALLBACK_TO_SSL", "true").strip().lower()
 
 # Development-only helper: when enabled, OTP is not emailed (printed to logs)
 OTP_EMAIL_SENDING_DISABLED = os.getenv("OTP_EMAIL_SENDING_DISABLED", "false").strip().lower() in {"1", "true", "yes"}
+_rate_limit_store: dict[str, deque[float]] = defaultdict(deque)
+_rate_limit_lock = Lock()
 
 # -------------------------
 # Models
@@ -66,20 +76,66 @@ class User(BaseModel):
     email: EmailStr
     password: str
 
+    @field_validator("name")
+    @classmethod
+    def validate_name(cls, value: str) -> str:
+        cleaned = value.strip()
+        if len(cleaned) < 2:
+            raise ValueError("Name must be at least 2 characters long")
+        if len(cleaned) > 100:
+            raise ValueError("Name must be 100 characters or fewer")
+        return cleaned
+
+    @field_validator("email")
+    @classmethod
+    def normalize_email(cls, value: EmailStr) -> str:
+        return str(value).strip().lower()
+
+    @field_validator("password")
+    @classmethod
+    def validate_password(cls, value: str) -> str:
+        if len(value) < 8:
+            raise ValueError("Password must be at least 8 characters long")
+        if len(value) > 128:
+            raise ValueError("Password must be 128 characters or fewer")
+        if not any(ch.isalpha() for ch in value) or not any(ch.isdigit() for ch in value):
+            raise ValueError("Password must include both letters and numbers")
+        return value
+
 class UserLogin(BaseModel):
     email: EmailStr
     password: str
 
+    @field_validator("email")
+    @classmethod
+    def normalize_email(cls, value: EmailStr) -> str:
+        return str(value).strip().lower()
+
 class EmailOtpRequest(BaseModel):
     email: EmailStr
+
+    @field_validator("email")
+    @classmethod
+    def normalize_email(cls, value: EmailStr) -> str:
+        return str(value).strip().lower()
 
 class EmailOtpVerify(BaseModel):
     email: EmailStr
     otp: str
 
+    @field_validator("email")
+    @classmethod
+    def normalize_email(cls, value: EmailStr) -> str:
+        return str(value).strip().lower()
+
 class Token(BaseModel):
     access_token: str
     token_type: str
+
+class RegisterResponse(BaseModel):
+    message: str
+    email: str
+    requires_verification: bool
 
 class UserResponse(BaseModel):
     name: str
@@ -119,6 +175,37 @@ def _ensure_otp_indexes():
 
 def _normalize_otp(otp: str) -> str:
     return "".join(ch for ch in (otp or "") if ch.isdigit())
+
+
+def _get_client_ip(request: Request | None) -> str:
+    if request is None:
+        return "unknown"
+
+    forwarded_for = request.headers.get("x-forwarded-for", "")
+    if forwarded_for:
+        return forwarded_for.split(",")[0].strip()
+
+    client = getattr(request, "client", None)
+    return client.host if client and client.host else "unknown"
+
+
+def _enforce_rate_limit(bucket: str, request: Request | None, identifier: str, limit: int) -> None:
+    now_ts = datetime.utcnow().timestamp()
+    key = f"{bucket}:{_get_client_ip(request)}:{identifier}"
+    cutoff = now_ts - AUTH_RATE_LIMIT_WINDOW_SECONDS
+
+    with _rate_limit_lock:
+        timestamps = _rate_limit_store[key]
+        while timestamps and timestamps[0] < cutoff:
+            timestamps.popleft()
+
+        if len(timestamps) >= limit:
+            raise HTTPException(
+                status_code=429,
+                detail="Too many requests. Please wait a few minutes and try again.",
+            )
+
+        timestamps.append(now_ts)
 
 
 def _hash_otp(otp: str, salt: str) -> str:
@@ -428,13 +515,15 @@ def _send_email_otp(to_email: str, otp: str):
 def create_access_token(data: dict):
     to_encode = data.copy()
     expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    to_encode.update({"exp": expire})
+    to_encode.update({"exp": expire, "iat": datetime.utcnow(), "type": "access"})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=JWT_ALGORITHM)
 
 
 def verify_token(token: str):
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[JWT_ALGORITHM])
+        if payload.get("type") != "access":
+            raise HTTPException(status_code=401, detail="Invalid token type")
         return payload
     except ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="Token has expired")
@@ -454,9 +543,10 @@ def get_current_user_email(token: str = Depends(oauth2_scheme)):
 # Routes
 # -------------------------
 
-@router.post("/register")
-async def register(user: User):
+@router.post("/register", response_model=RegisterResponse)
+async def register(user: User, request: Request):
     try:
+        _enforce_rate_limit("register", request, str(user.email), AUTH_REGISTER_MAX_ATTEMPTS)
         users_collection = get_users_collection()
 
         # Check if user already exists
@@ -470,16 +560,21 @@ async def register(user: User):
             "name": user.name,
             "email": user.email,
             "password": hashed_password,
-            "email_verified": False,
-            "email_verified_at": None,
+            "email_verified": not REQUIRE_EMAIL_VERIFICATION,
+            "email_verified_at": datetime.utcnow() if not REQUIRE_EMAIL_VERIFICATION else None,
             "created_at": datetime.utcnow()
         }
 
         users_collection.insert_one(user_doc)
 
-        # Return success message without token - user must verify email then login
+        message = (
+            "Registration successful. Please verify your email to complete setup."
+            if REQUIRE_EMAIL_VERIFICATION
+            else "Registration successful. You can now log in."
+        )
+
         return {
-            "message": "Registration successful. Please verify your email to complete setup.",
+            "message": message,
             "email": user.email,
             "requires_verification": REQUIRE_EMAIL_VERIFICATION
         }
@@ -491,8 +586,9 @@ async def register(user: User):
 
 
 @router.post("/login", response_model=Token)
-async def login(user_login: UserLogin):
+async def login(user_login: UserLogin, request: Request):
     try:
+        _enforce_rate_limit("login", request, str(user_login.email), AUTH_LOGIN_MAX_ATTEMPTS)
         users_collection = get_users_collection()
 
         user = users_collection.find_one({"email": user_login.email})
@@ -538,9 +634,10 @@ async def get_current_user(current_user: str = Depends(get_current_user_email)):
 
 
 @router.post("/email-otp/request")
-async def request_email_otp(payload: EmailOtpRequest):
+async def request_email_otp(payload: EmailOtpRequest, request: Request):
     """Send a 6-digit OTP to the user's email to verify the account."""
     _ensure_otp_indexes()
+    _enforce_rate_limit("otp_request", request, str(payload.email), AUTH_OTP_REQUEST_MAX_ATTEMPTS)
 
     users_collection = get_users_collection()
     otp_collection = get_otp_collection()
@@ -587,18 +684,19 @@ async def request_email_otp(payload: EmailOtpRequest):
 
     try:
         _send_email_otp(payload.email, otp_value)
-    except Exception as e:
+    except Exception:
         # Best-effort cleanup: if email sending fails, we still don't want a usable OTP stored.
         otp_collection.delete_one({"_id": insert_result.inserted_id})
-        raise HTTPException(status_code=500, detail=f"Failed to send OTP email: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to send OTP email. Please try again later.")
 
     return {"message": "If the account exists, an OTP has been sent."}
 
 
 @router.post("/email-otp/verify")
-async def verify_email_otp(payload: EmailOtpVerify):
+async def verify_email_otp(payload: EmailOtpVerify, request: Request):
     """Verify the OTP and mark the user's email as verified."""
     _ensure_otp_indexes()
+    _enforce_rate_limit("otp_verify", request, str(payload.email), AUTH_OTP_VERIFY_MAX_ATTEMPTS)
 
     users_collection = get_users_collection()
     otp_collection = get_otp_collection()

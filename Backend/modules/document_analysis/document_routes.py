@@ -17,6 +17,7 @@ from pydantic import BaseModel
 from ..document_analysis.scorer import WEIGHTS, calculate_score
 
 router = APIRouter()
+MAX_DOCUMENT_UPLOAD_BYTES = int(os.getenv("MAX_DOCUMENT_UPLOAD_BYTES", str(10 * 1024 * 1024)))
 
 
 class FindingItem(BaseModel):
@@ -91,6 +92,11 @@ async def scan_document(file: UploadFile = File(...)):
     file_data = await file.read()
     if not file_data:
         raise HTTPException(status_code=400, detail="Uploaded file is empty.")
+    if len(file_data) > MAX_DOCUMENT_UPLOAD_BYTES:
+        raise HTTPException(
+            status_code=413,
+            detail=f"Uploaded file is too large. Maximum allowed size is {MAX_DOCUMENT_UPLOAD_BYTES // (1024 * 1024)} MB.",
+        )
 
     suffix = os.path.splitext(file.filename)[1].lower()
     parser_entry = SUPPORTED_PARSERS.get(suffix)

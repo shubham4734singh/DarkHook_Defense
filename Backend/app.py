@@ -27,6 +27,23 @@ from modules.email_analysis.email_routes import router as email_router
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
 ARTIFACTS_DIR = Path(__file__).resolve().parent / "runtime_artifacts"
 ARTIFACTS_DIR.mkdir(parents=True, exist_ok=True)
+ALLOWED_ORIGINS = {
+    "http://localhost:5173",
+    "http://localhost:3000",
+    "http://127.0.0.1:5173",
+    "http://127.0.0.1:3000",
+    FRONTEND_URL,
+    "https://dark-hook-defense.vercel.app",
+    "https://darkhookdefense.online",
+    "https://www.darkhookdefense.online",
+}
+
+
+def _cors_headers_for_origin(origin: str | None) -> dict[str, str]:
+    headers = {"Access-Control-Allow-Credentials": "true"}
+    if origin and origin in ALLOWED_ORIGINS:
+        headers["Access-Control-Allow-Origin"] = origin
+    return headers
 
 
 # -------------------------
@@ -89,16 +106,7 @@ app.mount("/artifacts", StaticFiles(directory=ARTIFACTS_DIR), name="artifacts")
 # Add CORS middleware BEFORE other routers
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://localhost:3000",
-        "http://127.0.0.1:5173",
-        "http://127.0.0.1:3000",
-        FRONTEND_URL,
-        "https://dark-hook-defense.vercel.app",
-        "https://darkhookdefense.online",
-        "https://www.darkhookdefense.online",
-    ],
+    allow_origins=sorted(ALLOWED_ORIGINS),
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["Content-Type", "Authorization", "Accept", "Origin", "X-Requested-With"],
@@ -117,10 +125,7 @@ async def http_exception_handler(request: Request, exc: HTTPException):
     return JSONResponse(
         status_code=exc.status_code,
         content={"detail": exc.detail},
-        headers={
-            "Access-Control-Allow-Origin": request.headers.get("origin", "*"),
-            "Access-Control-Allow-Credentials": "true",
-        }
+        headers=_cors_headers_for_origin(request.headers.get("origin")),
     )
 
 @app.exception_handler(RequestValidationError)
@@ -129,10 +134,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
     return JSONResponse(
         status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
         content={"detail": exc.errors()},
-        headers={
-            "Access-Control-Allow-Origin": request.headers.get("origin", "*"),
-            "Access-Control-Allow-Credentials": "true",
-        }
+        headers=_cors_headers_for_origin(request.headers.get("origin")),
     )
 
 

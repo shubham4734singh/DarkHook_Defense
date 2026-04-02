@@ -79,12 +79,15 @@ export function Login() {
         // Call login from auth context (which now calls the API)
         await login(email, password);
       } else {
-        // Call register from auth context
-        await register(name, email, password);
+        const registration = await register(name, email, password);
+        setInfo(registration.message || 'Registration successful.');
 
-        // After signup, start OTP verification step.
-        await startOtpFlow(email);
-        return;
+        if (registration.requires_verification) {
+          await startOtpFlow(email);
+          return;
+        }
+
+        await login(email, password);
       }
       
       // Check if there's a redirect path stored

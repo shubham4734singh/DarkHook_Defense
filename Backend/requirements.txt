@@ -8,10 +8,8 @@ cffi==2.0.0
 charset-normalizer==3.4.5
 click==8.3.1
 colorama==0.4.6
-colorclass==2.2.2
 cryptography==46.0.5
 dnspython==2.8.0
-easygui==0.98.3
 ecdsa==0.19.1
 email-validator==2.3.0
 et_xmlfile==2.0.0
@@ -31,7 +29,6 @@ olefile==0.47
 oletools==0.60.2
 openpyxl==3.1.5
 packaging==26.0
-pandas==3.0.1
 passlib==1.7.4
 pcodedmp==1.2.6
 pillow==12.1.1
@@ -72,6 +69,4 @@ urllib3==2.6.3
 uvicorn==0.41.0
 watchfiles==1.1.1
 websockets==16.0
-win_unicode_console==0.5
-xgboost==3.2.0
 xlsxwriter==3.2.9

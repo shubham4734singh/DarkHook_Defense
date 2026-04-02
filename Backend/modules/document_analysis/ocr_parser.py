@@ -48,7 +48,13 @@ except ImportError:
 
 try:
     import pytesseract
-    pytesseract.pytesseract.tesseract_cmd = os.path.join(os.path.dirname(__file__), "Tesseract-OCR", "tesseract.exe")
+    bundled_tesseract = os.path.join(os.path.dirname(__file__), "Tesseract-OCR", "tesseract.exe")
+    configured_tesseract = os.getenv("TESSERACT_CMD", "").strip()
+
+    if configured_tesseract:
+        pytesseract.pytesseract.tesseract_cmd = configured_tesseract
+    elif os.name == "nt" and os.path.exists(bundled_tesseract):
+        pytesseract.pytesseract.tesseract_cmd = bundled_tesseract
     TESSERACT_AVAILABLE = True
 except ImportError:
     TESSERACT_AVAILABLE = False

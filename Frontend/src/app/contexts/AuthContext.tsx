@@ -1,11 +1,11 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
-import { api } from '../services/api';
+import { api, RegisterResponse } from '../services/api';
 
 interface AuthContextType {
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<void>;
-  register: (name: string, email: string, password: string) => Promise<void>;
+  register: (name: string, email: string, password: string) => Promise<RegisterResponse>;
   logout: () => void;
   user: { email: string; name: string } | null;
   loading: boolean;
@@ -23,31 +23,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const checkAuth = async () => {
       const token = localStorage.getItem('darkhook_token');
-      const storedUser = localStorage.getItem('darkhook_user');
       
-      if (token && storedUser) {
+      if (token) {
+        let sessionIsValid = false;
         try {
-          // Try to get user info from API to verify token is still valid
           const userInfo = await api.getCurrentUser();
           if (userInfo) {
             setUser(userInfo);
             setIsAuthenticated(true);
-          } else {
-            // API returned null - token might be invalid or server error
-            // Keep using stored user data for this session
-            setUser(JSON.parse(storedUser));
-            setIsAuthenticated(true);
+            sessionIsValid = true;
           }
         } catch (error) {
-          // Network error or server down - keep using stored user data
-          console.warn('Auth check failed, using cached data:', error);
-          try {
-            setUser(JSON.parse(storedUser));
-            setIsAuthenticated(true);
-          } catch {
-            // Invalid stored user data, clear everything
+          console.warn('Auth check failed, clearing invalid session:', error);
+        } finally {
+          if (!sessionIsValid) {
             localStorage.removeItem('darkhook_token');
             localStorage.removeItem('darkhook_user');
+            setUser(null);
+            setIsAuthenticated(false);
           }
         }
       }
@@ -80,17 +73,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const register = async (name: string, email: string, password: string) => {
     setLoading(true);
     try {
-      // Register returns success message, NOT a token
-      // User must verify email and then login to get authenticated
-      await api.register(name, email, password);
-      
-      // Do NOT authenticate here - user must verify email then login
-      setLoading(false);
+      return await api.register(name, email, password);
     } catch (error) {
-      setLoading(false);
       throw error;
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const logout = () => {

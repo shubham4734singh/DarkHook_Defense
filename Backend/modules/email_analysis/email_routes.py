@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import tempfile
+from functools import lru_cache
 from time import perf_counter
 from typing import List
 
@@ -11,6 +12,7 @@ from pydantic import BaseModel
 from .email_parser import EmailAnalyzer
 
 router = APIRouter()
+MAX_EMAIL_UPLOAD_BYTES = int(os.getenv("MAX_EMAIL_UPLOAD_BYTES", str(5 * 1024 * 1024)))
 
 
 class EmailScanResult(BaseModel):
@@ -33,6 +35,12 @@ def _score_to_severity(score: int) -> str:
     return "CRITICAL"
 
 
+@lru_cache(maxsize=1)
+def get_email_analyzer() -> EmailAnalyzer:
+    # Reuse the analyzer so ML artifacts are loaded once per process.
+    return EmailAnalyzer()
+
+
 @router.post("/email", response_model=EmailScanResult)
 async def scan_email(file: UploadFile = File(...)):
     if not file.filename:
@@ -45,6 +53,11 @@ async def scan_email(file: UploadFile = File(...)):
     file_data = await file.read()
     if not file_data:
         raise HTTPException(status_code=400, detail="Uploaded file is empty.")
+    if len(file_data) > MAX_EMAIL_UPLOAD_BYTES:
+        raise HTTPException(
+            status_code=413,
+            detail=f"Uploaded file is too large. Maximum allowed size is {MAX_EMAIL_UPLOAD_BYTES // (1024 * 1024)} MB.",
+        )
 
     with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp_file:
         tmp_file.write(file_data)
@@ -52,7 +65,7 @@ async def scan_email(file: UploadFile = File(...)):
 
     started = perf_counter()
     try:
-        analyzer = EmailAnalyzer()
+        analyzer = get_email_analyzer()
         analysis = analyzer.analyze(tmp_path)
 
         score = int(analysis.get("score", 0))
