@@ -1,6 +1,9 @@
 import math
 import os
 import re
+import socket
+import time
+from concurrent.futures import ThreadPoolExecutor
 from collections import Counter
 from ipaddress import ip_address
 from urllib.parse import urlparse
@@ -10,14 +13,37 @@ import requests
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, Field
 
-from modules.url_analysis.dynamic import analyze_runtime_url, delete_runtime_screenshot
+from modules.url_analysis.dynamic import analyze_runtime_url
 
 
 router = APIRouter()
 
-URL_ML_ENABLED = os.getenv("URL_ANALYSIS_ML_ENABLED", "true").strip().lower() in {"1", "true", "yes", "on"}
-HF_API_URL = os.getenv("URL_ANALYSIS_ML_API_URL", "https://cybersky4734-phising.hf.space/scan").strip()
-HF_API_TIMEOUT_SECONDS = int(os.getenv("URL_ANALYSIS_ML_TIMEOUT_SECONDS", "20"))
+
+def _get_env_bool(name: str, default: bool) -> bool:
+	value = os.getenv(name)
+	if value is None:
+		return default
+	return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _get_env_int(name: str, default: int) -> int:
+	value = os.getenv(name)
+	if value is None:
+		return default
+	try:
+		return int(value.strip())
+	except ValueError:
+		return default
+
+
+URL_ML_ENABLED = _get_env_bool("URL_ANALYSIS_ML_ENABLED", True)
+HF_API_URL = os.getenv("URL_ANALYSIS_ML_API_URL", "").strip()
+HF_API_TIMEOUT_SECONDS = _get_env_int("URL_ANALYSIS_ML_TIMEOUT_SECONDS", 20)
+URL_THREAT_INTEL_ENABLED = _get_env_bool("URL_ANALYSIS_THREAT_INTEL_ENABLED", True)
+URL_THREAT_INTEL_API_URL = os.getenv("URL_ANALYSIS_THREAT_INTEL_API_URL", "").strip()
+URL_THREAT_INTEL_API_KEY = os.getenv("URL_ANALYSIS_THREAT_INTEL_API_KEY", "").strip()
+URL_THREAT_INTEL_TIMEOUT_SECONDS = _get_env_int("URL_ANALYSIS_THREAT_INTEL_TIMEOUT_SECONDS", 5)
+URL_THREAT_INTEL_CACHE_TTL_SECONDS = _get_env_int("URL_ANALYSIS_THREAT_INTEL_CACHE_TTL_SECONDS", 1800)
 
 SUSPICIOUS_TLDS = {
 	"tk", "ml", "ga", "cf", "gq", "xyz", "top", "click", "work", "support", "zip", "country",
@@ -66,13 +92,154 @@ COMMON_SECOND_LEVEL_SUFFIXES = {
 	"com.br", "com.mx", "com.sg", "co.jp",
 }
 
+BLOCKED_HOSTNAMES = {
+	"localhost",
+	"localhost.localdomain",
+}
+
+FREE_HOSTING_DOMAINS = {
+	"repl.co", "herokuapp.com", "github.io", "blogspot.com", "blogspot.ae",
+	"blogspot.be", "blogspot.ch", "blogspot.co.at", "blogspot.com.ar", "blogspot.com.cy",
+	"blogspot.com.es", "blogspot.com.tr", "blogspot.co.uk", "blogspot.de", "blogspot.dk",
+	"blogspot.hk", "blogspot.hu", "blogspot.it", "blogspot.lt", "blogspot.no", "blogspot.pe",
+	"blogspot.pt", "blogspot.qa", "blogspot.ro", "blogspot.rs", "blogspot.sk", "blogspot.tw",
+	"wordpress.com", "wix.com", "wixsite.com", "weebly.com", "000webhostapp.com",
+	"pantheonsite.io", "onedumb.com", "ddns.net", "duckdns.org", "pages.dev",
+	"webflow.io", "netlify.app", "vercel.app", "render.com", "fly.dev", "railway.app",
+	"glitch.me", "surge.sh", "web.app", "firebaseapp.com", "teachable.com",
+	"jdevcloud.com", "webmo.fr", "mooo.com", "netsons.org", "wpenginepowered.com",
+	"siaedu.net", "mybluehost.me", "nspace.pl", "mdbgo.io", "wasmer.app",
+	"mystrikingly.com", "cloudaccess.host", "sviluppo.host", "azurewebsites.net",
+}
+
+SHORTENER_DOMAINS = {
+	"bit.ly", "tinyurl.com", "goo.gl", "t.co", "ow.ly", "is.gd", "buff.ly",
+}
+
+CONFUSABLE_CHAR_MAP = {
+	'а': 'a', 'е': 'e', 'о': 'o', 'р': 'p', 'с': 'c', 'у': 'y', 'х': 'x',
+	'і': 'i', 'ј': 'j', 'ѕ': 's', 'һ': 'h', 'ԁ': 'd', 'ɡ': 'g', 'ο': 'o',
+}
+
+KNOWN_BAD_INFRA_SUFFIXES = {
+	"duckdns.org", "ddns.net", "hopto.org", "no-ip.org", "servehttp.com",
+}
+
+_THREAT_INTEL_CACHE: dict[str, tuple[float, dict]] = {}
+
+
+def _parse_csv_set(value: str) -> set[str]:
+	if not value:
+		return set()
+	return {item.strip().lower() for item in value.split(",") if item.strip()}
+
+
+def lookup_threat_intel(url: str) -> dict:
+	"""Return threat-intel verdict with safe fallback behavior and TTL caching."""
+	host = get_hostname(url)
+	base_domain = get_base_domain(host)
+	cache_key = f"{host}|{base_domain}"
+	now = time.time()
+
+	if cache_key in _THREAT_INTEL_CACHE:
+		expires_at, cached = _THREAT_INTEL_CACHE[cache_key]
+		if now < expires_at:
+			return cached
+
+	result = {
+		"enabled": URL_THREAT_INTEL_ENABLED,
+		"available": False,
+		"matched": False,
+		"score_boost": 0,
+		"sources": [],
+		"evidence": [],
+		"domain_age_days": None,
+		"asn_reputation": None,
+		"error": None,
+	}
+
+	if not URL_THREAT_INTEL_ENABLED or not host:
+		result["available"] = bool(URL_THREAT_INTEL_ENABLED)
+		_THREAT_INTEL_CACHE[cache_key] = (now + URL_THREAT_INTEL_CACHE_TTL_SECONDS, result)
+		return result
+
+	bad_domains = _parse_csv_set(os.getenv("URL_ANALYSIS_THREAT_INTEL_DOMAINS", ""))
+	bad_suffixes = _parse_csv_set(os.getenv("URL_ANALYSIS_THREAT_INTEL_SUFFIXES", ""))
+	bad_suffixes |= KNOWN_BAD_INFRA_SUFFIXES
+
+	if host in bad_domains or base_domain in bad_domains:
+		result["matched"] = True
+		result["score_boost"] += 35
+		result["sources"].append("local_domain_feed")
+		result["evidence"].append(f"Domain matched local threat feed: {host}")
+
+	for suffix in bad_suffixes:
+		if host_matches_domain(host, suffix):
+			result["matched"] = True
+			result["score_boost"] += 20
+			result["sources"].append("local_infra_suffix_feed")
+			result["evidence"].append(f"Domain matches suspicious infra suffix: {suffix}")
+			break
+
+	if URL_THREAT_INTEL_API_URL:
+		headers = {"Content-Type": "application/json"}
+		if URL_THREAT_INTEL_API_KEY:
+			headers["Authorization"] = f"Bearer {URL_THREAT_INTEL_API_KEY}"
+		try:
+			response = requests.post(
+				URL_THREAT_INTEL_API_URL,
+				json={"url": url, "host": host, "base_domain": base_domain},
+				headers=headers,
+				timeout=URL_THREAT_INTEL_TIMEOUT_SECONDS,
+			)
+			if response.status_code < 400:
+				data = response.json() if response.content else {}
+				result["available"] = True
+				is_malicious = bool(
+					data.get("malicious")
+					or data.get("is_malicious")
+					or data.get("listed")
+					or str(data.get("verdict", "")).strip().lower() in {"malicious", "phishing", "dangerous"}
+				)
+				confidence = float(data.get("confidence", 0) or 0)
+				if is_malicious:
+					result["matched"] = True
+					result["score_boost"] += 35
+					if confidence >= 0.8:
+						result["score_boost"] += 8
+					result["sources"].append(str(data.get("source") or "external_threat_intel"))
+					reason = str(data.get("reason") or "External threat feed marked this URL as malicious")
+					result["evidence"].append(reason)
+
+				domain_age_days = data.get("domain_age_days")
+				if isinstance(domain_age_days, (int, float)):
+					result["domain_age_days"] = int(domain_age_days)
+					if domain_age_days <= 30:
+						result["score_boost"] += 8
+						result["evidence"].append(f"Very new domain age: {int(domain_age_days)} days")
+
+				asn_reputation = str(data.get("asn_reputation") or "").strip().lower()
+				if asn_reputation:
+					result["asn_reputation"] = asn_reputation
+					if asn_reputation in {"bad", "high_risk", "malicious"}:
+						result["score_boost"] += 8
+						result["evidence"].append(f"High-risk ASN reputation: {asn_reputation}")
+			else:
+				result["available"] = False
+				result["error"] = f"threat-intel API returned {response.status_code}"
+		except Exception as exc:
+			result["available"] = False
+			result["error"] = f"threat-intel API error: {exc}"
+	else:
+		result["available"] = True
+
+	result["score_boost"] = min(45, int(result["score_boost"]))
+	_THREAT_INTEL_CACHE[cache_key] = (now + URL_THREAT_INTEL_CACHE_TTL_SECONDS, result)
+	return result
+
 
 class URLAnalyzeRequest(BaseModel):
 	url: str = Field(..., min_length=4, description="URL to analyze")
-
-
-class URLArtifactDeleteRequest(BaseModel):
-	relative_url: str = Field(..., min_length=1, description="Artifact relative URL to delete")
 
 
 class URLAnalyzeResponse(BaseModel):
@@ -86,10 +253,7 @@ class URLAnalyzeResponse(BaseModel):
 	feature_summary: dict
 	analysis_details: dict
 	explanation: str = Field(..., description="Human-readable explanation of the analysis result")
-
-
-class URLArtifactDeleteResponse(BaseModel):
-	deleted: bool
+	screenshot: dict | None = Field(None, description="Website screenshot data")
 
 
 def normalize_url(raw_url: str) -> str:
@@ -147,6 +311,61 @@ def is_ip_host(host: str) -> bool:
 		return True
 	except ValueError:
 		return False
+
+
+def is_blocked_ip(ip_str: str) -> bool:
+	"""Return True when an IP is private, loopback, link-local, or otherwise non-routable."""
+	try:
+		parsed_ip = ip_address(ip_str)
+	except ValueError:
+		return True
+
+	return (
+		parsed_ip.is_private
+		or parsed_ip.is_loopback
+		or parsed_ip.is_link_local
+		or parsed_ip.is_multicast
+		or parsed_ip.is_reserved
+		or parsed_ip.is_unspecified
+	)
+
+
+def host_matches_domain(host: str, suffix: str) -> bool:
+	"""Return True for exact host match or subdomain match against a suffix."""
+	if not host or not suffix:
+		return False
+	return host == suffix or host.endswith("." + suffix)
+
+
+def validate_scan_target(url: str) -> tuple[bool, str | None]:
+	"""Reject targets that can be used for SSRF into local or non-routable networks."""
+	parsed = urlparse(url)
+	if parsed.scheme not in {"http", "https"}:
+		return False, "Only http and https URLs are supported"
+
+	host = get_hostname(url)
+	if not host:
+		return False, "Invalid hostname"
+
+	if host in BLOCKED_HOSTNAMES:
+		return False, "Localhost targets are not allowed"
+
+	if is_ip_host(host):
+		if is_blocked_ip(host):
+			return False, "Private or non-routable IP targets are not allowed"
+		return True, None
+
+	try:
+		resolved = socket.getaddrinfo(host, None)
+	except socket.gaierror:
+		return False, "Hostname could not be resolved"
+
+	for entry in resolved:
+		ip_str = entry[4][0]
+		if is_blocked_ip(ip_str):
+			return False, "Target resolves to private or non-routable network"
+
+	return True, None
 
 
 def is_trusted_domain(url: str) -> bool:
@@ -268,23 +487,25 @@ def detect_homograph_attack(domain: str) -> bool:
 	"""
 	Detect homograph/IDN attacks using suspicious Unicode patterns
 	"""
-	# Check for mixed character sets (e.g., Cyrillic 'а' looks like Latin 'a')
-	has_latin = any('\u0041' <= c <= '\u007A' for c in domain)
-	has_cyrillic = any('\u0400' <= c <= '\u04FF' for c in domain)
-	has_greek = any('\u0370' <= c <= '\u03FF' for c in domain)
-	
-	# Mixed scripts in domain = potential homograph attack
-	script_count = sum([has_latin, has_cyrillic, has_greek])
-	if script_count > 1:
+	if not domain:
+		return False
+
+	if "xn--" in domain:
 		return True
-	
-	# Check for confusing Unicode characters
-	confusables = {
-		'а': 'a', 'е': 'e', 'о': 'o', 'р': 'p', 'с': 'c', 'у': 'y', 'х': 'x',  # Cyrillic
-		'і': 'i', 'ј': 'j', 'ѕ': 's', 'һ': 'h', 'ԁ': 'd', 'ɡ': 'g', 'ο': 'o',  # Mixed
-	}
-	
-	return any(char in domain for char in confusables.keys())
+
+	labels = [label for label in domain.split(".") if label]
+	for label in labels:
+		has_latin = any(('A' <= c <= 'Z') or ('a' <= c <= 'z') for c in label)
+		has_cyrillic = any('\u0400' <= c <= '\u04FF' for c in label)
+		has_greek = any('\u0370' <= c <= '\u03FF' for c in label)
+		script_count = int(has_latin) + int(has_cyrillic) + int(has_greek)
+		if script_count > 1:
+			return True
+
+	if any(char in CONFUSABLE_CHAR_MAP for char in domain):
+		return True
+
+	return False
 
 
 def calculate_anomaly_score(features: dict) -> float:
@@ -383,7 +604,11 @@ def extract_features(url: str) -> dict:
 	# Protocol and security
 	features["is_https"] = 1 if url.startswith("https://") else 0
 	features["has_ip"] = 1 if is_ip_host(domain) else 0
-	features["has_port"] = 1 if parsed.port is not None else 0
+	try:
+		parsed_port = parsed.port
+	except ValueError:
+		parsed_port = None
+	features["has_port"] = 1 if parsed_port is not None else 0
 	features["has_credentials"] = 1 if parsed.username else 0
 	
 	# Domain analysis
@@ -439,22 +664,9 @@ def extract_features(url: str) -> dict:
 	features["has_lookalike"] = 1 if (any(pattern in full_url for pattern in lookalike_patterns) or has_brand_typo or 
 	                                    (brand_found and ("login" in full_url or "verify" in full_url or "secure" in full_url))) else 0
 	
-	free_hosting = ["repl.co", "herokuapp.com", "github.io", "blogspot.com", "blogspot.ae",
-	               "blogspot.be", "blogspot.ch", "blogspot.co.at", "blogspot.com.ar", "blogspot.com.cy",
-	               "blogspot.com.es", "blogspot.com.tr", "blogspot.co.uk", "blogspot.de", "blogspot.dk",
-	               "blogspot.hk", "blogspot.hu", "blogspot.it", "blogspot.lt", "blogspot.no", "blogspot.pe",
-	               "blogspot.pt", "blogspot.qa", "blogspot.ro", "blogspot.rs", "blogspot.sk", "blogspot.tw",
-	               "wordpress.com", "wix.com", "wixsite.com", "weebly.com", "000webhostapp.com",
-	               "pantheonsite.io", "onedumb.com", "ddns.net", "duckdns.org", "pages.dev",
-	               "webflow.io", "netlify.app", "vercel.app", "render.com", "fly.dev", "railway.app",
-	               "glitch.me", "surge.sh", "web.app", "firebaseapp.com", "teachable.com",
-	               "jdevcloud.com", "webmo.fr", "mooo.com", "netsons.org", "wpenginepowered.com",
-	               "siaedu.net", "mybluehost.me", "nspace.pl", "mdbgo.io", "wasmer.app",
-	               "mystrikingly.com", "cloudaccess.host", "sviluppo.host", "azurewebsites.net"]
-	features["is_free_hosting"] = 1 if any(host in domain for host in free_hosting) else 0
+	features["is_free_hosting"] = 1 if any(host_matches_domain(domain, item) for item in FREE_HOSTING_DOMAINS) else 0
 	
-	shorteners = ["bit.ly", "tinyurl.com", "goo.gl", "t.co", "ow.ly", "is.gd", "buff.ly"]
-	features["is_shortener"] = 1 if any(short in domain for short in shorteners) else 0
+	features["is_shortener"] = 1 if any(host_matches_domain(domain, item) for item in SHORTENER_DOMAINS) else 0
 	
 	features["path_depth"] = path.count("/")
 	features["has_suspicious_path"] = 1 if any(x in path for x in ["../", "//", "%", "script"]) else 0
@@ -487,8 +699,6 @@ def extract_features(url: str) -> dict:
 	
 	# Homograph attack detection
 	features["has_homograph"] = 1 if detect_homograph_attack(domain) else 0
-	if "xn--" in domain:
-		features["has_homograph"] = 1
 
 	# URL encoding / obfuscation
 	features["percent_encoded_count"] = full_url.count("%")
@@ -504,13 +714,20 @@ def extract_features(url: str) -> dict:
 	return features
 
 
-def build_flags(url: str, score: int, feature_map: dict, dynamic_result: dict | None = None) -> list[str]:
+def build_flags(
+	url: str,
+	score: int,
+	feature_map: dict,
+	dynamic_result: dict | None = None,
+	threat_intel: dict | None = None,
+) -> list[str]:
 	parsed = urlparse(url)
 	host = get_hostname(url)
 	domain = get_base_domain(host)
 	path = parsed.path.lower()
 	tld = host.split(".")[-1] if "." in host else ""
 	dynamic_result = dynamic_result or {}
+	threat_intel = threat_intel or {}
 
 	flags: list[str] = []
 
@@ -620,6 +837,13 @@ def build_flags(url: str, score: int, feature_map: dict, dynamic_result: dict | 
 	for dynamic_flag in dynamic_result.get("flags", [])[:5]:
 		flags.append(f"Runtime analysis: {dynamic_flag}")
 
+	if threat_intel.get("matched"):
+		evidence = threat_intel.get("evidence") or []
+		if evidence:
+			flags.append(f"Threat intel hit: {evidence[0]}")
+		else:
+			flags.append("Threat intel hit: external or local feed marked this URL as risky")
+
 	# If no specific flags but high score
 	if not flags:
 		if score >= 70:
@@ -630,6 +854,80 @@ def build_flags(url: str, score: int, feature_map: dict, dynamic_result: dict | 
 			flags.append("✅ No major phishing indicators detected - URL appears legitimate")
 
 	return flags
+
+
+def compute_structural_signal_score(feature_map: dict) -> int:
+	"""Score structural/lexical URL characteristics so extracted parameters affect detection."""
+	points = 0
+
+	url_length = int(feature_map.get("url_length", 0))
+	domain_length = int(feature_map.get("domain_length", 0))
+	path_length = int(feature_map.get("path_length", 0))
+	query_length = int(feature_map.get("query_length", 0))
+	num_dots = int(feature_map.get("num_dots", 0))
+	num_underscores = int(feature_map.get("num_underscores", 0))
+	num_slashes = int(feature_map.get("num_slashes", 0))
+	num_question_marks = int(feature_map.get("num_question_marks", 0))
+	num_equal_signs = int(feature_map.get("num_equal_signs", 0))
+	num_ampersands = int(feature_map.get("num_ampersands", 0))
+	num_at_signs = int(feature_map.get("num_at_signs", 0))
+	path_depth = int(feature_map.get("path_depth", 0))
+	keyword_hits = int(feature_map.get("keyword_hits", 0))
+
+	domain_entropy = float(feature_map.get("domain_entropy", 0.0))
+	path_entropy = float(feature_map.get("path_entropy", 0.0))
+	char_diversity = float(feature_map.get("char_diversity", 0.0))
+	special_char_ratio = float(feature_map.get("special_char_ratio", 0.0))
+	tld_is_country_code = int(feature_map.get("tld_is_country_code", 0))
+
+	if domain_length >= 40:
+		points += 4
+	elif domain_length >= 28:
+		points += 2
+
+	if path_length >= 70:
+		points += 4
+	elif path_length >= 35:
+		points += 2
+
+	if query_length >= 80:
+		points += 4
+	elif query_length >= 30:
+		points += 2
+
+	if num_dots >= 5:
+		points += 3
+	if num_underscores >= 2:
+		points += 2
+	if num_slashes >= 8:
+		points += 2
+	if num_question_marks >= 2:
+		points += 3
+	if num_equal_signs >= 4:
+		points += 3
+	if num_ampersands >= 3:
+		points += 2
+	if num_at_signs >= 1:
+		points += 10
+
+	if path_depth >= 6:
+		points += 3
+
+	if domain_entropy >= 4.0:
+		points += 3
+	if path_entropy >= 4.2:
+		points += 3
+
+	if special_char_ratio >= 0.25:
+		points += 2
+	if char_diversity >= 0.62 and url_length >= 70:
+		points += 2
+
+	# ccTLD alone is not suspicious; only add weak signal when phishing context exists.
+	if tld_is_country_code == 1 and keyword_hits >= 2:
+		points += 2
+
+	return min(30, max(0, points))
 
 
 def compute_heuristic_score(feature_map: dict, url: str) -> int:
@@ -730,6 +1028,9 @@ def compute_heuristic_score(feature_map: dict, url: str) -> int:
 	if int(feature_map.get("has_port", 0)) == 1:
 		score += 8
 
+	# Bring additional extracted parameters into decisioning.
+	score += compute_structural_signal_score(feature_map)
+
 	return max(0, min(100, score))
 
 
@@ -781,13 +1082,20 @@ def calculate_verdict_confidence(score: int, status: str, feature_map: dict, dyn
 	return round(max(0.65, min(0.98, base)), 4)
 
 
-def build_risk_factors(url: str, score: int, feature_map: dict, dynamic_result: dict | None = None) -> list[dict]:
+def build_risk_factors(
+	url: str,
+	score: int,
+	feature_map: dict,
+	dynamic_result: dict | None = None,
+	threat_intel: dict | None = None,
+) -> list[dict]:
 	"""Build a structured list of the strongest risk drivers."""
 	host = get_hostname(url)
 	base_domain = get_base_domain(host)
 	tld = host.split(".")[-1] if "." in host else ""
 	detected_keywords = feature_map.get("detected_keywords") or get_detected_keywords(url)
 	dynamic_result = dynamic_result or {}
+	threat_intel = threat_intel or {}
 	risk_factors: list[dict] = []
 
 	def add_factor(title: str, severity: str, category: str, evidence: str, impact: str) -> None:
@@ -808,6 +1116,17 @@ def build_risk_factors(url: str, score: int, feature_map: dict, dynamic_result: 
 			"deception",
 			f"The URL includes a username-like prefix before the real host: {urlparse(url).netloc}",
 			"Attackers use this trick to make a malicious host look like a trusted brand.",
+		)
+
+	if threat_intel.get("matched"):
+		evidence = threat_intel.get("evidence") or ["Feed marked URL as suspicious or malicious"]
+		sources = ", ".join(threat_intel.get("sources") or ["threat-intel"])
+		add_factor(
+			"Threat intelligence feed match",
+			"high",
+			"threat-intel",
+			f"Sources: {sources}. Evidence: {evidence[0]}",
+			"External threat intelligence correlates this URL with known malicious activity or risky infrastructure.",
 		)
 
 	if feature_map.get("has_ip") == 1:
@@ -988,6 +1307,7 @@ def build_analysis_details(
 	status: str,
 	feature_map: dict,
 	dynamic_result: dict,
+	threat_intel: dict,
 	ml_available: bool,
 	ml_error_msg: str | None,
 	base_url: str | None = None,
@@ -997,7 +1317,7 @@ def build_analysis_details(
 	host = get_hostname(url)
 	base_domain = get_base_domain(host)
 	detected_keywords = feature_map.get("detected_keywords") or get_detected_keywords(url)
-	risk_factors = build_risk_factors(url, score, feature_map, dynamic_result)
+	risk_factors = build_risk_factors(url, score, feature_map, dynamic_result, threat_intel)
 
 	if status == "phishing":
 		summary = (
@@ -1023,15 +1343,6 @@ def build_analysis_details(
 		if dynamic_result.get("available")
 		else "Live runtime fetch was not available for this scan."
 	)
-	screenshot = dynamic_result.get("screenshot") or {}
-	relative_screenshot_url = screenshot.get("relative_url")
-	absolute_screenshot_url = (
-		f"{base_url.rstrip('/')}{relative_screenshot_url}"
-		if base_url and relative_screenshot_url
-		else relative_screenshot_url
-	)
-	if absolute_screenshot_url:
-		screenshot["url"] = absolute_screenshot_url
 
 	if status == "phishing":
 		recommendations = [
@@ -1066,6 +1377,7 @@ def build_analysis_details(
 		},
 		"model_source": model_source,
 		"model_status": "available" if ml_available else f"unavailable: {ml_error_msg}",
+		"threat_intel": threat_intel,
 		"detected_keywords": detected_keywords,
 		"top_risks": [factor["title"] for factor in risk_factors[:3]],
 		"risk_factors": risk_factors,
@@ -1123,13 +1435,20 @@ def analyze_url(payload: URLAnalyzeRequest, request: Request):
 	if not normalized:
 		raise HTTPException(status_code=400, detail="Invalid URL")
 
+	is_allowed_target, blocked_reason = validate_scan_target(normalized)
+	if not is_allowed_target:
+		raise HTTPException(status_code=400, detail=f"Blocked URL target: {blocked_reason}")
+
 	try:
 		feature_map = extract_features(normalized)
 		heuristic_score = compute_heuristic_score(feature_map, normalized)
-		dynamic_result = analyze_runtime_url(normalized)
-		
-		# Call HuggingFace ML service for prediction
-		ml_result = call_hf_ml_service(normalized)
+
+		# Run runtime analysis and ML lookup concurrently to reduce total scan time.
+		with ThreadPoolExecutor(max_workers=2) as executor:
+			dynamic_future = executor.submit(analyze_runtime_url, normalized)
+			ml_future = executor.submit(call_hf_ml_service, normalized)
+			dynamic_result = dynamic_future.result()
+			ml_result = ml_future.result()
 		model_score = None
 		ml_available = True
 		ml_error_msg = None
@@ -1137,7 +1456,24 @@ def analyze_url(payload: URLAnalyzeRequest, request: Request):
 		if "error" not in ml_result or ml_result.get("available", False):
 			# Extract confidence/probability from HF response
 			try:
-				model_score = int(ml_result.get("prediction_score", heuristic_score))
+				raw_ml_score = ml_result.get("prediction_score")
+				if raw_ml_score is None:
+					raw_ml_score = ml_result.get("score")
+				if raw_ml_score is None:
+					probability = ml_result.get("probability")
+					if probability is not None:
+						raw_ml_score = float(probability) * 100.0
+
+				# Some simple APIs return prediction=0/1 only; map that to a coarse score.
+				if raw_ml_score is None and "prediction" in ml_result:
+					prediction = int(ml_result.get("prediction"))
+					raw_ml_score = 95 if prediction == 1 else 5
+
+				if raw_ml_score is None:
+					raw_ml_score = heuristic_score
+
+				model_score = int(float(raw_ml_score))
+				model_score = max(0, min(100, model_score))
 			except (ValueError, TypeError):
 				ml_available = False
 				ml_error_msg = "Invalid response format from ML service"
@@ -1151,19 +1487,72 @@ def analyze_url(payload: URLAnalyzeRequest, request: Request):
 		else:
 			score = heuristic_score
 
+		threat_intel = lookup_threat_intel(normalized)
+		if threat_intel.get("matched"):
+			score = min(100, score + int(threat_intel.get("score_boost", 0)))
+
 		dynamic_score = int(dynamic_result.get("dynamic_score", 0))
 		if dynamic_score > 0:
 			score = min(100, max(score, score + dynamic_score))
+
+		initial_base = get_base_domain(get_hostname(normalized))
+		final_base = get_base_domain(get_hostname(dynamic_result.get("final_url", normalized)))
+		runtime_domain_changed = bool(dynamic_result.get("available") and initial_base and final_base and final_base != initial_base)
+
+		has_strong_risk_evidence = (
+			bool(threat_intel.get("matched"))
+			or
+			int(feature_map.get("has_credentials", 0)) == 1
+			or int(feature_map.get("has_ip", 0)) == 1
+			or int(feature_map.get("suspicious_tld", 0)) == 1
+			or int(feature_map.get("brand_impersonation", 0)) == 1
+			or int(feature_map.get("has_homograph", 0)) == 1
+			or int(feature_map.get("keyword_hits", 0)) >= 2
+			or dynamic_score >= 12
+			or runtime_domain_changed
+		)
+
+		# If ML predicts very high risk but URL evidence is weak, dampen ML-driven false positives.
+		if (
+			ml_available
+			and model_score is not None
+			and model_score >= 80
+			and heuristic_score <= 25
+			and not has_strong_risk_evidence
+		):
+			score = min(score, 39)
 		
-		# Apply trusted domain override to avoid false positives
+		# Trusted domains with weak risk evidence should remain low-risk even if ML over-scores.
+		if is_trusted_domain(normalized) and not has_strong_risk_evidence:
+			score = min(score, 30)
+
+		# Apply conservative false-positive dampening without forcing risky URLs into "safe".
 		if is_trusted_domain(normalized) and score >= 40:
-			score = min(score, 30)  # Cap score below suspicious threshold for trusted domains
-		elif is_low_risk_legit_pattern(feature_map, normalized) and score >= 70:
-			score = min(score, 39)  # Prevent benign HTTPS URLs from being marked phishing
+			high_risk_signals = (
+				bool(threat_intel.get("matched"))
+				or
+				int(feature_map.get("has_credentials", 0)) == 1
+				or int(feature_map.get("has_ip", 0)) == 1
+				or int(feature_map.get("brand_impersonation", 0)) == 1
+				or int(feature_map.get("has_homograph", 0)) == 1
+				or dynamic_score >= 12
+				or runtime_domain_changed
+			)
+			if not high_risk_signals:
+				score = max(0, score - 12)
+		elif is_low_risk_legit_pattern(feature_map, normalized) and score >= 70 and dynamic_score == 0:
+			score = max(40, score - 25)
+
+		# Runtime destination switching is a hard floor: it should never be downgraded to "safe".
+		if runtime_domain_changed:
+			score = max(score, 45)
+
+		if threat_intel.get("matched"):
+			score = max(score, 45)
 		
 		verdict, status = map_verdict(score)
 		confidence = calculate_verdict_confidence(score, status, feature_map, dynamic_result)
-		flags = build_flags(normalized, score, feature_map, dynamic_result)
+		flags = build_flags(normalized, score, feature_map, dynamic_result, threat_intel)
 		analysis_details = build_analysis_details(
 			normalized,
 			score,
@@ -1171,6 +1560,7 @@ def analyze_url(payload: URLAnalyzeRequest, request: Request):
 			status,
 			feature_map,
 			dynamic_result,
+			threat_intel,
 			ml_available,
 			ml_error_msg,
 			str(request.base_url),
@@ -1208,6 +1598,8 @@ def analyze_url(payload: URLAnalyzeRequest, request: Request):
 			"anomaly_score": round(float(feature_map.get("anomaly_score", 0)), 4),
 			"has_urgency_tactics": int(feature_map.get("has_urgency_tactics", 0)),
 			"urgency_score": round(float(feature_map.get("urgency_score", 0)), 4),
+			"threat_intel_hit": 1 if threat_intel.get("matched") else 0,
+			"threat_intel_boost": int(threat_intel.get("score_boost", 0)),
 		}
 		
 		# Generate explanation summary
@@ -1233,17 +1625,9 @@ def analyze_url(payload: URLAnalyzeRequest, request: Request):
 			feature_summary=feature_summary,
 			analysis_details=analysis_details,
 			explanation=explanation_str,
+			screenshot=dynamic_result.get("screenshot"),
 		)
 	except HTTPException:
 		raise
 	except Exception as exc:
 		raise HTTPException(status_code=500, detail=f"URL analysis failed: {exc}") from exc
-
-
-@router.post("/url/artifact/delete", response_model=URLArtifactDeleteResponse)
-def delete_url_artifact(payload: URLArtifactDeleteRequest):
-	try:
-		deleted = delete_runtime_screenshot(payload.relative_url)
-		return URLArtifactDeleteResponse(deleted=deleted)
-	except Exception as exc:
-		raise HTTPException(status_code=500, detail=f"Artifact cleanup failed: {exc}") from exc

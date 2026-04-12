@@ -8,7 +8,6 @@
 const getApiBaseUrl = (): string => {
   // Check for explicit environment variable (highest priority)
   if (import.meta.env.VITE_API_BASE_URL) {
-    console.log('📌 Using VITE_API_BASE_URL:', import.meta.env.VITE_API_BASE_URL);
     return import.meta.env.VITE_API_BASE_URL;
   }
 
@@ -17,18 +16,15 @@ const getApiBaseUrl = (): string => {
   const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
   
   if (isLocalhost) {
-    console.log('🏠 Local development detected, using localhost:8000');
     return 'http://localhost:8000';
   }
 
   // Only use production URL if we're on the production domain
   if (window.location.hostname.includes('darkhook') || window.location.hostname.includes('render')) {
-    console.log('🚀 Production environment detected');
     return 'https://darkhook-defense.onrender.com';
   }
 
   // Fallback to localhost
-  console.log('⚠️ Using fallback: localhost:8000');
   return 'http://localhost:8000';
 };
 
@@ -149,9 +145,11 @@ export interface UrlAnalysisDetails {
     screenshot?: {
       available: boolean;
       error?: string | null;
-      path?: string | null;
-      relative_url?: string | null;
       url?: string | null;
+      content_type?: string | null;
+      size_bytes?: number | null;
+      final_url?: string | null;
+      source?: string | null;
     };
     page?: {
       title?: string;
@@ -182,10 +180,15 @@ export interface UrlScanResult {
   feature_summary: Record<string, string | number | boolean>;
   analysis_details?: UrlAnalysisDetails;
   explanation: string;
-}
-
-export interface UrlArtifactDeleteResult {
-  deleted: boolean;
+  screenshot?: {
+    available: boolean;
+    error?: string | null;
+    url?: string | null;
+    content_type?: string | null;
+    size_bytes?: number | null;
+    final_url?: string | null;
+    source?: string | null;
+  };
 }
 
 class ApiService {
@@ -193,7 +196,6 @@ class ApiService {
 
   constructor(baseUrl: string) {
     this.baseUrl = baseUrl;
-    console.log(`🔧 API Service initialized with baseUrl: ${baseUrl}`);
   }
 
   getBaseUrl(): string {
@@ -332,63 +334,35 @@ class ApiService {
 
   async scanUrl(url: string): Promise<UrlScanResult> {
     const fullUrl = `${this.baseUrl}/scan/url`;
-    
-    console.log(`\n📡 === API CALL START ===`);
-    console.log(`Base URL: ${this.baseUrl}`);
-    console.log(`Full URL: ${fullUrl}`);
-    console.log(`Method: POST`);
-    console.log(`Headers: Content-Type: application/json`);
-    console.log(`Payload: ${JSON.stringify({ url })}`);
-    
+
     try {
-      console.log(`⏳ Fetching...`);
+      const token = localStorage.getItem('darkhook_token');
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+      };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
       const response = await fetch(fullUrl, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers,
         body: JSON.stringify({ url }),
       });
 
-      console.log(`📊 Response received:`);
-      console.log(`  Status: ${response.status} ${response.statusText}`);
-      console.log(`  Content-Type: ${response.headers.get('content-type')}`);
-
       if (!response.ok) {
         const errorText = await response.text();
-        console.error(`❌ Response NOT OK (status ${response.status})`);
-        console.error(`  Response body: ${errorText}`);
         throw new Error(errorText.includes('detail') ? 
           `API Error ${response.status}: ${errorText}` : 
           `HTTP ${response.status}: ${errorText.substring(0, 100)}`);
       }
 
       const result = await response.json();
-      console.log(`✅ === API CALL SUCCESS ===\n`);
       return result;
     } catch (error) {
-      console.error(`❌ === API CALL FAILED ===\n`);
       console.error(`Error:`, error);
       throw error;
     }
-  }
-
-  async deleteUrlArtifact(relativeUrl: string): Promise<UrlArtifactDeleteResult> {
-    const response = await fetch(`${this.baseUrl}/scan/url/artifact/delete`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ relative_url: relativeUrl }),
-      keepalive: true,
-    });
-
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({ detail: 'Artifact cleanup failed' }));
-      throw new Error(error.detail || 'Artifact cleanup failed');
-    }
-
-    return response.json();
   }
 
   async scanEmail(file: File): Promise<EmailScanResult> {

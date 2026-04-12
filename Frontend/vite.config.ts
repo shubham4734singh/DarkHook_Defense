@@ -17,6 +17,18 @@ export default defineConfig({
     },
   },
 
+  server: {
+    host: true,
+    port: 5173,
+    strictPort: true,
+    hmr: {
+      protocol: 'ws',
+      host: '127.0.0.1',
+      port: 5173,
+      clientPort: 5173,
+    },
+  },
+
   // File types to support raw imports. Never add .css, .tsx, or .ts files to this.
   assetsInclude: ['**/*.svg', '**/*.csv'],
 })

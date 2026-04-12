@@ -11,9 +11,3 @@ services:
         value: 3.11.11
       - key: URL_ANALYSIS_ML_ENABLED
         value: "false"
-      - key: URL_ANALYSIS_SCREENSHOTS_ENABLED
-        value: "false"
-      - key: URL_ANALYSIS_SCREENSHOTS_ON_RISK_ONLY
-        value: "true"
-      - key: PLAYWRIGHT_HEADLESS
-        value: "true"

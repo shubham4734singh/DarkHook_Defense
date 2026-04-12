@@ -1,14 +1,16 @@
+import base64
+import io
+import re
 import socket
 import ssl
 from datetime import datetime, timezone
 import os
-from pathlib import Path
 from typing import Any
 from urllib.parse import urljoin, urlparse
-from uuid import uuid4
 
 import requests
 from bs4 import BeautifulSoup
+from PIL import Image, ImageDraw
 
 
 DYNAMIC_USER_AGENT = (
@@ -35,20 +37,15 @@ TITLE_BRAND_KEYWORDS = [
 	"paypal", "microsoft", "office", "google", "apple", "amazon",
 	"bank", "wallet", "coinbase", "binance", "ledger", "trezor",
 ]
-SCREENSHOT_DIR = Path(__file__).resolve().parents[2] / "runtime_artifacts" / "url_screenshots"
-SCREENSHOT_DIR.mkdir(parents=True, exist_ok=True)
-SCREENSHOTS_ENABLED = os.getenv("URL_ANALYSIS_SCREENSHOTS_ENABLED", "false").strip().lower() in {"1", "true", "yes", "on"}
-SCREENSHOTS_ON_RISK_ONLY = os.getenv("URL_ANALYSIS_SCREENSHOTS_ON_RISK_ONLY", "true").strip().lower() in {"1", "true", "yes", "on"}
 TLS_LOOKUP_ENABLED = os.getenv("URL_ANALYSIS_TLS_LOOKUP_ENABLED", "false").strip().lower() in {"1", "true", "yes", "on"}
 DYNAMIC_TIMEOUT_SECONDS = int(os.getenv("URL_ANALYSIS_DYNAMIC_TIMEOUT_SECONDS", "6"))
-SCREENSHOT_TIMEOUT_MS = int(os.getenv("URL_ANALYSIS_SCREENSHOT_TIMEOUT_MS", "7000"))
-PLAYWRIGHT_HEADLESS = os.getenv("PLAYWRIGHT_HEADLESS", "true").strip().lower() in {"1", "true", "yes", "on"}
-PLAYWRIGHT_LAUNCH_ARGS = [
-	"--no-sandbox",
-	"--disable-setuid-sandbox",
-	"--disable-dev-shm-usage",
-	"--disable-gpu",
-]
+SCREENSHOT_SERVICE_URL = os.getenv("URL_ANALYSIS_SCREENSHOT_SERVICE_URL", "").strip()
+SCREENSHOT_SERVICE_TIMEOUT_SECONDS = int(os.getenv("URL_ANALYSIS_SCREENSHOT_SERVICE_TIMEOUT_SECONDS", "25"))
+SCREENSHOT_SERVICE_API_KEY = os.getenv("URL_ANALYSIS_SCREENSHOT_SERVICE_API_KEY", "").strip()
+SCREENSHOT_LOCAL_FALLBACK_ENABLED = os.getenv("URL_ANALYSIS_SCREENSHOT_LOCAL_FALLBACK_ENABLED", "true").strip().lower() in {"1", "true", "yes", "on"}
+SCREENSHOT_LOCAL_TIMEOUT_SECONDS = int(os.getenv("URL_ANALYSIS_SCREENSHOT_LOCAL_TIMEOUT_SECONDS", "20"))
+SCREENSHOT_CAPTURE_MODE = os.getenv("URL_ANALYSIS_SCREENSHOT_CAPTURE_MODE", "local_first").strip().lower()
+URL_ANALYSIS_DYNAMIC_FAST_MODE = os.getenv("URL_ANALYSIS_DYNAMIC_FAST_MODE", "false").strip().lower() in {"1", "true", "yes", "on"}
 
 
 def _get_hostname(url: str) -> str:
@@ -106,9 +103,12 @@ def _inspect_html(html: str, final_url: str) -> dict[str, Any]:
 			"password_field_count": 0,
 			"hidden_input_count": 0,
 			"external_form_actions": [],
+			"form_action_mismatch_count": 0,
 			"iframe_count": 0,
 			"external_script_count": 0,
 			"suspicious_script_keywords": [],
+			"js_redirect_indicators": [],
+			"meta_refresh_targets": [],
 			"title_brand_keywords": [],
 		}
 
@@ -120,6 +120,7 @@ def _inspect_html(html: str, final_url: str) -> dict[str, Any]:
 	external_form_actions: list[str] = []
 	password_field_count = 0
 	hidden_input_count = 0
+	form_action_mismatch_count = 0
 
 	for form in forms:
 		action = (form.get("action") or "").strip()
@@ -128,6 +129,10 @@ def _inspect_html(html: str, final_url: str) -> dict[str, Any]:
 		action_base = _get_base_domain(action_host)
 		if action and action_host and action_base and action_base != final_base:
 			external_form_actions.append(resolved_action)
+
+		has_password_input = bool(form.find_all("input", attrs={"type": "password"}))
+		if has_password_input and action and action_host and action_base and action_base != final_base:
+			form_action_mismatch_count += 1
 
 		password_field_count += len(form.find_all("input", attrs={"type": "password"}))
 		hidden_input_count += len(form.find_all("input", attrs={"type": "hidden"}))
@@ -149,6 +154,30 @@ def _inspect_html(html: str, final_url: str) -> dict[str, Any]:
 	suspicious_script_keywords = [
 		pattern for pattern in SUSPICIOUS_SCRIPT_PATTERNS if pattern in combined_script_text
 	]
+	js_redirect_patterns = [
+		"window.location",
+		"location.href",
+		"location.replace(",
+		"location.assign(",
+		"top.location",
+		"document.location",
+		"window.open(",
+	]
+	js_redirect_indicators = [pattern for pattern in js_redirect_patterns if pattern in combined_script_text]
+
+	meta_refresh_targets: list[str] = []
+	for meta in soup.find_all("meta"):
+		http_equiv = (meta.get("http-equiv") or "").strip().lower()
+		if http_equiv != "refresh":
+			continue
+		content = (meta.get("content") or "").strip()
+		match = re.search(r"url\s*=\s*([^;]+)$", content, flags=re.IGNORECASE)
+		if not match:
+			continue
+		target = match.group(1).strip().strip('"').strip("'")
+		if not target:
+			continue
+		meta_refresh_targets.append(urljoin(final_url, target))
 
 	title = (soup.title.string or "").strip() if soup.title and soup.title.string else ""
 	title_lower = title.lower()
@@ -160,97 +189,183 @@ def _inspect_html(html: str, final_url: str) -> dict[str, Any]:
 		"password_field_count": password_field_count,
 		"hidden_input_count": hidden_input_count,
 		"external_form_actions": external_form_actions[:5],
+		"form_action_mismatch_count": form_action_mismatch_count,
 		"iframe_count": len(iframes),
 		"external_script_count": script_src_count,
 		"suspicious_script_keywords": suspicious_script_keywords[:8],
+		"js_redirect_indicators": js_redirect_indicators[:8],
+		"meta_refresh_targets": meta_refresh_targets[:5],
 		"title_brand_keywords": title_brand_keywords[:6],
 	}
 
 
-def _capture_website_screenshot(url: str, timeout_ms: int = 12000) -> dict[str, Any]:
-	"""Attempt to capture a rendered screenshot using Playwright if available."""
-	if not SCREENSHOTS_ENABLED:
-		return {"available": False, "error": "screenshot capture disabled", "path": None, "relative_url": None}
+def _capture_remote_screenshot(url: str) -> dict[str, Any]:
+	"""Use a hosted screenshot service instead of local browser automation."""
+	if not SCREENSHOT_SERVICE_URL:
+		return {"available": False, "error": "screenshot service not configured", "url": None}
+
+	headers = {"Content-Type": "application/json"}
+	if SCREENSHOT_SERVICE_API_KEY:
+		headers["X-Screenshot-Service-Key"] = SCREENSHOT_SERVICE_API_KEY
+		headers["X-API-Key"] = SCREENSHOT_SERVICE_API_KEY
+		headers["Authorization"] = f"Bearer {SCREENSHOT_SERVICE_API_KEY}"
+
+	try:
+		response = requests.post(
+			SCREENSHOT_SERVICE_URL,
+			json={"url": url},
+			headers=headers,
+			timeout=SCREENSHOT_SERVICE_TIMEOUT_SECONDS,
+		)
+		if response.status_code >= 500:
+			return {"available": False, "error": f"screenshot service unavailable ({response.status_code})", "url": None}
+		if response.status_code >= 400:
+			return {"available": False, "error": f"screenshot service request failed ({response.status_code})", "url": None}
+
+		payload = response.json()
+		data_url = (
+			payload.get("data_url")
+			or payload.get("url")
+			or payload.get("image_url")
+			or payload.get("screenshot_url")
+		)
+		return {
+			"available": bool(payload.get("available") or data_url),
+			"error": payload.get("error"),
+			"url": data_url,
+			"content_type": payload.get("content_type"),
+			"size_bytes": payload.get("size_bytes"),
+			"final_url": payload.get("final_url"),
+			"source": "remote_service",
+		}
+	except requests.exceptions.Timeout:
+		return {"available": False, "error": f"screenshot service timeout after {SCREENSHOT_SERVICE_TIMEOUT_SECONDS} seconds", "url": None}
+	except requests.exceptions.RequestException as exc:
+		return {"available": False, "error": f"screenshot service error: {exc}", "url": None}
+
+
+def _capture_local_screenshot(url: str) -> dict[str, Any]:
+	"""Capture screenshot locally using Playwright and return as data URL."""
+	if not SCREENSHOT_LOCAL_FALLBACK_ENABLED:
+		return {"available": False, "error": "local screenshot fallback disabled", "url": None}
 
 	try:
 		from playwright.sync_api import sync_playwright
-	except ImportError:
-		return {"available": False, "error": "playwright not installed", "path": None, "relative_url": None}
-
-	file_name = f"{uuid4().hex}.png"
-	output_path = SCREENSHOT_DIR / file_name
+	except Exception as exc:
+		return {
+			"available": False,
+			"error": f"playwright import failed: {exc}",
+			"url": None,
+		}
 
 	try:
-		with sync_playwright() as playwright:
-			browser = playwright.chromium.launch(
-				headless=PLAYWRIGHT_HEADLESS,
-				args=PLAYWRIGHT_LAUNCH_ARGS,
+		with sync_playwright() as p:
+			browser = p.chromium.launch(headless=True)
+			context = browser.new_context(
+				viewport={"width": 1366, "height": 768},
+				user_agent=DYNAMIC_USER_AGENT,
+				ignore_https_errors=True,
 			)
-			page = browser.new_page(viewport={"width": 1365, "height": 768})
-			page.goto(url, wait_until="domcontentloaded", timeout=timeout_ms)
-			page.wait_for_timeout(600)
-			page.screenshot(path=str(output_path), full_page=False)
-			page.close()
+			page = context.new_page()
+			nav_error = None
+			try:
+				page.goto(url, wait_until="commit", timeout=SCREENSHOT_LOCAL_TIMEOUT_SECONDS * 1000)
+			except Exception as goto_exc:
+				nav_error = str(goto_exc)
+			page.wait_for_timeout(220)
+			image_bytes = page.screenshot(full_page=False, type="png")
+			final_url = page.url
+			context.close()
 			browser.close()
-	except Exception as exc:
-		if output_path.exists():
-			output_path.unlink(missing_ok=True)
-		return {"available": False, "error": str(exc), "path": None, "relative_url": None}
 
+		data_url = "data:image/png;base64," + base64.b64encode(image_bytes).decode("ascii")
+		return {
+			"available": True,
+			"error": nav_error,
+			"url": data_url,
+			"content_type": "image/png",
+			"size_bytes": len(image_bytes),
+			"final_url": final_url,
+			"source": "local_playwright",
+		}
+	except Exception as exc:
+		msg = str(exc)
+		if "Executable doesn't exist" in msg:
+			msg += " | Run: playwright install chromium"
+		return {
+			"available": False,
+			"error": f"local screenshot failed: {msg}",
+			"url": None,
+		}
+
+
+def _build_placeholder_screenshot(url: str, error: str | None) -> dict[str, Any]:
+	"""Generate a small PNG fallback so screenshot is always present."""
+	img = Image.new("RGB", (1366, 768), (16, 24, 39))
+	draw = ImageDraw.Draw(img)
+
+	lines = [
+		"Screenshot unavailable - fallback generated",
+		f"URL: {url[:140]}",
+	]
+	if error:
+		lines.append(f"Reason: {error[:180]}")
+
+	y = 40
+	for line in lines:
+		draw.text((40, y), line, fill=(226, 232, 240))
+		y += 36
+
+	buf = io.BytesIO()
+	img.save(buf, format="PNG")
+	image_bytes = buf.getvalue()
+	data_url = "data:image/png;base64," + base64.b64encode(image_bytes).decode("ascii")
 	return {
 		"available": True,
-		"error": None,
-		"path": str(output_path),
-		"relative_url": f"/artifacts/url_screenshots/{file_name}",
+		"error": error,
+		"url": data_url,
+		"content_type": "image/png",
+		"size_bytes": len(image_bytes),
+		"final_url": url,
+		"source": "generated_placeholder",
 	}
 
 
-def delete_runtime_screenshot(relative_url: str | None) -> bool:
-	"""Delete a captured screenshot only if it belongs to the managed artifacts folder."""
-	if not relative_url:
-		return False
+def _capture_screenshot(url: str) -> dict[str, Any]:
+	"""Try remote screenshot service first, then local Playwright fallback."""
+	if SCREENSHOT_CAPTURE_MODE == "local_first":
+		local = _capture_local_screenshot(url)
+		if local.get("available"):
+			return local
+		if SCREENSHOT_SERVICE_URL:
+			remote = _capture_remote_screenshot(url)
+			if remote.get("available"):
+				return remote
+			combined_error = f"local: {local.get('error')}; remote: {remote.get('error')}"
+			return _build_placeholder_screenshot(url, combined_error)
+		return _build_placeholder_screenshot(url, str(local.get("error")))
 
-	normalized_relative = relative_url.strip()
-	prefix = "/artifacts/url_screenshots/"
-	if not normalized_relative.startswith(prefix):
-		return False
+	if SCREENSHOT_SERVICE_URL:
+		remote = _capture_remote_screenshot(url)
+		if remote.get("available"):
+			return remote
 
-	file_name = Path(normalized_relative).name
-	if not file_name or file_name in {".", ".."}:
-		return False
+		if SCREENSHOT_LOCAL_FALLBACK_ENABLED:
+			local = _capture_local_screenshot(url)
+			if local.get("available"):
+				return local
+			local_error = local.get("error")
+			remote_error = remote.get("error")
+			return {
+				**_build_placeholder_screenshot(url, f"remote: {remote_error}; local: {local_error}"),
+			}
 
-	target_path = (SCREENSHOT_DIR / file_name).resolve()
-	try:
-		target_path.relative_to(SCREENSHOT_DIR.resolve())
-	except ValueError:
-		return False
+		return remote
 
-	if not target_path.exists() or not target_path.is_file():
-		return False
-
-	target_path.unlink(missing_ok=True)
-	return True
-
-
-def _should_capture_screenshot(page: dict[str, Any], redirect_count: int, initial_base: str, final_base: str) -> bool:
-	"""Only capture screenshots for pages with meaningful runtime risk by default."""
-	if not SCREENSHOTS_ENABLED:
-		return False
-	if not SCREENSHOTS_ON_RISK_ONLY:
-		return True
-
-	if redirect_count >= 1 and initial_base and final_base and initial_base != final_base:
-		return True
-	if int(page.get("password_field_count", 0)) > 0:
-		return True
-	if bool(page.get("external_form_actions")):
-		return True
-	if bool(page.get("title_brand_keywords")):
-		return True
-	if bool(page.get("suspicious_script_keywords")):
-		return True
-	return False
-
+	local = _capture_local_screenshot(url)
+	if local.get("available"):
+		return local
+	return _build_placeholder_screenshot(url, str(local.get("error")))
 
 def analyze_runtime_url(url: str, timeout: int | None = None) -> dict[str, Any]:
 	"""
@@ -269,9 +384,7 @@ def analyze_runtime_url(url: str, timeout: int | None = None) -> dict[str, Any]:
 		"page": {},
 		"screenshot": {
 			"available": False,
-			"error": "not captured",
-			"path": None,
-			"relative_url": None,
+			"error": "screenshot service not configured" if not SCREENSHOT_SERVICE_URL else "not captured",
 			"url": None,
 		},
 		"tls": {},
@@ -281,6 +394,14 @@ def analyze_runtime_url(url: str, timeout: int | None = None) -> dict[str, Any]:
 
 	timeout = timeout or DYNAMIC_TIMEOUT_SECONDS
 
+	if URL_ANALYSIS_DYNAMIC_FAST_MODE:
+		result["available"] = True
+		result["status"] = "available"
+		result["screenshot"] = _capture_screenshot(url)
+		result["final_url"] = result["screenshot"].get("final_url") or url
+		result["errors"].append("fast mode enabled: skipped html runtime fetch")
+		return result
+
 	try:
 		session = requests.Session()
 		response = session.get(
@@ -289,11 +410,12 @@ def analyze_runtime_url(url: str, timeout: int | None = None) -> dict[str, Any]:
 			allow_redirects=True,
 			headers={"User-Agent": DYNAMIC_USER_AGENT},
 		)
+	except requests.exceptions.SSLError as exc:
+		result["errors"].append(str(exc))
+		result["errors"].append("TLS verification failed, runtime fetch stopped without insecure retry.")
+		return result
 	except requests.RequestException as exc:
 		result["errors"].append(str(exc))
-		if SCREENSHOTS_ENABLED:
-			screenshot = _capture_website_screenshot(url, timeout_ms=SCREENSHOT_TIMEOUT_MS)
-			result["screenshot"] = {**screenshot, "url": screenshot.get("relative_url")}
 		return result
 
 	result["available"] = True
@@ -325,16 +447,7 @@ def analyze_runtime_url(url: str, timeout: int | None = None) -> dict[str, Any]:
 	html = response.text if "html" in response.headers.get("Content-Type", "").lower() else ""
 	page = _inspect_html(html, response.url)
 	result["page"] = page
-	if _should_capture_screenshot(page, result["redirect_count"], initial_base, final_base):
-		screenshot = _capture_website_screenshot(response.url, timeout_ms=SCREENSHOT_TIMEOUT_MS)
-	else:
-		screenshot = {
-			"available": False,
-			"error": "skipped to keep scan fast",
-			"path": None,
-			"relative_url": None,
-		}
-	result["screenshot"] = {**screenshot, "url": screenshot.get("relative_url")}
+	result["screenshot"] = _capture_screenshot(response.url)
 
 	if TLS_LOOKUP_ENABLED and urlparse(response.url).scheme == "https":
 		result["tls"] = _extract_tls_info(final_host, urlparse(response.url).port or 443)
@@ -366,6 +479,12 @@ def analyze_runtime_url(url: str, timeout: int | None = None) -> dict[str, Any]:
 		score += 15
 		flags.append("Form submits to an external domain")
 
+	if int(page.get("form_action_mismatch_count", 0)) > 0:
+		score += min(16, int(page.get("form_action_mismatch_count", 0)) * 8)
+		flags.append(
+			f"Credential form action mismatch detected ({int(page.get('form_action_mismatch_count', 0))} form(s) post to external domain)"
+		)
+
 	if page.get("iframe_count", 0) > 0:
 		score += min(8, page["iframe_count"] * 3)
 		flags.append(f"Page embeds {page['iframe_count']} iframe(s)")
@@ -376,6 +495,27 @@ def analyze_runtime_url(url: str, timeout: int | None = None) -> dict[str, Any]:
 			"Suspicious client-side script patterns: "
 			+ ", ".join(page["suspicious_script_keywords"][:4])
 		)
+
+	if page.get("js_redirect_indicators"):
+		score += min(12, len(page["js_redirect_indicators"]) * 4)
+		flags.append(
+			"JavaScript redirect behavior detected: "
+			+ ", ".join(page["js_redirect_indicators"][:3])
+		)
+
+	if page.get("meta_refresh_targets"):
+		meta_targets = page.get("meta_refresh_targets", [])
+		cross_domain_meta = False
+		for target in meta_targets:
+			target_base = _get_base_domain(_get_hostname(target))
+			if target_base and final_base and target_base != final_base:
+				cross_domain_meta = True
+				break
+		score += 10 if cross_domain_meta else 4
+		if cross_domain_meta:
+			flags.append("Meta refresh redirects to a different domain")
+		else:
+			flags.append("Meta refresh redirect present")
 
 	if page.get("title_brand_keywords") and final_base:
 		score += 8
