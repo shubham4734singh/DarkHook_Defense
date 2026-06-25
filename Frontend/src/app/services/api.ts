@@ -365,6 +365,32 @@ class ApiService {
     }
   }
 
+  async getScanHistory(): Promise<any[]> {
+    const fullUrl = `${this.baseUrl}/scan/history`;
+
+    try {
+      const token = localStorage.getItem('darkhook_token');
+      const headers: HeadersInit = {};
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      const response = await fetch(fullUrl, {
+        method: 'GET',
+        headers,
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: Failed to fetch history`);
+      }
+
+      return response.json();
+    } catch (error) {
+      console.error('Failed to fetch scan history:', error);
+      throw error;
+    }
+  }
+
   async scanEmail(file: File): Promise<EmailScanResult> {
     const fullUrl = `${this.baseUrl}/scan/email`;
 

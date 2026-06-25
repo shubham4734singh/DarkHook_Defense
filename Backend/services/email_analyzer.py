@@ -5,65 +5,221 @@ import logging
 import re
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple, Union
-
-import joblib
 from email import policy
-from email.message import EmailMessage
+from email.message import EmailMessage, Message
 from email.parser import BytesParser
-
-from .header_parser import analyze_headers
-
+from email.utils import getaddresses, parseaddr
+import joblib
 
 logger = logging.getLogger(__name__)
 
+# ============================================================
+# HEADER PARSER LOGIC
+# ============================================================
+
+BRAND_KEYWORDS: Dict[str, List[str]] = {
+    "paypal": ["paypal.com"],
+    "apple": ["apple.com", "icloud.com"],
+    "microsoft": ["microsoft.com", "live.com", "outlook.com"],
+    "google": ["google.com", "gmail.com"],
+    "amazon": ["amazon.com"],
+    "netflix": ["netflix.com"],
+    "facebook": ["facebook.com", "meta.com"],
+    "instagram": ["instagram.com"],
+    "bankofamerica": ["bankofamerica.com"],
+    "wells fargo": ["wellsfargo.com"],
+    "chase": ["chase.com", "jpmorganchase.com"],
+    "gov": [".gov"],
+}
+
+AUTH_RESULT_PATTERN = re.compile(
+    r"(spf|dkim|dmarc)=(pass|fail|none|neutral|softfail|temperror|permerror)",
+    re.IGNORECASE,
+)
+
+def _extract_domain(email_address: str) -> Optional[str]:
+    """Return the domain part of an email address if available."""
+    if not email_address:
+        return None
+    _, addr = parseaddr(email_address)
+    if "@" not in addr:
+        return None
+    return addr.split("@", 1)[1].lower()
+
+def _extract_display_name(email_address: str) -> str:
+    """Return the display name component from an email address."""
+    display_name, addr = parseaddr(email_address)
+    if display_name:
+        return display_name.strip()
+    if "@" in addr:
+        return addr.split("@", 1)[0]
+    return addr or ""
+
+def _parse_authentication_results(headers: List[str]) -> Dict[str, str]:
+    """Parse Authentication-Results headers for SPF/DKIM/DMARC result tokens."""
+    result: Dict[str, str] = {}
+    combined = " ".join(headers)
+    if not combined:
+        return result
+    for mech, status in AUTH_RESULT_PATTERN.findall(combined):
+        mech_l = mech.lower()
+        status_l = status.lower()
+        if mech_l not in result:
+            result[mech_l] = status_l
+    return result
+
+def _parse_received_spf(headers: List[str]) -> Optional[str]:
+    """Very lightweight parser for Received-SPF headers."""
+    if not headers:
+        return None
+    header_value = " ".join(headers)
+    match = re.search(
+        r"\b(pass|fail|softfail|neutral|none|temperror|permerror)\b",
+        header_value,
+        flags=re.IGNORECASE,
+    )
+    if match:
+        return match.group(1).lower()
+    return None
+
+def _evaluate_authentication_status(
+    spf_status: Optional[str],
+    dkim_status: Optional[str],
+    dmarc_status: Optional[str],
+) -> Tuple[bool, List[str]]:
+    """Convert SPF/DKIM/DMARC statuses into flags and an overall suspicion signal."""
+    flags: List[str] = []
+    suspicious = False
+
+    def add_flag(label: str, status: Optional[str]) -> None:
+        nonlocal suspicious
+        if status is None:
+            flags.append(f"{label} result missing")
+            suspicious = True
+            return
+
+        normalized = status.lower()
+        if normalized in {"fail", "softfail", "permerror", "temperror"}:
+            flags.append(f"{label} check {normalized}")
+            suspicious = True
+        elif normalized in {"neutral", "none"}:
+            flags.append(f"{label} result inconclusive ({normalized})")
+        elif normalized == "pass":
+            return
+        else:
+            flags.append(f"{label} status {normalized}")
+
+    add_flag("SPF", spf_status)
+    add_flag("DKIM", dkim_status)
+    add_flag("DMARC", dmarc_status)
+
+    return suspicious, flags
+
+def _detect_reply_to_spoofing(message: Message) -> Optional[str]:
+    """Check for sender spoofing via mismatched From / Reply-To domains."""
+    from_addrs = getaddresses(message.get_all("From", []))
+    reply_to_addrs = getaddresses(message.get_all("Reply-To", []))
+
+    if not from_addrs or not reply_to_addrs:
+        return None
+
+    _, from_addr = from_addrs[0]
+    _, reply_addr = reply_to_addrs[0]
+
+    from_domain = _extract_domain(from_addr)
+    reply_domain = _extract_domain(reply_addr)
+
+    if from_domain and reply_domain and from_domain != reply_domain:
+        return (
+            "From / Reply-To domain mismatch "
+            f"(from: {from_domain}, reply-to: {reply_domain})"
+        )
+    return None
+
+def _detect_display_name_mismatch(message: Message) -> Optional[str]:
+    """Detect branding misuse where the display name suggests a trusted brand but underlying domain is unrelated."""
+    from_header = message.get("From", "")
+    if not from_header:
+        return None
+
+    display_name = _extract_display_name(from_header).lower()
+    domain = _extract_domain(from_header) or ""
+
+    if not display_name or not domain:
+        return None
+
+    for brand_keyword, trusted_domains in BRAND_KEYWORDS.items():
+        if brand_keyword in display_name:
+            aligned = any(trusted.lower() in domain for trusted in trusted_domains)
+            if not aligned:
+                return (
+                    "Display name suggests trusted brand "
+                    f"('{display_name}') but sender domain is '{domain}'"
+                )
+    return None
+
+def analyze_headers(message: Message) -> Dict[str, Any]:
+    """Perform header-level analysis for email inspection."""
+    header_flags: List[str] = []
+
+    auth_headers = message.get_all("Authentication-Results", []) or []
+    auth_results = _parse_authentication_results(auth_headers)
+
+    spf_status: Optional[str] = auth_results.get("spf")
+    dkim_status: Optional[str] = auth_results.get("dkim")
+    dmarc_status: Optional[str] = auth_results.get("dmarc")
+
+    if spf_status is None:
+        received_spf_headers = message.get_all("Received-SPF", []) or []
+        spf_status = _parse_received_spf(received_spf_headers)
+
+    auth_suspicious, auth_flags = _evaluate_authentication_status(
+        spf_status=spf_status,
+        dkim_status=dkim_status,
+        dmarc_status=dmarc_status,
+    )
+    header_flags.extend(auth_flags)
+
+    spoof_flag = _detect_reply_to_spoofing(message)
+    if spoof_flag:
+        header_flags.append(spoof_flag)
+
+    display_flag = _detect_display_name_mismatch(message)
+    if display_flag:
+        header_flags.append(display_flag)
+
+    is_suspicious = bool(auth_suspicious or spoof_flag or display_flag)
+
+    return {
+        "is_suspicious": is_suspicious,
+        "header_flags": header_flags,
+    }
+
+
+# ============================================================
+# CORE EMAIL ANALYZER LOGIC
+# ============================================================
 
 DEFAULT_MODEL_PATH = (
-    Path(__file__).resolve().parents[2]
+    Path(__file__).resolve().parents[1]
     / "ml"
     / "models"
     / "email_nb_model.pkl"
 )
 DEFAULT_VECTORIZER_PATH = (
-    Path(__file__).resolve().parents[2]
+    Path(__file__).resolve().parents[1]
     / "ml"
     / "models"
     / "email_vectorizer.pkl"
 )
 
-
 URGENCY_KEYWORDS: Sequence[str] = [
-    "account",
-    "action required",
-    "alert",
-    "approve",
-    "attention",
-    "confirm",
-    "credentials",
-    "disable",
-    "dispute",
-    "failed",
-    "fraud",
-    "immediately",
-    "important",
-    "invoice",
-    "limited time",
-    "login",
-    "locked",
-    "password",
-    "payment",
-    "pending",
-    "promptly",
-    "restore",
-    "review",
-    "risk",
-    "secure",
-    "security notice",
-    "statement",
-    "suspended",
-    "unauthorized",
-    "urgent",
-    "verify",
-    "warning",
+    "account", "action required", "alert", "approve", "attention", "confirm",
+    "credentials", "disable", "dispute", "failed", "fraud", "immediately",
+    "important", "invoice", "limited time", "login", "locked", "password",
+    "payment", "pending", "promptly", "restore", "review", "risk", "secure",
+    "security notice", "statement", "suspended", "unauthorized", "urgent",
+    "verify", "warning",
 ]
 
 URL_REGEX = re.compile(
@@ -75,18 +231,7 @@ HTML_TAG_REGEX = re.compile(r"<[^>]+>")
 
 
 class EmailAnalyzer:
-    """
-    Core orchestrator for DarkHook Defense email analysis.
-
-    Responsibilities:
-    - parse .eml into an EmailMessage
-    - run header analysis
-    - extract text / HTML bodies and attachments
-    - extract URLs
-    - compute keyword-based body risk score
-    - score using the trained ML model
-    - fuse signals into a final score and verdict
-    """
+    """Core orchestrator for DarkHook Defense email analysis."""
 
     def __init__(
         self,
@@ -105,12 +250,7 @@ class EmailAnalyzer:
         self._load_ml_artifacts()
 
     def _load_ml_artifacts(self) -> None:
-        """
-        Load the Naive Bayes model and TF-IDF vectorizer.
-
-        If loading fails, the analyzer will gracefully fall back to heuristic-only
-        scoring so that the system remains usable without trained artifacts.
-        """
+        """Load the Naive Bayes model and TF-IDF vectorizer."""
         try:
             if self.model_path.exists() and self.vectorizer_path.exists():
                 self._model = joblib.load(self.model_path)
@@ -128,7 +268,7 @@ class EmailAnalyzer:
                     self.model_path,
                     self.vectorizer_path,
                 )
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.error("Failed to load ML artifacts: %s", exc)
             self._ml_available = False
 
@@ -144,21 +284,15 @@ class EmailAnalyzer:
             message = parser.parse(f)
 
         if not isinstance(message, EmailMessage):
-            # Under the default policy this should already be EmailMessage.
             message = EmailMessage(policy=policy.default)
         return message
 
     @staticmethod
     def _extract_bodies(message: EmailMessage) -> Tuple[str, str]:
-        """
-        Extract plain text and HTML bodies.
-
-        Where only HTML is present, plain text is approximated by stripping tags.
-        """
+        """Extract plain text and HTML bodies."""
         text_body = ""
         html_body = ""
 
-        # Policy-aware helpers can simplify multipart handling.
         try:
             text_part = message.get_body(preferencelist=("plain",))
             if text_part is not None:
@@ -167,25 +301,23 @@ class EmailAnalyzer:
             html_part = message.get_body(preferencelist=("html",))
             if html_part is not None:
                 html_body = html_part.get_content() or ""
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.warning("Failed to use get_body helpers: %s", exc)
 
-        # Fallback for older or unusual messages.
         if not text_body or not html_body:
             for part in message.walk():
                 content_type = part.get_content_type()
                 if content_type == "text/plain" and not text_body:
                     try:
                         text_body = part.get_content() or ""
-                    except Exception:  # noqa: BLE001
+                    except Exception:
                         continue
                 elif content_type == "text/html" and not html_body:
                     try:
                         html_body = part.get_content() or ""
-                    except Exception:  # noqa: BLE001
+                    except Exception:
                         continue
 
-        # If there is only HTML, derive a crude text version.
         if not text_body and html_body:
             text_body = HTML_TAG_REGEX.sub(" ", html_body)
 
@@ -228,14 +360,8 @@ class EmailAnalyzer:
 
     @staticmethod
     def _compute_urgency_score(text: str) -> Tuple[float, List[str]]:
-        """
-        Compute keyword-based urgency score and per-body flags.
-
-        Returns:
-            (score_0_to_1, flags)
-        """
+        """Compute keyword-based urgency score and per-body flags."""
         flags: List[str] = []
-
         normalized = text.lower()
         if not normalized.strip():
             return 0.0, flags
@@ -244,14 +370,11 @@ class EmailAnalyzer:
         keyword_hits = 0
 
         for keyword in URGENCY_KEYWORDS:
-            # Treat multi-word phrases as sequences.
             pattern = re.escape(keyword.lower())
             hits = len(re.findall(pattern, normalized))
             keyword_hits += hits
 
         density = keyword_hits / total_words
-
-        # Cap density contribution before scaling.
         score = min(1.0, density * 20.0)
 
         if score >= 0.5:
@@ -262,12 +385,7 @@ class EmailAnalyzer:
         return score, flags
 
     def _ml_phishing_probability(self, text: str) -> float:
-        """
-        Return the model-estimated phishing probability in [0, 1].
-
-        If the ML artifacts are not available, returns a neutral probability
-        around 0.5 so that heuristic signals dominate the verdict.
-        """
+        """Return the model-estimated phishing probability in [0, 1]."""
         if not self._ml_available or not self._model or not self._vectorizer:
             return 0.5
 
@@ -275,16 +393,13 @@ class EmailAnalyzer:
             features = self._vectorizer.transform([text])
             proba = getattr(self._model, "predict_proba", None)
             if proba is None:
-                # Fall back to decision function if available, otherwise neutral.
                 return 0.5
 
             probs = proba(features)[0]
-            # Assume label 1 corresponds to phishing/spam.
             if len(probs) == 2:
                 return float(probs[1])
-            # Fallback: choose the highest probability if labels are encoded differently.
             return float(max(probs))
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             logger.error("ML scoring error: %s", exc)
             return 0.5
 
@@ -295,17 +410,8 @@ class EmailAnalyzer:
         urgency_score: float,
         html_text_ratio: float,
     ) -> Tuple[int, str]:
-        """
-        Fuse ML and heuristic signals into a DarkHook Defense risk score.
-
-        Heuristic design:
-        - ML probability is the primary driver (60% weight)
-        - header suspicion and urgency add structured boosts
-        - very HTML-heavy messages with no plain text hint at obfuscation
-        """
+        """Fuse ML and heuristic signals into a risk score."""
         header_component = 1.0 if header_suspicious else 0.0
-
-        # Clip urgency to [0, 1].
         urgency_component = max(0.0, min(1.0, urgency_score))
 
         html_component = 0.0
@@ -331,19 +437,7 @@ class EmailAnalyzer:
         return score, verdict
 
     def analyze(self, file_path: Union[str, Path]) -> Dict[str, Any]:
-        """
-        End-to-end analysis of a single .eml file.
-
-        Returns JSON-serializable structure:
-            {
-                "score": int (0-100),
-                "verdict": "SAFE" | "SUSPICIOUS" | "PHISHING",
-                "header_flags": List[str],
-                "body_flags": List[str],
-                "extracted_urls": List[str],
-                "extracted_attachments": List[str],
-            }
-        """
+        """End-to-end analysis of a single .eml file."""
         message = self._parse_eml(file_path)
 
         header_result = analyze_headers(message)
@@ -364,7 +458,6 @@ class EmailAnalyzer:
         elif html_text_ratio > 3.0:
             body_flags.append("Unusually high HTML-to-text ratio")
 
-        # Feed the plain text body (plus some HTML if needed) into the classifier.
         model_input_text = text_body or HTML_TAG_REGEX.sub(" ", html_body)
         ml_proba = self._ml_phishing_probability(model_input_text)
 
@@ -384,14 +477,13 @@ class EmailAnalyzer:
             "extracted_attachments": attachments,
         }
 
-        # Ensure the structure is JSON-serializable before returning.
         try:
             json.dumps(result)
         except TypeError as exc:
             logger.error("Serialization issue in EmailAnalyzer result: %s", exc)
-            # If something is not serializable, coerce lists to plain lists of str.
             result["header_flags"] = [str(x) for x in header_flags]
             result["body_flags"] = [str(x) for x in body_flags]
 
         return result
 
+email_analyzer = EmailAnalyzer()
