@@ -3,12 +3,15 @@ import { Shield, Mail, Upload, AlertTriangle, CheckCircle, XCircle, ArrowLeft, L
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { useAuth } from '../contexts/AuthContext';
+import { api, type EmailScanResult } from '../services/api';
 import logo from '@/assets/eabe0015a9a1edfe92cb4ac7f5415daf9aa9241d.png';
 
 export function EmailScan() {
   const [emailContent, setEmailContent] = useState('');
+  const [emailFile, setEmailFile] = useState<File | null>(null);
   const [scanning, setScanning] = useState(false);
-  const [result, setResult] = useState<any>(null);
+  const [result, setResult] = useState<EmailScanResult | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
   const { logout } = useAuth();
 
@@ -17,29 +20,26 @@ export function EmailScan() {
     navigate('/');
   };
 
-  const handleScan = () => {
+  const handleScan = async () => {
+    setError(null);
+    setResult(null);
     setScanning(true);
-    
-    // Mock scanning process
-    setTimeout(() => {
-      setResult({
-        riskScore: Math.floor(Math.random() * 100),
-        status: ['safe', 'suspicious', 'dangerous'][Math.floor(Math.random() * 3)],
-        threats: [
-          { name: 'Sender Verification', status: Math.random() > 0.5 ? 'safe' : 'warning' },
-          { name: 'Suspicious Links', status: 'safe' },
-          { name: 'Phishing Keywords', status: Math.random() > 0.5 ? 'safe' : 'warning' },
-          { name: 'Attachment Safety', status: 'safe' },
-          { name: 'Email Header Analysis', status: 'safe' },
-        ]
-      });
+
+    try {
+      const fileToScan = emailFile || new File([emailContent], 'pasted-email.eml', { type: 'message/rfc822' });
+      const data = await api.scanEmail(fileToScan);
+      setResult(data);
+    } catch (scanError: any) {
+      setError(scanError?.message || 'Email scan failed');
+    } finally {
       setScanning(false);
-    }, 2000);
+    }
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      setEmailFile(file);
       const reader = new FileReader();
       reader.onload = (event) => {
         setEmailContent(event.target?.result as string);
@@ -50,9 +50,9 @@ export function EmailScan() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'safe': return '#00D68F';
-      case 'suspicious': return '#FFAA00';
-      case 'dangerous': return '#FF3B3B';
+      case 'SAFE': return '#00D68F';
+      case 'SUSPICIOUS': return '#FFAA00';
+      case 'PHISHING': return '#FF3B3B';
       default: return '#1E3A5F';
     }
   };
@@ -155,11 +155,12 @@ export function EmailScan() {
 
             <button
               onClick={handleScan}
-              disabled={!emailContent || scanning}
+              disabled={(!emailContent && !emailFile) || scanning}
               className="w-full px-6 py-3 bg-[#00C2FF] hover:bg-[#00A8E0] text-[#060D1A] font-semibold rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-[0_0_24px_rgba(0,194,255,0.35)]"
             >
               {scanning ? 'Scanning...' : 'Scan Email'}
             </button>
+            {error && <p className="mt-3 text-sm text-[#FF6B6B]">{error}</p>}
           </motion.div>
 
           {/* Results */}
@@ -173,14 +174,14 @@ export function EmailScan() {
               <div className="bg-[#0D1F38] border border-[#1E3A5F] rounded-2xl p-8">
                 <div className="text-center mb-6">
                   <div className="inline-flex items-center justify-center w-32 h-32 rounded-full border-8 mb-4"
-                    style={{ borderColor: getStatusColor(result.status) }}>
+                    style={{ borderColor: getStatusColor(result.verdict) }}>
                     <span className="text-4xl font-bold text-white">{result.riskScore}</span>
                   </div>
-                  <h3 className="text-2xl font-bold mb-2" style={{ color: getStatusColor(result.status) }}>
-                    {result.status === 'safe' ? '🟢 SAFE' : result.status === 'suspicious' ? '🟡 SUSPICIOUS' : '🔴 DANGEROUS'}
+                  <h3 className="text-2xl font-bold mb-2" style={{ color: getStatusColor(result.verdict) }}>
+                    {result.verdict === 'SAFE' ? 'SAFE' : result.verdict === 'PHISHING' ? 'PHISHING' : 'SUSPICIOUS'}
                   </h3>
                   <p className="text-[#8BA3BC]">
-                    {result.status === 'safe' ? 'No threats detected' : result.status === 'suspicious' ? 'Proceed with caution' : 'Do not trust this email'}
+                    {result.verdict === 'SAFE' ? 'No threats detected' : result.verdict === 'PHISHING' ? 'Do not trust this email' : 'Proceed with caution'}
                   </p>
                 </div>
               </div>
@@ -189,18 +190,23 @@ export function EmailScan() {
               <div className="bg-[#0D1F38] border border-[#1E3A5F] rounded-2xl p-8">
                 <h3 className="text-xl font-bold text-white mb-4">Email Analysis</h3>
                 <div className="space-y-3">
-                  {result.threats.map((threat: any, index: number) => (
+                  {[...result.headerFlags, ...result.bodyFlags].map((threat: string, index: number) => (
                     <div
                       key={index}
                       className="flex items-center justify-between p-4 bg-[#060D1A] border border-[#1E3A5F] rounded-lg"
                     >
-                      <span className="text-white font-medium">{threat.name}</span>
-                      <div className="flex items-center gap-2" style={{ color: getStatusColor(threat.status) }}>
-                        {getStatusIcon(threat.status)}
-                        <span className="text-sm font-semibold uppercase">{threat.status}</span>
+                      <span className="text-white font-medium">{threat}</span>
+                      <div className="flex items-center gap-2" style={{ color: getStatusColor(result.verdict) }}>
+                        {getStatusIcon(result.verdict === 'SAFE' ? 'safe' : 'warning')}
+                        <span className="text-sm font-semibold uppercase">{result.verdict === 'SAFE' ? 'safe' : 'warning'}</span>
                       </div>
                     </div>
                   ))}
+                  {result.headerFlags.length === 0 && result.bodyFlags.length === 0 && (
+                    <div className="p-4 bg-[#060D1A] border border-[#1E3A5F] rounded-lg text-[#8BA3BC]">
+                      No suspicious header/body flags were detected.
+                    </div>
+                  )}
                 </div>
               </div>
             </motion.div>

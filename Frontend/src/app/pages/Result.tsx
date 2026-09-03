@@ -1,9 +1,8 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Loader2, ArrowLeft, Save, ArrowRight, Clock, Zap } from 'lucide-react';
-import { useNavigate, useSearchParams } from 'react-router';
+import { useLocation, useNavigate, useSearchParams } from 'react-router';
 import { useAuth } from '../contexts/AuthContext';
-import logo from '@/assets/eabe0015a9a1edfe92cb4ac7f5415daf9aa9241d.png';
 
 type Severity = 'high' | 'medium' | 'low';
 type Verdict = 'safe' | 'suspicious' | 'phishing';
@@ -14,6 +13,13 @@ interface Flag {
   explanation: string;
 }
 
+interface ScreenshotData {
+  available: boolean;
+  url?: string | null;
+  error?: string | null;
+  source?: string | null;
+}
+
 interface ScanResult {
   score: number;
   verdict: Verdict;
@@ -21,6 +27,83 @@ interface ScanResult {
   scanTime: string;
   duration: string;
   flags: Flag[];
+  screenshot?: ScreenshotData;
+}
+
+const LAST_URL_SCAN_RESULT_KEY = 'darkhook_latest_url_scan_result';
+
+function toVerdict(value: string | null | undefined): Verdict {
+  if (value === 'safe' || value === 'suspicious' || value === 'phishing') {
+    return value;
+  }
+  return 'safe';
+}
+
+function parseLiveResult(raw: unknown): ScanResult | null {
+  if (!raw || typeof raw !== 'object') return null;
+
+  const data = raw as Record<string, unknown>;
+  const details = (data.analysis_details as Record<string, unknown> | undefined) ?? {};
+  const dynamic = (details.dynamic_analysis as Record<string, unknown> | undefined) ?? {};
+  const verdict = toVerdict(
+    typeof data.status === 'string'
+      ? data.status
+      : typeof data.verdict === 'string'
+        ? data.verdict
+        : undefined,
+  );
+  const score = typeof data.score === 'number' ? Math.max(0, Math.min(100, Math.round(data.score))) : 0;
+
+  const riskFactors = Array.isArray(details.risk_factors) ? details.risk_factors : [];
+  const flagsFromRiskFactors: Flag[] = riskFactors
+    .map((factor) => {
+      if (!factor || typeof factor !== 'object') return null;
+      const item = factor as Record<string, unknown>;
+      const severityValue = item.severity;
+      const severity: Severity = severityValue === 'high' || severityValue === 'medium' || severityValue === 'low'
+        ? severityValue
+        : 'medium';
+      const title = typeof item.title === 'string' && item.title.trim().length > 0
+        ? item.title
+        : 'Risk indicator';
+      const explanation = typeof item.evidence === 'string' && item.evidence.trim().length > 0
+        ? item.evidence
+        : 'Potentially suspicious behavior detected by URL scanner.';
+      return { name: title, severity, explanation };
+    })
+    .filter((flag): flag is Flag => flag !== null);
+
+  const simpleFlags = Array.isArray(data.flags) ? data.flags : [];
+  const flagsFromStrings: Flag[] = simpleFlags
+    .map((flag) => (typeof flag === 'string' ? flag : null))
+    .filter((flag): flag is string => flag !== null)
+    .map((flagText) => ({
+      name: flagText,
+      severity: verdict === 'phishing' ? 'high' : verdict === 'suspicious' ? 'medium' : 'low',
+      explanation: 'Indicator detected by live scan.'
+    }));
+
+  const screenshotCandidate = (dynamic.screenshot as Record<string, unknown> | undefined)
+    ?? (data.screenshot as Record<string, unknown> | undefined);
+
+  const screenshot: ScreenshotData | undefined = screenshotCandidate
+    ? {
+        available: Boolean(screenshotCandidate.available),
+        url: typeof screenshotCandidate.url === 'string' ? screenshotCandidate.url : null,
+        error: typeof screenshotCandidate.error === 'string' ? screenshotCandidate.error : null,
+        source: typeof screenshotCandidate.source === 'string' ? screenshotCandidate.source : null,
+      }
+    : undefined;
+
+  return {
+    score,
+    verdict,
+    scannedUrl: typeof data.url === 'string' ? data.url : 'URL not available',
+    scanTime: 'just now',
+    duration: 'Live scan',
+    flags: flagsFromRiskFactors.length > 0 ? flagsFromRiskFactors : flagsFromStrings,
+    screenshot,
+  };
 }
 
 // Mock results for different verdicts
@@ -127,6 +210,7 @@ const mockResults: Record<Verdict, ScanResult> = {
 export function Result() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, logout } = useAuth();
   const [isLoading, setIsLoading] = useState(true);
   const [result, setResult] = useState<ScanResult | null>(null);
@@ -136,15 +220,36 @@ export function Result() {
   const verdictParam = searchParams.get('verdict') as Verdict || 'safe';
 
   useEffect(() => {
-    // Simulate loading time
-    const loadTime = Math.random() * 1700 + 800; // 0.8s to 2.5s
+    let liveResult: ScanResult | null = null;
+
+    const navigationState = location.state as { scanResult?: unknown } | null;
+    if (navigationState?.scanResult) {
+      liveResult = parseLiveResult(navigationState.scanResult);
+    }
+
+    if (!liveResult) {
+      const stored = sessionStorage.getItem(LAST_URL_SCAN_RESULT_KEY);
+      if (stored) {
+        try {
+          liveResult = parseLiveResult(JSON.parse(stored));
+        } catch {
+          liveResult = null;
+        }
+      }
+    }
+
+    const fallbackResult = mockResults[toVerdict(verdictParam)];
+    const finalResult = liveResult ?? fallbackResult;
+
+    // Keep a short loading animation while still showing real data.
+    const loadTime = 500;
     const timer = setTimeout(() => {
-      setResult(mockResults[verdictParam]);
+      setResult(finalResult);
       setIsLoading(false);
     }, loadTime);
 
     return () => clearTimeout(timer);
-  }, [verdictParam]);
+  }, [verdictParam, location.state]);
 
   // Animated dots for loading
   useEffect(() => {
@@ -581,6 +686,37 @@ function ResultContent({ result, navigate }: { result: ScanResult; navigate: any
               </div>
             </div>
 
+            {result.screenshot?.available && result.screenshot.url && (
+              <div
+                className="mb-4"
+                style={{
+                  background: '#092C56',
+                  border: '1px solid #668CA9',
+                  borderRadius: '8px',
+                  padding: '12px'
+                }}
+              >
+                <div
+                  className="mb-2"
+                  style={{
+                    fontFamily: 'Raleway, sans-serif',
+                    fontSize: '11px',
+                    fontWeight: 500,
+                    color: '#668CA9',
+                    letterSpacing: '2px'
+                  }}
+                >
+                  LIVE PAGE SCREENSHOT
+                </div>
+                <img
+                  src={result.screenshot.url}
+                  alt="Captured page preview"
+                  className="w-full h-[180px] object-cover rounded-md border border-[#668CA9]/40"
+                  loading="lazy"
+                />
+              </div>
+            )}
+
             {/* Scan Meta */}
             <div
               className="flex items-center gap-2 mb-6 flex-wrap"
@@ -741,6 +877,22 @@ function ResultContent({ result, navigate }: { result: ScanResult; navigate: any
                   </div>
                 </motion.div>
               ))}
+
+              {result.flags.length === 0 && (
+                <div
+                  style={{
+                    background: '#092C56',
+                    border: '1px solid #668CA9',
+                    borderRadius: '10px',
+                    padding: '16px 20px',
+                    fontFamily: 'Raleway, sans-serif',
+                    fontSize: '13px',
+                    color: '#A9CBE0'
+                  }}
+                >
+                  No explicit flags were returned for this scan.
+                </div>
+              )}
             </div>
 
             {/* Verdict-specific Card */}

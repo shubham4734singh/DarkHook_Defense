@@ -8,7 +8,6 @@
 const getApiBaseUrl = (): string => {
   // Check for explicit environment variable (highest priority)
   if (import.meta.env.VITE_API_BASE_URL) {
-    console.log('📌 Using VITE_API_BASE_URL:', import.meta.env.VITE_API_BASE_URL);
     return import.meta.env.VITE_API_BASE_URL;
   }
 
@@ -17,18 +16,15 @@ const getApiBaseUrl = (): string => {
   const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
   
   if (isLocalhost) {
-    console.log('🏠 Local development detected, using localhost:8000');
     return 'http://localhost:8000';
   }
 
   // Only use production URL if we're on the production domain
   if (window.location.hostname.includes('darkhook') || window.location.hostname.includes('render')) {
-    console.log('🚀 Production environment detected');
     return 'https://darkhook-defense.onrender.com';
   }
 
   // Fallback to localhost
-  console.log('⚠️ Using fallback: localhost:8000');
   return 'http://localhost:8000';
 };
 
@@ -48,6 +44,12 @@ export interface RegisterRequest {
 export interface AuthResponse {
   access_token: string;
   token_type: string;
+}
+
+export interface RegisterResponse {
+  message: string;
+  email: string;
+  requires_verification: boolean;
 }
 
 export interface UserResponse {
@@ -86,12 +88,118 @@ export interface DocumentScanResult {
   details: string[];
 }
 
+export interface EmailScanResult {
+  fileName: string;
+  riskScore: number;
+  verdict: string;
+  severity: string;
+  scanTime: number;
+  headerFlags: string[];
+  bodyFlags: string[];
+  extractedUrls: string[];
+  extractedAttachments: string[];
+}
+
+export interface UrlRiskFactor {
+  title: string;
+  severity: 'high' | 'medium' | 'low';
+  category: string;
+  evidence: string;
+  impact: string;
+}
+
+export interface UrlAnalysisDetails {
+  summary: string;
+  parsed_url: {
+    scheme: string;
+    hostname: string;
+    base_domain: string;
+    port: number | null;
+    path: string;
+    query: string;
+    fragment: string;
+    subdomain_count: number;
+  };
+  model_source: string;
+  model_status: string;
+  detected_keywords: string[];
+  top_risks: string[];
+  risk_factors: UrlRiskFactor[];
+  recommendations: string[];
+  dynamic_status?: string;
+  dynamic_summary?: string;
+  dynamic_error?: string | null;
+  dynamic_analysis?: {
+    available: boolean;
+    status?: string;
+    dynamic_score: number;
+    flags: string[];
+    redirect_chain: Array<{
+      status_code: number;
+      url: string;
+      host: string;
+    }>;
+    redirect_count: number;
+    initial_url: string;
+    final_url: string;
+    screenshot?: {
+      available: boolean;
+      error?: string | null;
+      url?: string | null;
+      content_type?: string | null;
+      size_bytes?: number | null;
+      final_url?: string | null;
+      source?: string | null;
+    };
+    page?: {
+      title?: string;
+      form_count?: number;
+      password_field_count?: number;
+      hidden_input_count?: number;
+      external_form_actions?: string[];
+      iframe_count?: number;
+      external_script_count?: number;
+      suspicious_script_keywords?: string[];
+      title_brand_keywords?: string[];
+    };
+    tls?: Record<string, string | number | boolean | string[] | null>;
+    headers?: Record<string, string>;
+    errors?: string[];
+  };
+  indicator_snapshot: Record<string, string | number | boolean>;
+}
+
+export interface UrlScanResult {
+  scan_id: string;
+  url: string;
+  score: number;
+  confidence: number;
+  verdict: string;
+  status: string;
+  flags: string[];
+  feature_summary: Record<string, string | number | boolean>;
+  analysis_details?: UrlAnalysisDetails;
+  explanation: string;
+  screenshot?: {
+    available: boolean;
+    error?: string | null;
+    url?: string | null;
+    content_type?: string | null;
+    size_bytes?: number | null;
+    final_url?: string | null;
+    source?: string | null;
+  };
+}
+
 class ApiService {
   private baseUrl: string;
 
   constructor(baseUrl: string) {
     this.baseUrl = baseUrl;
-    console.log(`🔧 API Service initialized with baseUrl: ${baseUrl}`);
+  }
+
+  getBaseUrl(): string {
+    return this.baseUrl;
   }
 
   private getAuthHeaders(): HeadersInit {
@@ -122,7 +230,7 @@ class ApiService {
     return response.json();
   }
 
-  async register(name: string, email: string, password: string): Promise<AuthResponse> {
+  async register(name: string, email: string, password: string): Promise<RegisterResponse> {
     const response = await fetch(`${this.baseUrl}/auth/register`, {
       method: 'POST',
       headers: {
@@ -200,8 +308,15 @@ class ApiService {
       const formData = new FormData();
       formData.append('file', file);
 
+      const token = localStorage.getItem('darkhook_token');
+      const headers: HeadersInit = {};
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
       const response = await fetch(fullUrl, {
         method: 'POST',
+        headers,
         body: formData,
       });
 
@@ -217,45 +332,92 @@ class ApiService {
     }
   }
 
-  async scanUrl(url: string): Promise<any> {
+  async scanUrl(url: string): Promise<UrlScanResult> {
     const fullUrl = `${this.baseUrl}/scan/url`;
-    
-    console.log(`\n📡 === API CALL START ===`);
-    console.log(`Base URL: ${this.baseUrl}`);
-    console.log(`Full URL: ${fullUrl}`);
-    console.log(`Method: POST`);
-    console.log(`Headers: Content-Type: application/json`);
-    console.log(`Payload: ${JSON.stringify({ url })}`);
-    
+
     try {
-      console.log(`⏳ Fetching...`);
+      const token = localStorage.getItem('darkhook_token');
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+      };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
       const response = await fetch(fullUrl, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers,
         body: JSON.stringify({ url }),
       });
 
-      console.log(`📊 Response received:`);
-      console.log(`  Status: ${response.status} ${response.statusText}`);
-      console.log(`  Content-Type: ${response.headers.get('content-type')}`);
-
       if (!response.ok) {
         const errorText = await response.text();
-        console.error(`❌ Response NOT OK (status ${response.status})`);
-        console.error(`  Response body: ${errorText}`);
         throw new Error(errorText.includes('detail') ? 
           `API Error ${response.status}: ${errorText}` : 
           `HTTP ${response.status}: ${errorText.substring(0, 100)}`);
       }
 
       const result = await response.json();
-      console.log(`✅ === API CALL SUCCESS ===\n`);
       return result;
     } catch (error) {
-      console.error(`❌ === API CALL FAILED ===\n`);
       console.error(`Error:`, error);
+      throw error;
+    }
+  }
+
+  async getScanHistory(): Promise<any[]> {
+    const fullUrl = `${this.baseUrl}/scan/history`;
+
+    try {
+      const token = localStorage.getItem('darkhook_token');
+      const headers: HeadersInit = {};
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      const response = await fetch(fullUrl, {
+        method: 'GET',
+        headers,
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: Failed to fetch history`);
+      }
+
+      return response.json();
+    } catch (error) {
+      console.error('Failed to fetch scan history:', error);
+      throw error;
+    }
+  }
+
+  async scanEmail(file: File): Promise<EmailScanResult> {
+    const fullUrl = `${this.baseUrl}/scan/email`;
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const token = localStorage.getItem('darkhook_token');
+      const headers: HeadersInit = {};
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      const response = await fetch(fullUrl, {
+        method: 'POST',
+        headers,
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const error = await response.json().catch(() => ({ detail: 'Email scan failed' }));
+        throw new Error(error.detail || `HTTP ${response.status}: Email scan failed`);
+      }
+
+      return response.json();
+    } catch (error) {
+      console.error('Email scan failed:', error);
       throw error;
     }
   }
