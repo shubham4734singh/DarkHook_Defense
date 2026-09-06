@@ -1,7 +1,17 @@
 from pymongo import MongoClient
 from pymongo.server_api import ServerApi
+from pymongo.errors import ConfigurationError
 from urllib.parse import quote_plus
 from core.config import settings
+
+# Configure dnspython with public DNS resolvers to prevent NXDOMAIN on cloud platforms (e.g. Render)
+try:
+    import dns.resolver
+    _custom_resolver = dns.resolver.Resolver(configure=False)
+    _custom_resolver.nameservers = ["8.8.8.8", "1.1.1.1", "8.8.4.4"]
+    dns.resolver.default_resolver = _custom_resolver
+except Exception:
+    pass
 
 # MongoDB options
 MONGO_CLIENT_OPTIONS = {
@@ -13,6 +23,37 @@ MONGO_CLIENT_OPTIONS = {
 }
 
 _mongo_client: MongoClient | None = None
+
+def _resolve_direct_uri_from_srv(srv_uri: str) -> str:
+    """Fallback: convert mongodb+srv:// URI to direct replica set URI using public DNS."""
+    try:
+        prefix = "mongodb+srv://"
+        if not srv_uri.startswith(prefix):
+            return srv_uri
+        rest = srv_uri[len(prefix):]
+        if "@" not in rest:
+            return srv_uri
+        creds, host_part = rest.split("@", 1)
+        cluster = host_part.split("/")[0].split("?")[0]
+        db_part = host_part[len(cluster):]
+
+        import dns.resolver
+        resolver = dns.resolver.Resolver(configure=False)
+        resolver.nameservers = ["8.8.8.8", "1.1.1.1", "8.8.4.4"]
+
+        srv_records = resolver.resolve(f"_mongodb._tcp.{cluster}", "SRV", lifetime=5)
+        hosts = [f"{r.target.to_text().rstrip('.')}:{r.port}" for r in srv_records]
+
+        txt_records = resolver.resolve(cluster, "TXT", lifetime=5)
+        txt_opts = [b"".join(r.strings).decode() for r in txt_records]
+        extra_opts = "&".join(txt_opts)
+
+        sep = "?" if "?" not in db_part else "&"
+        direct_uri = f"mongodb://{creds}@{','.join(hosts)}{db_part}{sep}ssl=true&{extra_opts}"
+        return direct_uri
+    except Exception as exc:
+        print(f"[!] Direct SRV fallback resolution failed: {exc}")
+        return srv_uri
 
 def get_mongo_client() -> MongoClient:
     """
@@ -53,7 +94,23 @@ def get_mongo_client() -> MongoClient:
         client.admin.command('ping')
         return client
         
-    except Exception as e:
+    except (ConfigurationError, Exception) as e:
+        # If SRV DNS lookup failed (common on Render), attempt direct URI fallback
+        if "The DNS query name does not exist" in str(e) or "_mongodb._tcp" in str(e):
+            try:
+                print("[!] DNS SRV resolution failed; attempting direct replica set fallback...")
+                direct_uri = _resolve_direct_uri_from_srv(mongo_uri)
+                client = MongoClient(
+                    direct_uri,
+                    server_api=ServerApi('1'),
+                    **MONGO_CLIENT_OPTIONS
+                )
+                client.admin.command('ping')
+                print("[+] Successfully connected to MongoDB using direct replica set fallback!")
+                return client
+            except Exception as fallback_exc:
+                e = fallback_exc
+
         error_message = str(e)
         if "TLSV1_ALERT_INTERNAL_ERROR" in error_message or "SSL alert number 80" in error_message:
             raise ConnectionError(
