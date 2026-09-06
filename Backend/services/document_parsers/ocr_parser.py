@@ -66,7 +66,10 @@ except ImportError:
     PYZBAR_AVAILABLE = False
 
 # Import centralized scoring
-from .scorer import calculate_score
+try:
+    from .scorer import calculate_score
+except ImportError:
+    from services.document_parsers.scorer import calculate_score
 
 
 # ================================================================
@@ -422,10 +425,11 @@ def simple_perceptual_hash(img, hash_size=8):
     5. Result = 64 bit hash string
     """
     try:
+        resample_filter = getattr(getattr(Image, "Resampling", Image), "LANCZOS", getattr(Image, "ANTIALIAS", 1))
         small_img = img.resize(
-            (hash_size, hash_size), Image.LANCZOS
+            (hash_size, hash_size), resample_filter
         ).convert("L")
-        pixels    = list(small_img.getdata())
+        pixels    = list(small_img.getdata())  # type: ignore
         avg       = sum(pixels) / len(pixels)
         bits      = "".join(
             "1" if p > avg else "0" for p in pixels
@@ -452,6 +456,21 @@ def hamming_distance(hash1, hash2):
         return sum(c1 != c2 for c1, c2 in zip(h1, h2))
     except Exception:
         return 64
+
+
+def _safe_ocr_text(ocr_output):
+    """
+    Safely converts pytesseract OCR output to a stripped string.
+    Handles dict, bytes, None, and str types gracefully.
+    """
+    if isinstance(ocr_output, dict):
+        return str(ocr_output.get("text", "")).strip()
+    if isinstance(ocr_output, bytes):
+        return ocr_output.decode("utf-8", errors="ignore").strip()
+    if ocr_output is None:
+        return ""
+    return str(ocr_output).strip()
+
 
 
 # ================================================================
@@ -658,14 +677,14 @@ def technique3_ocr_extraction(file_path):
         if img.mode not in ["RGB", "L"]:
             img = img.convert("RGB")
 
-        ocr_text = pytesseract.image_to_string(
+        ocr_result = pytesseract.image_to_string(
             img,
             lang="eng",
             config="--psm 6",
         )
 
         img.close()
-        ocr_text = ocr_text.strip()
+        ocr_text = _safe_ocr_text(ocr_result)
 
         if not ocr_text:
             findings.append("low_text_density")
@@ -1159,11 +1178,12 @@ def technique11_multilang_ocr(file_path):
 
         # Try Hindi OCR
         try:
-            hindi_text = pytesseract.image_to_string(
+            raw_hindi = pytesseract.image_to_string(
                 img,
                 lang="hin",
                 config="--psm 6",
-            ).strip()
+            )
+            hindi_text = _safe_ocr_text(raw_hindi)
 
             if hindi_text and len(hindi_text) > 10:
                 details.append(
@@ -1191,9 +1211,6 @@ def technique11_multilang_ocr(file_path):
         img.close()
 
         # Check for Unicode mixed scripts in any extracted text
-        with open(file_path, "rb") as f:
-            raw = f.read()
-
         # Look for Devanagari Unicode range (Hindi)
         # Must check OCR extracted text NOT raw bytes
         # Raw bytes of PNG files accidentally match
@@ -1203,11 +1220,12 @@ def technique11_multilang_ocr(file_path):
                 img_lang = Image.open(file_path)
                 if img_lang.mode not in ["RGB", "L"]:
                     img_lang = img_lang.convert("RGB")
-                extracted = pytesseract.image_to_string(
+                raw_extracted = pytesseract.image_to_string(
                     img_lang,
                     config="--psm 6",
-                ).strip()
+                )
                 img_lang.close()
+                extracted = _safe_ocr_text(raw_extracted)
 
                 devanagari_pattern = re.compile(
                     "[\u0900-\u097f]+"
@@ -1384,7 +1402,7 @@ def technique13_hidden_text(file_path):
         img = Image.open(file_path).convert("RGB")
         w, h = img.size
 
-        pixels    = list(img.getdata())
+        pixels    = list(img.getdata())  # type: ignore
         total_px  = len(pixels)
 
         if total_px == 0:
@@ -1442,7 +1460,7 @@ def technique13_hidden_text(file_path):
         img_check = Image.open(file_path)
 
         if img_check.mode == "RGBA":
-            rgba_pixels   = list(img_check.getdata())
+            rgba_pixels   = list(img_check.getdata())  # type: ignore
             transparent   = sum(
                 1 for r, g, b, a in rgba_pixels if a < 50
             )
@@ -1836,21 +1854,8 @@ def technique17_ocr_confidence(file_path):
                     ") to judge blur — likely a photo "
                 )
             elif avg_confidence < 30:
-                findings.append("blur_evasion_detected")
-                details.append(
-                    "CRITICAL: Very low OCR confidence (" +
-                    str(round(avg_confidence, 1)) +
-                    "%) — image may be intentionally blurred!"
-                )
-            elif avg_confidence < 50:
-                findings.append("low_ocr_confidence")
-                details.append(
-                    "Low OCR confidence (" +
-                    str(round(avg_confidence, 1)) +
-                    "%) — review manually"
-                )
-            elif avg_confidence < 30:
                 findings.append("very_low_ocr_confidence")
+                findings.append("blur_evasion_detected")
                 details.append(
                     "CRITICAL: Very low OCR confidence (" +
                     str(round(avg_confidence, 1)) +
@@ -1875,8 +1880,8 @@ def technique17_ocr_confidence(file_path):
         if PIL_AVAILABLE:
             img2        = Image.open(file_path).convert("L")
             blurred     = img2.filter(ImageFilter.GaussianBlur(2))
-            img2_pixels = list(img2.getdata())
-            blur_pixels = list(blurred.getdata())
+            img2_pixels = list(img2.getdata())  # type: ignore
+            blur_pixels = list(blurred.getdata())  # type: ignore
 
             # If original is already very similar to blurred
             # then original WAS already blurred

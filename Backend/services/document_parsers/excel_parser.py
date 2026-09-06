@@ -50,6 +50,13 @@ try:
 except ImportError:
     OLETOOLS_AVAILABLE = False
 
+try:
+    from .deobfuscator import run_deobfuscation_pipeline
+    DEOBFUSCATOR_AVAILABLE = True
+except ImportError:
+    from services.document_parsers.deobfuscator import run_deobfuscation_pipeline
+    DEOBFUSCATOR_AVAILABLE = True
+
 
 # ================================================================
 # CONFIGURATION
@@ -645,19 +652,20 @@ def technique2_metadata(file_path):
 
     try:
         wb    = openpyxl.load_workbook(file_path, read_only=True)
-        props = wb.properties
+        try:
+            props = wb.properties
 
-        author   = props.creator  or ""
-        created  = props.created
-        modified = props.modified
-        revision = props.revision or 0
+            author   = props.creator  or ""
+            created  = props.created
+            modified = props.modified
+            revision = props.revision or 0
 
-        details.append("Author   : " + (author or "EMPTY"))
-        details.append("Created  : " + str(created))
-        details.append("Modified : " + str(modified))
-        details.append("Revision : " + str(revision))
-
-        wb.close()
+            details.append("Author   : " + (author or "EMPTY"))
+            details.append("Created  : " + str(created))
+            details.append("Modified : " + str(modified))
+            details.append("Revision : " + str(revision))
+        finally:
+            wb.close()
 
         if not author or author.strip() == "":
             findings.append("wiped_metadata")
@@ -723,122 +731,129 @@ def techniques3456_macro_analysis(file_path):
 
     try:
         vba = VBA_Parser(file_path)
-
-        if not vba.detect_vba_macros():
-            details.append("Technique 3: No VBA macros detected")
-            vba.close()
-            return findings, details
-
-        findings.append("malicious_macro")
-        details.append("Technique 3: VBA macros DETECTED!")
-
         try:
-            results = vba.analyze_macros()
-            for kw_type, kw_keyword, kw_description in results:
-                if "suspicious" in kw_type.lower():
-                    findings.append("hidden_macro_stream")
+            if not vba.detect_vba_macros():
+                details.append("Technique 3: No VBA macros detected")
+                return findings, details
+
+            findings.append("malicious_macro")
+            details.append("Technique 3: VBA macros DETECTED!")
+
+            try:
+                results = vba.analyze_macros()
+                for kw_type, kw_keyword, kw_description in results:
+                    if "suspicious" in kw_type.lower():
+                        findings.append("hidden_macro_stream")
+                        details.append(
+                            "Hidden macro stream: " + str(kw_description)
+                        )
+            except Exception:
+                pass
+
+            all_vba_code = ""
+            for (filename, stream_path,
+                 vba_filename, vba_code) in vba.extract_macros():
+                all_vba_code += vba_code.lower() + "\n"
+
+            # Technique 4 — Auto execution
+            for auto_name in AUTOOPEN_NAMES:
+                if auto_name in all_vba_code:
+                    findings.append("autoopen_macro")
                     details.append(
-                        "Hidden macro stream: " + str(kw_description)
+                        "Technique 4: AutoOpen: '" +
+                        auto_name + "' — RUNS ON FILE OPEN!"
                     )
-        except Exception:
-            pass
 
-        all_vba_code = ""
-        for (filename, stream_path,
-             vba_filename, vba_code) in vba.extract_macros():
-            all_vba_code += vba_code.lower() + "\n"
+            # Technique 5 — VBA behavior
+            for category, apis in DANGEROUS_VBA_APIS.items():
+                for api in apis:
+                    if api in all_vba_code:
+                        if category == "shell_execution":
+                            findings.append("suspicious_vba_api")
+                            details.append(
+                                "Technique 5 [Shell]: " + api
+                            )
+                        elif category == "powershell":
+                            findings.append("powershell_in_vba")
+                            details.append(
+                                "Technique 5 [PowerShell]: " + api
+                            )
+                        elif category == "network_calls":
+                            findings.append("network_call_in_vba")
+                            details.append(
+                                "Technique 5 [Network]: " + api
+                            )
+                        elif category == "file_system":
+                            findings.append("file_system_access")
+                            details.append(
+                                "Technique 5 [FileSystem]: " + api
+                            )
+                        elif category == "registry":
+                            findings.append("registry_access")
+                            details.append(
+                                "Technique 5 [Registry]: " + api
+                            )
+                        elif category == "process_creation":
+                            findings.append("process_creation")
+                            details.append(
+                                "Technique 5 [Process]: " + api
+                            )
 
-        # Technique 4 — Auto execution
-        for auto_name in AUTOOPEN_NAMES:
-            if auto_name in all_vba_code:
-                findings.append("autoopen_macro")
+            # Technique 6 — Obfuscation
+            b64_pattern = re.compile(r'[A-Za-z0-9+/]{50,}={0,2}')
+            b64_matches = b64_pattern.findall(all_vba_code)
+            if b64_matches:
+                findings.append("encoded_macro_payload")
                 details.append(
-                    "Technique 4: AutoOpen: '" +
-                    auto_name + "' — RUNS ON FILE OPEN!"
+                    "Technique 6 [Base64]: " +
+                    b64_matches[0][:50] + "..."
                 )
 
-        # Technique 5 — VBA behavior
-        for category, apis in DANGEROUS_VBA_APIS.items():
-            for api in apis:
-                if api in all_vba_code:
-                    if category == "shell_execution":
-                        findings.append("suspicious_vba_api")
-                        details.append(
-                            "Technique 5 [Shell]: " + api
-                        )
-                    elif category == "powershell":
-                        findings.append("powershell_in_vba")
-                        details.append(
-                            "Technique 5 [PowerShell]: " + api
-                        )
-                    elif category == "network_calls":
-                        findings.append("network_call_in_vba")
-                        details.append(
-                            "Technique 5 [Network]: " + api
-                        )
-                    elif category == "file_system":
-                        findings.append("file_system_access")
-                        details.append(
-                            "Technique 5 [FileSystem]: " + api
-                        )
-                    elif category == "registry":
-                        findings.append("registry_access")
-                        details.append(
-                            "Technique 5 [Registry]: " + api
-                        )
-                    elif category == "process_creation":
-                        findings.append("process_creation")
-                        details.append(
-                            "Technique 5 [Process]: " + api
-                        )
-
-        # Technique 6 — Obfuscation
-        b64_pattern = re.compile(r'[A-Za-z0-9+/]{50,}={0,2}')
-        b64_matches = b64_pattern.findall(all_vba_code)
-        if b64_matches:
-            findings.append("encoded_macro_payload")
-            details.append(
-                "Technique 6 [Base64]: " +
-                b64_matches[0][:50] + "..."
-            )
-
-        hex_pattern = re.compile(r'[0-9a-f]{40,}')
-        hex_matches = hex_pattern.findall(all_vba_code)
-        if hex_matches:
-            findings.append("encoded_macro_payload")
-            details.append(
-                "Technique 6 [Hex]: " +
-                hex_matches[0][:50] + "..."
-            )
-
-        concat_patterns = [
-            r'"\s*&\s*"',
-            r'chr\(\d+\)',
-            r'chrw\(\d+\)',
-        ]
-        for pattern in concat_patterns:
-            if re.search(pattern, all_vba_code):
-                findings.append("string_obfuscation")
+            hex_pattern = re.compile(r'[0-9a-f]{40,}')
+            hex_matches = hex_pattern.findall(all_vba_code)
+            if hex_matches:
+                findings.append("encoded_macro_payload")
                 details.append(
-                    "Technique 6 [Obfuscation]: " + pattern
+                    "Technique 6 [Hex]: " +
+                    hex_matches[0][:50] + "..."
                 )
 
-        entropy = calculate_entropy(all_vba_code[:1000])
-        if entropy > 5.5:
-            findings.append("high_entropy_string")
-            details.append(
-                "Technique 6 [Entropy]: " +
-                str(entropy) + " — obfuscated"
-            )
+            concat_patterns = [
+                r'"\s*&\s*"',
+                r'chr\(\d+\)',
+                r'chrw\(\d+\)',
+            ]
+            for pattern in concat_patterns:
+                if re.search(pattern, all_vba_code):
+                    findings.append("string_obfuscation")
+                    details.append(
+                        "Technique 6 [Obfuscation]: " + pattern
+                    )
 
-        for sig in KNOWN_MACRO_SIGNATURES:
-            if sig in all_vba_code:
-                findings.append("known_macro_signature")
+            entropy = calculate_entropy(all_vba_code[:1000])
+            if entropy > 5.5:
+                findings.append("high_entropy_string")
                 details.append(
-                    "Known malicious signature: " + sig[:50]
+                    "Technique 6 [Entropy]: " +
+                    str(entropy) + " — obfuscated"
                 )
 
-        vba.close()
+            for sig in KNOWN_MACRO_SIGNATURES:
+                if sig in all_vba_code:
+                    findings.append("known_macro_signature")
+                    details.append(
+                        "Known malicious signature: " + sig[:50]
+                    )
+
+            # Static De-Obfuscation Pipeline
+            if DEOBFUSCATOR_AVAILABLE and all_vba_code:
+                deob_res = run_deobfuscation_pipeline(all_vba_code)
+                if deob_res.get("deobfuscation_applied"):
+                    findings.extend(deob_res.get("new_findings", []))
+                    details.extend(deob_res.get("details", []))
+
+        finally:
+            vba.close()
 
     except Exception as e:
         details.append("Macro analysis error: " + str(e))
@@ -1105,51 +1120,53 @@ def techniques910_content_url(file_path):
 
     try:
         wb        = openpyxl.load_workbook(
-            file_path, read_only=True
+            file_path, data_only=False
         )
         full_text = ""
         all_urls  = []
 
-        for sheet in wb.worksheets:
-            for row in sheet.iter_rows():
-                for cell in row:
-                    if cell.value:
-                        cell_str = str(cell.value).lower()
-                        full_text += cell_str + " "
+        try:
+            for sheet in wb.worksheets:
+                for row in sheet.iter_rows():
+                    for cell in row:
+                        if cell.value:
+                            cell_str = str(cell.value).lower()
+                            full_text += cell_str + " "
 
-                        # Check DDE in formulas
-                        if cell_str.startswith("="):
-                            for dde in DDE_PATTERNS:
-                                if dde.lower() in cell_str:
-                                    findings.append("dde_attack")
-                                    details.append(
-                                        "CRITICAL: DDE formula: " +
-                                        cell_str[:80]
-                                    )
-                                    break
+                            # Check DDE in formulas
+                            if cell_str.startswith("="):
+                                for dde in DDE_PATTERNS:
+                                    if dde.lower() in cell_str:
+                                        findings.append("dde_attack")
+                                        details.append(
+                                            "CRITICAL: DDE formula: " +
+                                            cell_str[:80]
+                                        )
+                                        break
 
-                        # Extract URLs
-                        url_pattern = re.compile(
-                            r'https?://[^\s<>"{}|\\^`\[\]]+'
-                        )
-                        for url in url_pattern.findall(cell_str):
-                            all_urls.append(("cell", url, ""))
-
-                    # Extract hyperlinks
-                    if cell.hyperlink:
-                        try:
-                            url = str(
-                                cell.hyperlink.target or ""
+                            # Extract URLs
+                            url_pattern = re.compile(
+                                r'https?://[^\s<>"{}|\\^`\[\]]+'
                             )
-                            if url.startswith("http"):
-                                visible = str(cell.value or "")
-                                all_urls.append(
-                                    ("hyperlink", url, visible)
-                                )
-                        except Exception:
-                            pass
+                            for url in url_pattern.findall(cell_str):
+                                all_urls.append(("cell", url, ""))
 
-        wb.close()
+                        # Extract hyperlinks safely
+                        hyperlink = getattr(cell, "hyperlink", None)
+                        if hyperlink:
+                            try:
+                                url = str(
+                                    getattr(hyperlink, "target", "") or ""
+                                )
+                                if url.startswith("http"):
+                                    visible = str(cell.value or "")
+                                    all_urls.append(
+                                        ("hyperlink", url, visible)
+                                    )
+                            except Exception:
+                                pass
+        finally:
+            wb.close()
 
         # Technique 10 — URL Analysis
         details.append(
@@ -1469,15 +1486,17 @@ def technique13_xlm_macros(file_path):
         if OLETOOLS_AVAILABLE:
             try:
                 vba = VBA_Parser(file_path)
-                # oletools can detect XLM sheets
-                if hasattr(vba, 'xlm_macros'):
-                    xlm = vba.xlm_macros
-                    if xlm:
-                        findings.append("xlm_macro_detected")
-                        details.append(
-                            "oletools: XLM macros confirmed!"
-                        )
-                vba.close()
+                try:
+                    # oletools can detect XLM sheets
+                    if hasattr(vba, 'xlm_macros'):
+                        xlm = vba.xlm_macros
+                        if xlm:
+                            findings.append("xlm_macro_detected")
+                            details.append(
+                                "oletools: XLM macros confirmed!"
+                            )
+                finally:
+                    vba.close()
             except Exception:
                 pass
 
@@ -1522,32 +1541,32 @@ def technique14_hidden_sheets(file_path):
 
     try:
         wb = openpyxl.load_workbook(file_path, read_only=True)
+        try:
+            for sheet_name in wb.sheetnames:
+                sheet = wb[sheet_name]
+                state = sheet.sheet_state
 
-        for sheet_name in wb.sheetnames:
-            sheet = wb[sheet_name]
-            state = sheet.sheet_state
+                if state == "hidden":
+                    findings.append("hidden_sheet")
+                    details.append(
+                        "Hidden sheet found: '" + sheet_name +
+                        "' — check for hidden content"
+                    )
 
-            if state == "hidden":
-                findings.append("hidden_sheet")
-                details.append(
-                    "Hidden sheet found: '" + sheet_name +
-                    "' — check for hidden content"
-                )
+                elif state == "veryHidden":
+                    findings.append("very_hidden_sheet")
+                    details.append(
+                        "CRITICAL: Very hidden sheet: '" +
+                        sheet_name +
+                        "' — cannot be unhidden normally!"
+                    )
 
-            elif state == "veryHidden":
-                findings.append("very_hidden_sheet")
-                details.append(
-                    "CRITICAL: Very hidden sheet: '" +
-                    sheet_name +
-                    "' — cannot be unhidden normally!"
-                )
-
-            else:
-                details.append(
-                    "Sheet visible: '" + sheet_name + "'"
-                )
-
-        wb.close()
+                else:
+                    details.append(
+                        "Sheet visible: '" + sheet_name + "'"
+                    )
+        finally:
+            wb.close()
 
         # Also check workbook XML directly for hidden sheets
         with zipfile.ZipFile(file_path, "r") as z:
@@ -1614,74 +1633,74 @@ def technique15_formula_injection(file_path):
         wb = openpyxl.load_workbook(
             file_path, read_only=True
         )
+        try:
+            for sheet in wb.worksheets:
+                for row in sheet.iter_rows():
+                    for cell in row:
+                        if cell.value:
+                            cell_str = str(cell.value).lower()
 
-        for sheet in wb.worksheets:
-            for row in sheet.iter_rows():
-                for cell in row:
-                    if cell.value:
-                        cell_str = str(cell.value).lower()
+                            # Only check formula cells
+                            if not cell_str.startswith("="):
+                                continue
 
-                        # Only check formula cells
-                        if not cell_str.startswith("="):
-                            continue
+                            # Check suspicious formulas
+                            for formula in SUSPICIOUS_FORMULAS:
+                                if formula in cell_str:
 
-                        # Check suspicious formulas
-                        for formula in SUSPICIOUS_FORMULAS:
-                            if formula in cell_str:
+                                    if "hyperlink" in formula:
+                                        # Check if URL inside is suspicious
+                                        url_match = re.search(
+                                            r'https?://[^\s")\]]+',
+                                            cell_str
+                                        )
+                                        if url_match:
+                                            url = url_match.group(0)
+                                            url_f, _ = analyze_url(url)
+                                            if url_f:
+                                                findings.append(
+                                                    "formula_hyperlink_injection"
+                                                )
+                                                details.append(
+                                                    "CRITICAL: Malicious "
+                                                    "HYPERLINK formula: " +
+                                                    cell_str[:80]
+                                                )
 
-                                if "hyperlink" in formula:
-                                    # Check if URL inside is suspicious
-                                    url_match = re.search(
-                                        r'https?://[^\s")\]]+',
-                                        cell_str
-                                    )
-                                    if url_match:
-                                        url = url_match.group(0)
-                                        url_f, _ = analyze_url(url)
-                                        if url_f:
-                                            findings.append(
-                                                "formula_hyperlink_injection"
-                                            )
-                                            details.append(
-                                                "CRITICAL: Malicious "
-                                                "HYPERLINK formula: " +
-                                                cell_str[:80]
-                                            )
+                                    elif "webservice" in formula:
+                                        findings.append(
+                                            "webservice_formula"
+                                        )
+                                        details.append(
+                                            "CRITICAL: WEBSERVICE formula "
+                                            "— sends data to external "
+                                            "server: " + cell_str[:80]
+                                        )
 
-                                elif "webservice" in formula:
-                                    findings.append(
-                                        "webservice_formula"
-                                    )
-                                    details.append(
-                                        "CRITICAL: WEBSERVICE formula "
-                                        "— sends data to external "
-                                        "server: " + cell_str[:80]
-                                    )
+                                    elif "indirect" in formula:
+                                        findings.append(
+                                            "formula_obfuscation"
+                                        )
+                                        details.append(
+                                            "INDIRECT formula detected "
+                                            "— possible obfuscation: " +
+                                            cell_str[:80]
+                                        )
 
-                                elif "indirect" in formula:
-                                    findings.append(
-                                        "formula_obfuscation"
-                                    )
-                                    details.append(
-                                        "INDIRECT formula detected "
-                                        "— possible obfuscation: " +
-                                        cell_str[:80]
-                                    )
-
-                        # Check CHAR() concatenation obfuscation
-                        # Example: =CHAR(112)&CHAR(111)&CHAR(119)
-                        # Builds "pow" → part of "powershell"
-                        char_count = cell_str.count("char(")
-                        if char_count >= 4:
-                            findings.append("char_concat_formula")
-                            details.append(
-                                "CRITICAL: CHAR() concatenation "
-                                "obfuscation (" +
-                                str(char_count) +
-                                " CHAR calls) — hiding command!"
-                            )
-
-        wb.close()
+                            # Check CHAR() concatenation obfuscation
+                            # Example: =CHAR(112)&CHAR(111)&CHAR(119)
+                            # Builds "pow" → part of "powershell"
+                            char_count = cell_str.count("char(")
+                            if char_count >= 4:
+                                findings.append("char_concat_formula")
+                                details.append(
+                                    "CRITICAL: CHAR() concatenation "
+                                    "obfuscation (" +
+                                    str(char_count) +
+                                    " CHAR calls) — hiding command!"
+                                )
+        finally:
+            wb.close()
 
         if not findings:
             details.append("No formula injection detected")

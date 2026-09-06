@@ -556,7 +556,7 @@ def structural_analysis(file_path, raw_text):
             if action in ["/JavaScript", "/JS"]:
                 findings.append("javascript_detected")
                 details.append(
-                    f"🚨 CRITICAL: JavaScript embedded in PDF"
+                    "🚨 CRITICAL: JavaScript embedded in PDF"
                 )
 
             elif action == "/OpenAction":
@@ -587,25 +587,25 @@ def structural_analysis(file_path, raw_text):
             elif action == "/Launch":
                 findings.append("launch_action_detected")
                 details.append(
-                    f"🚨 CRITICAL: Launch action found — can execute programs"
+                    "🚨 CRITICAL: Launch action found — can execute programs"
                 )
 
             elif action == "/EmbeddedFile":
                 findings.append("embedded_file_detected")
                 details.append(
-                    f"🚨 HIGH: Embedded file found inside PDF"
+                    "🚨 HIGH: Embedded file found inside PDF"
                 )
 
             elif action in ["/AcroForm"]:
                 findings.append("acroform_detected")
                 details.append(
-                    f"⚠️ HIGH: AcroForm detected — credential theft form"
+                    "⚠️ HIGH: AcroForm detected — credential theft form"
                 )
 
             elif action == "/XFA":
                 findings.append("xfa_form_detected")
                 details.append(
-                    f"⚠️ HIGH: XFA form detected — advanced phishing form"
+                    "⚠️ HIGH: XFA form detected — advanced phishing form"
                 )
 
             elif action == "/ObjStm":
@@ -636,7 +636,7 @@ def structural_analysis(file_path, raw_text):
     if "/Encrypt" in raw_text:
         findings.append("encrypted_object")
         details.append(
-            f"⚠️ MEDIUM: Encrypted content detected in PDF"
+            "⚠️ MEDIUM: Encrypted content detected in PDF"
         )
 
     # Check for embedded executables
@@ -679,7 +679,6 @@ def content_analysis(pdf_document):
     total_text     = ""
     total_images   = 0
     total_links    = 0
-    all_text_urls  = []
 
     for page_number in range(total_pages):
 
@@ -1039,7 +1038,9 @@ def parse_pdf(file_path):
 
     all_findings = []
     all_details  = []
+    sha256_hash  = ""
 
+    pdf_document = None
     try:
 
         # ----------------------------------------------
@@ -1047,7 +1048,6 @@ def parse_pdf(file_path):
         # Can be used to check against malware databases
         # ----------------------------------------------
 
-        sha256_hash = ""
         try:
             with open(file_path, "rb") as f:
                 sha256_hash = hashlib.sha256(f.read()).hexdigest()
@@ -1065,57 +1065,58 @@ def parse_pdf(file_path):
         # ----------------------------------------------
 
         pdf_document = fitz.open(file_path)
-        total_pages  = len(pdf_document)
-
-        all_details.append(f"Pages    : {total_pages}")
-
-        # Get metadata
-        metadata = pdf_document.metadata
-        if metadata:
-            author  = metadata.get("author",  "Unknown")
-            creator = metadata.get("creator", "Unknown")
-            all_details.append(f"Author   : {author}")
-            all_details.append(f"Creator  : {creator}")
-
-            if not author or author == "Unknown":
-                all_details.append(
-                    "ℹ️ No author in metadata (common in many legitimate PDFs too)"
-                )
-
-        # ----------------------------------------------
-        # STEP 3 — Read raw PDF bytes for structure check
-        # ----------------------------------------------
-
-        raw_text = ""
         try:
-            with open(file_path, "rb") as f:
-                raw_text = f.read().decode("latin-1")
-        except Exception:
-            all_details.append("⚠️ Could not read raw PDF bytes")
+            total_pages  = len(pdf_document)
 
-        # ----------------------------------------------
-        # STEP 4 — Run all 3 analysis layers
-        # ----------------------------------------------
+            all_details.append(f"Pages    : {total_pages}")
 
-        # Layer 1
-        s_findings, s_details = structural_analysis(
-            file_path, raw_text
-        )
-        all_findings.extend(s_findings)
-        all_details.extend(s_details)
+            # Get metadata
+            metadata = pdf_document.metadata
+            if metadata:
+                author  = metadata.get("author",  "Unknown")
+                creator = metadata.get("creator", "Unknown")
+                all_details.append(f"Author   : {author}")
+                all_details.append(f"Creator  : {creator}")
 
-        # Layer 2
-        c_findings, c_details = content_analysis(pdf_document)
-        all_findings.extend(c_findings)
-        all_details.extend(c_details)
+                if not author or author == "Unknown":
+                    all_details.append(
+                        "ℹ️ No author in metadata (common in many legitimate PDFs too)"
+                    )
 
-        # Layer 3
-        b_findings, b_details = behavioral_analysis(raw_text)
-        all_findings.extend(b_findings)
-        all_details.extend(b_details)
+            # ----------------------------------------------
+            # STEP 3 — Read raw PDF bytes for structure check
+            # ----------------------------------------------
 
-        # Close PDF
-        pdf_document.close()
+            raw_text = ""
+            try:
+                with open(file_path, "rb") as f:
+                    raw_text = f.read().decode("latin-1")
+            except Exception:
+                all_details.append("⚠️ Could not read raw PDF bytes")
+
+            # ----------------------------------------------
+            # STEP 4 — Run all 3 analysis layers
+            # ----------------------------------------------
+
+            # Layer 1
+            s_findings, s_details = structural_analysis(
+                file_path, raw_text
+            )
+            all_findings.extend(s_findings)
+            all_details.extend(s_details)
+
+            # Layer 2
+            c_findings, c_details = content_analysis(pdf_document)
+            all_findings.extend(c_findings)
+            all_details.extend(c_details)
+
+            # Layer 3
+            b_findings, b_details = behavioral_analysis(raw_text)
+            all_findings.extend(b_findings)
+            all_details.extend(b_details)
+
+        finally:
+            pdf_document.close()
 
         # ----------------------------------------------
         # STEP 5 — Heuristic scoring (Layer 4)
@@ -1143,6 +1144,6 @@ def parse_pdf(file_path):
     return {
         "findings"   : all_findings,
         "details"    : all_details,
-        "sha256"     : sha256_hash if 'sha256_hash' in locals() else "",
+        "sha256"     : sha256_hash,
     }
 

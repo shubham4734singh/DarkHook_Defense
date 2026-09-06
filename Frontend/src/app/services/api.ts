@@ -70,8 +70,31 @@ export interface MessageResponse {
   message: string;
 }
 
+export interface MitreTechnique {
+  id: string;
+  name: string;
+  tactic: string;
+  description: string;
+}
+
+export interface ExtractedUrlInfo {
+  url: string;
+  domain: string;
+  is_suspicious: boolean;
+  reasons: string[];
+}
+
+export interface FindingDetailedItem {
+  name: string;
+  findingType: string;
+  severity: string;
+  score: number;
+  mitre?: MitreTechnique;
+}
+
 export interface ScoreBreakdownItem {
   finding_type: string;
+  count?: number;
   score: number;
 }
 
@@ -81,10 +104,14 @@ export interface DocumentScanResult {
   fileHash: string;
   riskScore: number;
   verdict: string;
+  severity?: string;
   scanTime: number;
   totalFindings: number;
   findings: string[];
+  findingsDetailed?: FindingDetailedItem[];
   scoreBreakdown: ScoreBreakdownItem[];
+  mitreTechniques?: MitreTechnique[];
+  extractedUrls?: ExtractedUrlInfo[];
   details: string[];
 }
 

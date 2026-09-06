@@ -2,11 +2,12 @@
 Centralized scoring for document-analysis parsers.
 
 Any new finding key added in a parser should be assigned a weight here.
+Provides MITRE ATT&CK framework mapping for enterprise SOC visibility.
 """
 
 from __future__ import annotations
 
-from typing import Any, Dict, Iterable
+from typing import Any, Dict, Iterable, List, Optional
 
 # ============================================================
 # SCORING WEIGHTS
@@ -30,8 +31,10 @@ WEIGHTS: Dict[str, int] = {
     "corrupted_structure": 30,
     "double_extension": 35,
     "malformed_zip": 25,
+    "suspicious_zip_bomb": 45,
     "xlsm_file": 20,
     "xlsb_file": 25,
+    "docm_file": 20,
 
     # METADATA FINDINGS
     "suspicious_metadata": 15,
@@ -46,6 +49,7 @@ WEIGHTS: Dict[str, int] = {
     # VBA BEHAVIOR FINDINGS
     "suspicious_vba_api": 30,
     "powershell_in_vba": 40,
+    "powershell_encoded_command": 45,
     "network_call_in_vba": 35,
     "file_system_access": 25,
     "registry_access": 30,
@@ -56,6 +60,11 @@ WEIGHTS: Dict[str, int] = {
     "high_entropy_string": 25,
     "string_obfuscation": 25,
     "junk_code_detected": 15,
+    "chr_obfuscation_detected": 30,
+    "reverse_string_obfuscation": 30,
+    "deobfuscated_malicious_url": 40,
+    "deobfuscated_powershell_payload": 45,
+    "deobfuscated_executable_drop": 40,
 
     # EMBEDDED OBJECT FINDINGS
     "embedded_ole_object": 30,
@@ -224,6 +233,323 @@ WEIGHTS: Dict[str, int] = {
 }
 
 
+# ============================================================
+# MITRE ATT&CK MATRIX MAPPINGS
+# ============================================================
+
+MITRE_MAP: Dict[str, Dict[str, str]] = {
+    # Execution
+    "malicious_macro": {
+        "id": "T1204.002",
+        "name": "User Execution: Malicious File",
+        "tactic": "Execution",
+        "description": "Embedded macro designed to execute malicious code on user trigger."
+    },
+    "autoopen_macro": {
+        "id": "T1059.005",
+        "name": "Visual Basic for Applications",
+        "tactic": "Execution",
+        "description": "Macro hooks Document_Open or AutoOpen to execute code automatically."
+    },
+    "ppt_autoopen": {
+        "id": "T1059.005",
+        "name": "Visual Basic for Applications",
+        "tactic": "Execution",
+        "description": "Slide show configured to run VBA on launch."
+    },
+    "autorun_macro": {
+        "id": "T1059.005",
+        "name": "Visual Basic for Applications",
+        "tactic": "Execution",
+        "description": "Automated execution handler detected in Office presentation."
+    },
+    "vba_macro_detected": {
+        "id": "T1059.005",
+        "name": "Visual Basic for Applications",
+        "tactic": "Execution",
+        "description": "VBA macro project detected in Office document."
+    },
+    "powershell_in_vba": {
+        "id": "T1059.001",
+        "name": "PowerShell",
+        "tactic": "Execution",
+        "description": "VBA macro spawns PowerShell interpreter to run script commands."
+    },
+    "powershell_detected": {
+        "id": "T1059.001",
+        "name": "PowerShell",
+        "tactic": "Execution",
+        "description": "Embedded PowerShell invocation string found in file contents."
+    },
+    "powershell_in_pdf": {
+        "id": "T1059.001",
+        "name": "PowerShell",
+        "tactic": "Execution",
+        "description": "PDF payload executes PowerShell via launch action or JavaScript."
+    },
+    "powershell_encoded_command": {
+        "id": "T1059.001",
+        "name": "PowerShell: Encoded Command",
+        "tactic": "Execution",
+        "description": "Obfuscated/Base64 encoded PowerShell command line execution."
+    },
+    "shell_command": {
+        "id": "T1059.003",
+        "name": "Windows Command Shell",
+        "tactic": "Execution",
+        "description": "Executes cmd.exe or command shell subprocess directly."
+    },
+    "process_creation": {
+        "id": "T1106",
+        "name": "Native API",
+        "tactic": "Execution",
+        "description": "Uses CreateProcess/ShellExecute APIs to launch background processes."
+    },
+    "dde_attack": {
+        "id": "T1559.001",
+        "name": "Dynamic Data Exchange",
+        "tactic": "Execution",
+        "description": "Exploits Dynamic Data Exchange (DDE) formulas to run arbitrary binaries."
+    },
+    "xlm_macro_detected": {
+        "id": "T1059.005",
+        "name": "Excel 4.0 Macros (XLM)",
+        "tactic": "Execution",
+        "description": "Legacy Excel 4.0 XLM macro sheets used to evade VBA inspection."
+    },
+    "xlm_exec_command": {
+        "id": "T1059.005",
+        "name": "Excel 4.0 Macro Execution",
+        "tactic": "Execution",
+        "description": "XLM macro invokes EXEC/RUN function to spawn external programs."
+    },
+    "javascript_detected": {
+        "id": "T1059.007",
+        "name": "JavaScript in Document",
+        "tactic": "Execution",
+        "description": "Embedded JavaScript action within PDF or document."
+    },
+    "openaction_detected": {
+        "id": "T1204.002",
+        "name": "Automated PDF Action Trigger",
+        "tactic": "Execution",
+        "description": "PDF /OpenAction triggers script execution immediately upon viewing."
+    },
+    "openaction_trigger": {
+        "id": "T1204.002",
+        "name": "Automated PDF Action Trigger",
+        "tactic": "Execution",
+        "description": "PDF /OpenAction triggers script execution immediately upon viewing."
+    },
+    "launch_action_detected": {
+        "id": "T1204.002",
+        "name": "PDF Launch Action",
+        "tactic": "Execution",
+        "description": "PDF /Launch action instructs reader application to execute an external program."
+    },
+    "launch_action": {
+        "id": "T1204.002",
+        "name": "PDF Launch Action",
+        "tactic": "Execution",
+        "description": "PDF /Launch action instructs reader application to execute an external program."
+    },
+    "cmd_trigger_found": {
+        "id": "T1059.003",
+        "name": "Command Shell Trigger",
+        "tactic": "Execution",
+        "description": "Interactive trigger configured to launch cmd.exe."
+    },
+    "run_program_action": {
+        "id": "T1204.002",
+        "name": "Run Program Action",
+        "tactic": "Execution",
+        "description": "Presentation action button configured to execute program on click/hover."
+    },
+
+    # Initial Access
+    "suspicious_url": {
+        "id": "T1566.002",
+        "name": "Spearphishing Link",
+        "tactic": "Initial Access",
+        "description": "Document contains external hyperlink pointing to suspicious destination."
+    },
+    "qr_malicious_url": {
+        "id": "T1566.002",
+        "name": "Spearphishing Link: Quishing",
+        "tactic": "Initial Access",
+        "description": "QR code containing malicious URL for mobile-targeted quishing attack."
+    },
+    "qr_phishing_chain": {
+        "id": "T1566.002",
+        "name": "Spearphishing Link: Quishing",
+        "tactic": "Initial Access",
+        "description": "Multi-stage quishing attack chain detected."
+    },
+    "formula_hyperlink_injection": {
+        "id": "T1566.002",
+        "name": "Spearphishing Link: Formula Injection",
+        "tactic": "Initial Access",
+        "description": "Spreadsheet formula constructed to mask a phishing hyperlink."
+    },
+    "enable_macro_lure": {
+        "id": "T1204.002",
+        "name": "User Execution: Social Engineering Lure",
+        "tactic": "Initial Access",
+        "description": "Social engineering graphic/text coercing user into enabling macros."
+    },
+
+    # Defense Evasion
+    "encoded_macro_payload": {
+        "id": "T1027",
+        "name": "Obfuscated Files or Information",
+        "tactic": "Defense Evasion",
+        "description": "Payload obscured with Base64, XOR, or custom encoding."
+    },
+    "chr_obfuscation_detected": {
+        "id": "T1027",
+        "name": "Obfuscated Files: Chr() Concatenation",
+        "tactic": "Defense Evasion",
+        "description": "Strings assembled dynamically via Chr()/Asc() to evade signature detection."
+    },
+    "reverse_string_obfuscation": {
+        "id": "T1027",
+        "name": "Obfuscated Files: StrReverse",
+        "tactic": "Defense Evasion",
+        "description": "Strings reversed at rest and unmasked at runtime."
+    },
+    "string_obfuscation": {
+        "id": "T1027",
+        "name": "Obfuscated Files or Information",
+        "tactic": "Defense Evasion",
+        "description": "Macro uses string manipulation tricks to mask C2 URLs and binaries."
+    },
+    "external_template": {
+        "id": "T1221",
+        "name": "Template Injection",
+        "tactic": "Defense Evasion",
+        "description": "Word/Office document dynamically pulls a malicious remote .dotm template."
+    },
+    "template_injection": {
+        "id": "T1221",
+        "name": "Template Injection",
+        "tactic": "Defense Evasion",
+        "description": "Presentation dynamically loads a remote macro template."
+    },
+    "remote_template_attack": {
+        "id": "T1221",
+        "name": "Template Injection",
+        "tactic": "Defense Evasion",
+        "description": "Full remote template injection exploit chain identified."
+    },
+    "embedded_executable": {
+        "id": "T1027.009",
+        "name": "Embedded Payloads",
+        "tactic": "Defense Evasion",
+        "description": "Executable binary (MZ/PE header) embedded directly inside document."
+    },
+    "mz_header_found": {
+        "id": "T1027.009",
+        "name": "Embedded Payloads (MZ Header)",
+        "tactic": "Defense Evasion",
+        "description": "Raw Windows executable header (MZ) detected in embedded stream."
+    },
+    "embedded_ole_object": {
+        "id": "T1027.009",
+        "name": "Embedded Payloads: OLE Object",
+        "tactic": "Defense Evasion",
+        "description": "OLE stream payload or embedded package found inside document archive."
+    },
+    "file_type_mismatch": {
+        "id": "T1036.008",
+        "name": "Masquerading: File Type Mismatch",
+        "tactic": "Defense Evasion",
+        "description": "Declared file extension does not match actual internal file magic bytes."
+    },
+    "double_extension": {
+        "id": "T1036.007",
+        "name": "Masquerading: Double Extension",
+        "tactic": "Defense Evasion",
+        "description": "File employs double extension trick (e.g. invoice.pdf.exe) to trick victims."
+    },
+    "hidden_sheet": {
+        "id": "T1564.004",
+        "name": "Hide Artifacts: Hidden Sheets",
+        "tactic": "Defense Evasion",
+        "description": "Spreadsheet hides malicious formulas or macros in hidden worksheets."
+    },
+    "very_hidden_sheet": {
+        "id": "T1564.004",
+        "name": "Hide Artifacts: xlSheetVeryHidden",
+        "tactic": "Defense Evasion",
+        "description": "Worksheet visibility set to xlSheetVeryHidden, invisible to normal Excel UI."
+    },
+    "hidden_slide": {
+        "id": "T1564",
+        "name": "Hide Artifacts: Hidden Presentation Slide",
+        "tactic": "Defense Evasion",
+        "description": "Slide containing payload or phishing lure configured as hidden."
+    },
+    "hidden_text_overlay": {
+        "id": "T1564",
+        "name": "Hide Artifacts: Invisible Text Layer",
+        "tactic": "Defense Evasion",
+        "description": "Invisible or low-contrast text layer used to evade visual security scanners."
+    },
+
+    # Credential Access
+    "credential_harvesting": {
+        "id": "T1056",
+        "name": "Input Capture: Credential Phishing",
+        "tactic": "Credential Access",
+        "description": "Document contains fake login forms or prompts designed to steal passwords."
+    },
+    "fake_login_page": {
+        "id": "T1056",
+        "name": "Input Capture: Fake Login UI",
+        "tactic": "Credential Access",
+        "description": "Visual layout mimics legitimate corporate login interfaces (Microsoft/Google)."
+    },
+    "fake_login_form_detected": {
+        "id": "T1056",
+        "name": "Input Capture: Fake Login Form",
+        "tactic": "Credential Access",
+        "description": "Image contains rendered username and password credential input fields."
+    },
+
+    # Command and Control
+    "webservice_formula": {
+        "id": "T1105",
+        "name": "Ingress Tool Transfer: WEBSERVICE",
+        "tactic": "Command and Control",
+        "description": "Excel WEBSERVICE formula fetches remote data or stage-2 payloads from C2."
+    },
+    "power_query_connection": {
+        "id": "T1105",
+        "name": "Ingress Tool Transfer: Power Query",
+        "tactic": "Command and Control",
+        "description": "External data connection configured to retrieve remote payloads on open."
+    },
+    "network_call_in_vba": {
+        "id": "T1105",
+        "name": "Ingress Tool Transfer: VBA Network Request",
+        "tactic": "Command and Control",
+        "description": "VBA macro makes outbound HTTP/Socket calls to remote server."
+    },
+    "deobfuscated_malicious_url": {
+        "id": "T1071.001",
+        "name": "Application Layer Protocol: Web Protocols",
+        "tactic": "Command and Control",
+        "description": "Unmasked C2 download/staging URL extracted from obfuscated macro code."
+    },
+    "dropper_pattern": {
+        "id": "T1105",
+        "name": "Ingress Tool Transfer: Dropper Chain",
+        "tactic": "Command and Control",
+        "description": "Attack pattern indicates file serves as a dropper for next-stage malware."
+    },
+}
+
+
 def get_verdict(score: int) -> str:
     """
     0 to 39   -> Safe
@@ -244,9 +570,12 @@ def calculate_score(findings: Iterable[str]) -> Dict[str, Any]:
       - verdict
       - severity (LOW/MEDIUM/HIGH/CRITICAL)
       - breakdown: {finding_key: {count, score}}
+      - mitre_techniques: [{id, name, tactic, description}]
     """
     total_score = 0
     breakdown: Dict[str, Dict[str, int]] = {}
+    seen_mitre_ids: set[str] = set()
+    mitre_techniques: List[Dict[str, str]] = []
 
     for finding in findings:
         weight = WEIGHTS.get(finding, DEFAULT_UNKNOWN_FINDING_WEIGHT)
@@ -257,6 +586,11 @@ def calculate_score(findings: Iterable[str]) -> Dict[str, Any]:
             breakdown[finding]["score"] += weight
         else:
             breakdown[finding] = {"count": 1, "score": weight}
+
+        mitre_info = MITRE_MAP.get(finding)
+        if mitre_info and mitre_info["id"] not in seen_mitre_ids:
+            seen_mitre_ids.add(mitre_info["id"])
+            mitre_techniques.append(mitre_info)
 
     total_score = min(total_score, 100)
     verdict = get_verdict(total_score)
@@ -273,4 +607,5 @@ def calculate_score(findings: Iterable[str]) -> Dict[str, Any]:
         "verdict": verdict,
         "severity": severity,
         "breakdown": breakdown,
+        "mitre_techniques": mitre_techniques,
     }

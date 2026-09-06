@@ -1,6 +1,6 @@
 # ================================================================
 # ppt_parser.py — DarkHOOK_ Defence
-# Version  : 1.0 — Enterprise Grade
+# Version  : 2.0 — Enterprise Grade
 # Purpose  : PowerPoint file phishing and malware detection
 #            using 14 industry-standard techniques
 #
@@ -38,7 +38,6 @@ from urllib.parse import urlparse
 
 try:
     from pptx import Presentation
-    from pptx.util import Inches
     PPTX_AVAILABLE = True
 except ImportError:
     PPTX_AVAILABLE = False
@@ -48,6 +47,16 @@ try:
     OLETOOLS_AVAILABLE = True
 except ImportError:
     OLETOOLS_AVAILABLE = False
+
+try:
+    from .deobfuscator import run_deobfuscation_pipeline
+    DEOBFUSCATOR_AVAILABLE = True
+except ImportError:
+    try:
+        from services.document_parsers.deobfuscator import run_deobfuscation_pipeline
+        DEOBFUSCATOR_AVAILABLE = True
+    except ImportError:
+        DEOBFUSCATOR_AVAILABLE = False
 
 
 # ================================================================
@@ -257,9 +266,8 @@ def calculate_entropy(data):
 def is_ip_url(url):
     """Returns True if URL uses IP address instead of domain."""
     try:
-        host = urlparse(url).netloc
-        if ":" in host:
-            host = host.split(":")[0]
+        parsed = urlparse(url if "://" in url else "http://" + url)
+        host = parsed.hostname or ""
         return bool(re.match(
             r'^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$',
             host
@@ -271,9 +279,12 @@ def is_ip_url(url):
 def is_safe_domain(url):
     """Returns True if URL belongs to safe/trusted domain."""
     try:
-        domain = urlparse(url).netloc.lower()
+        parsed = urlparse(url if "://" in url else "http://" + url)
+        domain = (parsed.hostname or "").lower()
+        if not domain:
+            return False
         for safe in SAFE_DOMAINS:
-            if safe in domain:
+            if domain == safe or domain.endswith("." + safe):
                 return True
         return False
     except Exception:
@@ -286,9 +297,9 @@ def analyze_url(url):
     url_details  = []
 
     try:
-        parsed = urlparse(url)
-        domain = parsed.netloc.lower()
-        path   = parsed.path.lower()
+        parsed = urlparse(url if "://" in url else "http://" + url)
+        domain = (parsed.hostname or parsed.netloc or "").lower()
+        path   = (parsed.path or "").lower()
 
         if is_ip_url(url):
             url_findings.append("ip_based_url")
@@ -362,7 +373,7 @@ def technique1_file_validation(file_path):
 
     valid_extensions = [
         ".pptx", ".ppt", ".pps", ".ppsx",
-        ".pptm", ".ppsm",
+        ".pptm", ".ppsm", ".potx", ".potm",
     ]
 
     if ext not in valid_extensions:
@@ -374,7 +385,7 @@ def technique1_file_validation(file_path):
         details.append("Extension valid: " + ext)
 
     # Flag macro-enabled formats
-    if ext in [".pptm", ".ppsm"]:
+    if ext in [".pptm", ".ppsm", ".potm"]:
         findings.append("vba_macro_detected")
         details.append(
             "Macro-enabled format: " + ext +
@@ -396,6 +407,7 @@ def technique1_file_validation(file_path):
         dangerous = [
             "exe", "dll", "bat", "cmd",
             "ps1", "vbs", "js", "hta",
+            "scr", "zip", "rar", "7z", "iso", "pdf",
         ]
         if part in dangerous:
             findings.append("double_extension")
@@ -407,8 +419,8 @@ def technique1_file_validation(file_path):
                 "Version number in name — safe ✅"
             )
 
-    # Check ZIP structure for modern formats
-    if ext in [".pptx", ".ppsx", ".pptm", ".ppsm"]:
+    # Check file signatures
+    if ext in [".pptx", ".ppsx", ".pptm", ".ppsm", ".potx", ".potm"]:
         try:
             if zipfile.is_zipfile(file_path):
                 details.append(
@@ -419,12 +431,12 @@ def technique1_file_validation(file_path):
                 ) as z:
                     names = z.namelist()
                     has_slides = any(
-                        "ppt/slides/slide" in n
+                        "ppt/slides/slide" in n or "ppt/presentation.xml" in n
                         for n in names
                     )
                     if has_slides:
                         details.append(
-                            "Slide content found ✅"
+                            "Slide structure found ✅"
                         )
                     else:
                         findings.append(
@@ -443,6 +455,21 @@ def technique1_file_validation(file_path):
         except Exception as e:
             findings.append("malformed_zip")
             details.append("ZIP error: " + str(e))
+    elif ext in [".ppt", ".pps"]:
+        try:
+            with open(file_path, "rb") as f:
+                header = f.read(8)
+                if header[:2] == b"MZ":
+                    findings.append("file_type_mismatch")
+                    findings.append("mz_header_found")
+                    details.append("Disguised executable: MZ header found in .ppt file!")
+                elif header[:4] != b"\xd0\xcf\x11\xe0":
+                    findings.append("file_type_mismatch")
+                    details.append("File does not match OLE (.ppt) signature!")
+                else:
+                    details.append("Legacy OLE signature valid ✅")
+        except Exception as e:
+            details.append("Header check error: " + str(e))
 
     details.append(
         "Technique 1 findings: " + str(len(findings))
@@ -467,7 +494,7 @@ def technique2_metadata(file_path):
 
     ext = os.path.splitext(file_path)[1].lower()
 
-    if ext not in [".pptx", ".ppsx", ".pptm", ".ppsm"]:
+    if ext not in [".pptx", ".ppsx", ".pptm", ".ppsm", ".potx", ".potm"]:
         details.append(
             "Old format — metadata check skipped"
         )
@@ -489,13 +516,14 @@ def technique2_metadata(file_path):
 
                 # Extract author
                 author_match = re.search(
-                    r'<dc:creator>(.*?)</dc:creator>',
-                    core_xml
+                    r'<dc:creator[^>]*>(.*?)</dc:creator>',
+                    core_xml,
+                    re.DOTALL
                 )
                 if author_match:
                     author = author_match.group(1).strip()
                     details.append(
-                        "Author: " + author
+                        "Author: " + (author or "EMPTY")
                     )
                     if author.lower() in SUSPICIOUS_AUTHORS:
                         findings.append("suspicious_author")
@@ -516,8 +544,9 @@ def technique2_metadata(file_path):
 
                 # Extract revision
                 rev_match = re.search(
-                    r'<cp:revision>(.*?)</cp:revision>',
-                    core_xml
+                    r'<cp:revision[^>]*>(.*?)</cp:revision>',
+                    core_xml,
+                    re.DOTALL
                 )
                 if rev_match:
                     revision = rev_match.group(1).strip()
@@ -535,14 +564,14 @@ def technique2_metadata(file_path):
 
                 # Extract dates
                 created_match = re.search(
-                    r'<dcterms:created[^>]*>(.*?)'
-                    r'</dcterms:created>',
-                    core_xml
+                    r'<dcterms:created[^>]*>(.*?)</dcterms:created>',
+                    core_xml,
+                    re.DOTALL
                 )
                 modified_match = re.search(
-                    r'<dcterms:modified[^>]*>(.*?)'
-                    r'</dcterms:modified>',
-                    core_xml
+                    r'<dcterms:modified[^>]*>(.*?)</dcterms:modified>',
+                    core_xml,
+                    re.DOTALL
                 )
                 if created_match:
                     details.append(
@@ -556,10 +585,9 @@ def technique2_metadata(file_path):
                     )
 
                 # Check if created = modified
-                # (never actually edited)
                 if (created_match and modified_match and
-                        created_match.group(1) ==
-                        modified_match.group(1)):
+                        created_match.group(1).strip() ==
+                        modified_match.group(1).strip()):
                     findings.append("metadata_mismatch")
                     details.append(
                         "Created = Modified timestamp — "
@@ -579,11 +607,12 @@ def technique2_metadata(file_path):
                 ).decode("utf-8", errors="ignore")
 
                 app_match = re.search(
-                    r'<Application>(.*?)</Application>',
-                    app_xml
+                    r'<Application[^>]*>(.*?)</Application>',
+                    app_xml,
+                    re.DOTALL
                 )
                 if app_match:
-                    app = app_match.group(1)
+                    app = app_match.group(1).strip()
                     details.append(
                         "Application: " + app
                     )
@@ -627,9 +656,11 @@ def technique3_macro_detection(file_path):
         "--- TECHNIQUE 3: MACRO DETECTION ---"
     )
 
+    macro_detected = False
+
     # Check for vbaProject.bin in ZIP
     ext = os.path.splitext(file_path)[1].lower()
-    if ext in [".pptx", ".ppsx", ".pptm", ".ppsm"]:
+    if ext in [".pptx", ".ppsx", ".pptm", ".ppsm", ".potx", ".potm"]:
         try:
             if zipfile.is_zipfile(file_path):
                 with zipfile.ZipFile(
@@ -637,9 +668,7 @@ def technique3_macro_detection(file_path):
                 ) as z:
                     names = z.namelist()
                     if "ppt/vbaProject.bin" in names:
-                        findings.append(
-                            "vba_macro_detected"
-                        )
+                        macro_detected = True
                         details.append(
                             "vbaProject.bin found — "
                             "VBA macros present!"
@@ -652,7 +681,7 @@ def technique3_macro_detection(file_path):
                     else:
                         details.append(
                             "No vbaProject.bin — "
-                            "no VBA macros ✅"
+                            "no VBA macros in ZIP ✅"
                         )
         except Exception as e:
             details.append("ZIP error: " + str(e))
@@ -661,38 +690,42 @@ def technique3_macro_detection(file_path):
     if OLETOOLS_AVAILABLE:
         try:
             vba_parser = VBA_Parser(file_path)
-
-            if vba_parser.detect_vba_macros():
-                findings.append("vba_macro_detected")
-                details.append(
-                    "oletools: VBA macros confirmed!"
-                )
-
-                for (
-                    filename, stream_path,
-                    vba_filename, vba_code
-                ) in vba_parser.extract_macros():
+            try:
+                if vba_parser.detect_vba_macros():
+                    macro_detected = True
                     details.append(
-                        "Macro in: " + str(vba_filename)
+                        "oletools: VBA macros confirmed!"
                     )
-                    vba_content += vba_code
 
-                    # Check for PPT auto-run names
-                    code_lower = vba_code.lower()
-                    for name in PPT_AUTOOPEN_NAMES:
-                        if name in code_lower:
-                            findings.append("ppt_autoopen")
-                            details.append(
-                                "CRITICAL: Auto-run macro: '" +
-                                name + "'"
-                            )
+                    extracted_code = ""
+                    for (
+                        filename, stream_path,
+                        vba_filename, vba_code
+                    ) in vba_parser.extract_macros():
+                        details.append(
+                            "Macro in: " + str(vba_filename)
+                        )
+                        extracted_code += vba_code + "\n"
 
-            else:
-                details.append(
-                    "oletools: No macros detected ✅"
-                )
+                        # Check for PPT auto-run names
+                        code_lower = vba_code.lower()
+                        for name in PPT_AUTOOPEN_NAMES:
+                            if name in code_lower and "ppt_autoopen" not in findings:
+                                findings.append("ppt_autoopen")
+                                details.append(
+                                    "CRITICAL: Auto-run macro: '" +
+                                    name + "'"
+                                )
 
-            vba_parser.close()
+                    if extracted_code:
+                        vba_content = extracted_code
+
+                else:
+                    details.append(
+                        "oletools: No macros detected ✅"
+                    )
+            finally:
+                vba_parser.close()
 
         except Exception as e:
             details.append(
@@ -703,6 +736,9 @@ def technique3_macro_detection(file_path):
             "oletools not available — "
             "install with: pip install oletools"
         )
+
+    if macro_detected:
+        findings.append("vba_macro_detected")
 
     details.append(
         "Technique 3 findings: " + str(len(findings))
@@ -818,6 +854,16 @@ def technique4_vba_behavior(vba_content):
             "CRITICAL: Shell command with EXE/CMD!"
         )
 
+    # Static De-Obfuscation Pipeline
+    if DEOBFUSCATOR_AVAILABLE and vba_content:
+        try:
+            deob_res = run_deobfuscation_pipeline(vba_content)
+            if deob_res.get("deobfuscation_applied"):
+                findings.extend(deob_res.get("new_findings", []))
+                details.extend(deob_res.get("details", []))
+        except Exception as e:
+            details.append("Deobfuscator error: " + str(e))
+
     if not findings:
         details.append(
             "No dangerous VBA behavior detected ✅"
@@ -853,7 +899,7 @@ def technique5_animation_triggers(file_path):
 
     ext = os.path.splitext(file_path)[1].lower()
     if ext not in [
-        ".pptx", ".ppsx", ".pptm", ".ppsm"
+        ".pptx", ".ppsx", ".pptm", ".ppsm", ".potx", ".potm",
     ]:
         details.append(
             "Old format — animation check skipped"
@@ -900,6 +946,7 @@ def technique5_animation_triggers(file_path):
                             "Slide " + snum +
                             ": timing/animation found"
                         )
+                        has_suspicious_anim = False
 
                         # Check for cmd trigger
                         if "<p:cmd" in slide_xml:
@@ -910,22 +957,29 @@ def technique5_animation_triggers(file_path):
                                 "CRITICAL: Slide " + snum +
                                 " has command trigger!"
                             )
+                            has_suspicious_anim = True
 
-                        # Check zero delay trigger
+                        # Check zero delay trigger on command / action / media nodes
+                        has_auto_action = (
+                            "<p:cmd" in slide_xml or
+                            "ppaction://" in slide_xml.lower() or
+                            "<p:cMediaNode" in slide_xml
+                        )
                         zero_delay = re.search(
                             r'<p:cTn[^>]*delay="0"',
                             slide_xml
                         )
-                        if zero_delay:
+                        if zero_delay and has_auto_action:
                             findings.append(
                                 "zero_delay_trigger"
                             )
                             details.append(
                                 "Slide " + snum +
-                                ": zero-delay trigger found!"
+                                ": zero-delay action trigger found!"
                             )
+                            has_suspicious_anim = True
 
-                        # Check mouseover trigger
+                        # Check mouseover trigger in timing
                         if (
                             "mouseover" in
                             slide_xml.lower() or
@@ -939,9 +993,10 @@ def technique5_animation_triggers(file_path):
                                 "Slide " + snum +
                                 ": mouseover trigger found!"
                             )
+                            has_suspicious_anim = True
 
-                        # Generic suspicious animation
-                        if "<p:timing>" in slide_xml:
+                        # Generic suspicious animation if risky triggers present
+                        if has_suspicious_anim:
                             findings.append(
                                 "suspicious_animation"
                             )
@@ -990,7 +1045,7 @@ def technique6_embedded_objects(file_path):
 
     ext = os.path.splitext(file_path)[1].lower()
     if ext not in [
-        ".pptx", ".ppsx", ".pptm", ".ppsm"
+        ".pptx", ".ppsx", ".pptm", ".ppsm", ".potx", ".potm",
     ]:
         details.append(
             "Old format — embedded check limited"
@@ -1015,6 +1070,7 @@ def technique6_embedded_objects(file_path):
                 str(len(embedded))
             )
 
+            has_ole = False
             for emb in embedded:
                 emb_lower = emb.lower()
                 details.append(
@@ -1023,9 +1079,7 @@ def technique6_embedded_objects(file_path):
 
                 # Check for OLE objects
                 if emb_lower.endswith(".bin"):
-                    findings.append(
-                        "embedded_ole_object"
-                    )
+                    has_ole = True
                     details.append(
                         "OLE object: " + emb
                     )
@@ -1053,6 +1107,9 @@ def technique6_embedded_objects(file_path):
                         findings.append(
                             "mz_header_found"
                         )
+                        findings.append(
+                            "embedded_executable"
+                        )
                         details.append(
                             "CRITICAL: MZ header (EXE) "
                             "found in: " + emb
@@ -1060,7 +1117,8 @@ def technique6_embedded_objects(file_path):
                 except Exception:
                     pass
 
-            # Check for package objects in slides
+            # Check for package objects and OLE objects in slides
+            has_package = False
             for slide_file in names:
                 if not re.match(
                     r'ppt/slides/slide\d+\.xml',
@@ -1073,24 +1131,20 @@ def technique6_embedded_objects(file_path):
                     ).decode("utf-8", errors="ignore")
 
                     if (
-                        "oleobj" in slide_xml.lower() or
-                        "oleobject" in slide_xml.lower()
+                        "<p:oleObj" in slide_xml or
+                        "<oleObject" in slide_xml
                     ):
-                        findings.append(
-                            "embedded_ole_object"
-                        )
+                        has_ole = True
                         details.append(
-                            "OLE object reference in: " +
-                            slide_file
+                            "OLE object in: " + slide_file
                         )
 
-                    # Check for actual OLE package objects
-                    # Not just the word "package" in XML
-                    if (
-                        "<p:oleObj" in slide_xml or
-                        "oleObject" in slide_xml
+                    # Check for actual OLE package objects (progId="Package" or Packager)
+                    if re.search(
+                        r'progId="(?i:Package|Packager|Shell)"',
+                        slide_xml
                     ):
-                        findings.append("package_object")
+                        has_package = True
                         details.append(
                             "OLE package object in: " +
                             slide_file
@@ -1098,6 +1152,11 @@ def technique6_embedded_objects(file_path):
 
                 except Exception:
                     pass
+
+            if has_ole:
+                findings.append("embedded_ole_object")
+            if has_package:
+                findings.append("package_object")
 
     except Exception as e:
         details.append(
@@ -1134,7 +1193,7 @@ def technique7_external_links(file_path):
 
     ext = os.path.splitext(file_path)[1].lower()
     if ext not in [
-        ".pptx", ".ppsx", ".pptm", ".ppsm"
+        ".pptx", ".ppsx", ".pptm", ".ppsm", ".potx", ".potm",
     ]:
         details.append(
             "Old format — skipping"
@@ -1165,50 +1224,60 @@ def technique7_external_links(file_path):
                         rel_file
                     ).decode("utf-8", errors="ignore")
 
-                    # Find all external relationships
-                    ext_pattern = re.compile(
-                        r'TargetMode="External"[^>]*'
-                        r'Target="([^"]+)"'
-                        r'|Target="([^"]+)"[^>]*'
-                        r'TargetMode="External"'
+                    # Find all relationship tags
+                    rel_tags = re.findall(
+                        r'<Relationship\s+[^>]+>',
+                        rel_xml,
+                        re.IGNORECASE
                     )
 
-                    for match in ext_pattern.finditer(
-                        rel_xml
-                    ):
-                        url = (
-                            match.group(1) or
-                            match.group(2) or ""
-                        ).strip()
+                    for rel_tag in rel_tags:
+                        if not re.search(r'targetmode=["\']external["\']', rel_tag, re.IGNORECASE):
+                            continue
 
+                        target_match = re.search(
+                            r'Target=["\']([^"\']+)["\']',
+                            rel_tag,
+                            re.IGNORECASE
+                        )
+                        if not target_match:
+                            continue
+
+                        url = target_match.group(1).strip()
                         if not url:
                             continue
 
                         if is_safe_domain(url):
                             continue
 
+                        type_match = re.search(
+                            r'Type=["\']([^"\']+)["\']',
+                            rel_tag,
+                            re.IGNORECASE
+                        )
+                        rel_type = type_match.group(1).lower() if type_match else ""
+
                         details.append(
                             "External link: " + url
                         )
-                        findings.append(
-                            "external_relationship"
-                        )
 
-                        # Check for template injection
-                        rel_type_match = re.search(
-                            r'Type="([^"]+)"',
-                            rel_xml
-                        )
-                        if rel_type_match:
-                            rel_type = rel_type_match.group(1)
-                            if "template" in rel_type.lower():
-                                findings.append(
-                                    "template_injection"
-                                )
-                                details.append(
-                                    "CRITICAL: External template "
-                                    "injection: " + url
-                                )
+                        # Check for template injection in this specific relationship
+                        if (
+                            "template" in rel_type or
+                            "attachedtemplate" in rel_type
+                        ):
+                            findings.append(
+                                "template_injection"
+                            )
+                            details.append(
+                                "CRITICAL: External template "
+                                "injection: " + url
+                            )
+                        elif "hyperlink" not in rel_type:
+                            # Non-hyperlink external resource (e.g. oleObject, subdocument, etc.)
+                            findings.append(
+                                "external_relationship"
+                            )
 
                         # Analyze URL threat
                         url_findings, url_details = (
@@ -1282,7 +1351,7 @@ def technique8_phishing_content(file_path):
     if (PPTX_AVAILABLE and
             ext in [
                 ".pptx", ".ppsx",
-                ".pptm", ".ppsm"
+                ".pptm", ".ppsm", ".potx", ".potm",
             ]):
         try:
             prs = Presentation(file_path)
@@ -1292,24 +1361,23 @@ def technique8_phishing_content(file_path):
             ):
                 for shape in slide.shapes:
                     if shape.has_text_frame:
-                        for para in (
-                            shape.text_frame.paragraphs
-                        ):
-                            for run in para.runs:
-                                slide_text += (
-                                    run.text + " "
-                                )
+                        slide_text += shape.text_frame.text + " "
+                    if shape.has_table:
+                        for row in shape.table.rows:
+                            for cell in row.cells:
+                                slide_text += cell.text_frame.text + " "
 
-            details.append(
-                "Text extracted via python-pptx ✅"
-            )
+            if slide_text.strip():
+                details.append(
+                    "Text extracted via python-pptx ✅"
+                )
 
         except Exception as e:
             details.append(
                 "python-pptx error: " + str(e)
             )
 
-    # Method 2 — ZIP XML extraction fallback
+    # Method 2 — ZIP XML extraction fallback or supplement
     if not slide_text:
         try:
             if zipfile.is_zipfile(file_path):
@@ -1332,9 +1400,10 @@ def technique8_phishing_content(file_path):
                                 text_matches
                             ) + " "
 
-                details.append(
-                    "Text extracted via XML ✅"
-                )
+                if slide_text.strip():
+                    details.append(
+                        "Text extracted via XML ✅"
+                    )
 
         except Exception as e:
             details.append(
@@ -1356,9 +1425,10 @@ def technique8_phishing_content(file_path):
     )
 
     text_lower     = slide_text.lower()
-    urgency_count  = 0
-    finance_count  = 0
-    cred_count     = 0
+    urgency_count      = 0
+    finance_count      = 0
+    cred_count         = 0
+    enable_macro_count = 0
 
     for category, keywords in PHISHING_KEYWORDS.items():
         for keyword in keywords:
@@ -1376,10 +1446,7 @@ def technique8_phishing_content(file_path):
                 elif category == "credential_harvesting":
                     cred_count += count
                 elif category == "macro_lure":
-                    findings.append("enable_macro_lure")
-                    details.append(
-                        "CRITICAL: Macro lure text found!"
-                    )
+                    enable_macro_count += count
 
     if urgency_count >= 2:
         findings.append("urgent_tone_detected")
@@ -1402,6 +1469,13 @@ def technique8_phishing_content(file_path):
             str(cred_count) + " phrases"
         )
 
+    if enable_macro_count >= 1:
+        findings.append("enable_macro_lure")
+        details.append(
+            "CRITICAL: Macro lure text found (" +
+            str(enable_macro_count) + " phrases) — tricks user into enabling macros!"
+        )
+
     if not findings:
         details.append(
             "No phishing content detected ✅"
@@ -1419,7 +1493,7 @@ def technique8_phishing_content(file_path):
 
 def technique9_url_detection(file_path):
     """
-    Finds and analyzes all URLs in slide content.
+    Finds and analyzes all URLs in slide content and slide relationships.
     """
     findings = []
     details  = []
@@ -1436,7 +1510,7 @@ def technique9_url_detection(file_path):
     if (PPTX_AVAILABLE and
             ext in [
                 ".pptx", ".ppsx",
-                ".pptm", ".ppsm"
+                ".pptm", ".ppsm", ".potx", ".potm",
             ]):
         try:
             prs = Presentation(file_path)
@@ -1451,40 +1525,48 @@ def technique9_url_detection(file_path):
                                     run.hyperlink and
                                     run.hyperlink.address
                                 ):
-                                    all_urls.append(
-                                        run.hyperlink.address
-                                    )
+                                    addr = run.hyperlink.address.strip()
+                                    if addr and addr not in all_urls:
+                                        all_urls.append(addr)
+                    if shape.has_table:
+                        for row in shape.table.rows:
+                            for cell in row.cells:
+                                for para in cell.text_frame.paragraphs:
+                                    for run in para.runs:
+                                        if (
+                                            run.hyperlink and
+                                            run.hyperlink.address
+                                        ):
+                                            addr = run.hyperlink.address.strip()
+                                            if addr and addr not in all_urls:
+                                                all_urls.append(addr)
 
         except Exception as e:
             details.append(
                 "python-pptx URL error: " + str(e)
             )
 
-    # Method 2 — regex URL extraction from XML
+    # Method 2 — URL extraction from slide rels and slide XML
     try:
         if zipfile.is_zipfile(file_path):
             with zipfile.ZipFile(file_path, "r") as z:
                 for name in z.namelist():
-                    if not re.match(
-                        r'ppt/slides/slide\d+\.xml',
-                        name
+                    if (
+                        re.match(r'ppt/slides/slide\d+\.xml', name) or
+                        re.match(r'ppt/slides/_rels/slide\d+\.xml\.rels', name)
                     ):
-                        continue
-                    xml = z.read(name).decode(
-                        "utf-8", errors="ignore"
-                    )
-                    url_pattern = re.compile(
-                        r'https?://[^\s<>"{}|\\^`\[\]]+'
-                    )
-                    for url in url_pattern.findall(xml):
-                        # Skip placeholder variables
-                        # and localhost references
-                        if "$" in url:
-                            continue
-                        if "localhost" in url.lower():
-                            continue
-                        if url not in all_urls:
-                            all_urls.append(url)
+                        xml = z.read(name).decode(
+                            "utf-8", errors="ignore"
+                        )
+                        url_pattern = re.compile(
+                            r'https?://[^\s<>"{}|\\^`\[\]]+'
+                        )
+                        for url in url_pattern.findall(xml):
+                            # Skip placeholder variables and localhost
+                            if "$" in url or "localhost" in url.lower():
+                                continue
+                            if url not in all_urls:
+                                all_urls.append(url)
 
     except Exception as e:
         details.append("XML URL error: " + str(e))
@@ -1544,7 +1626,7 @@ def technique10_hidden_slides(file_path):
 
     ext = os.path.splitext(file_path)[1].lower()
     if ext not in [
-        ".pptx", ".ppsx", ".pptm", ".ppsm"
+        ".pptx", ".ppsx", ".pptm", ".ppsm", ".potx", ".potm",
     ]:
         details.append(
             "Old format — hidden slide check skipped"
@@ -1570,10 +1652,11 @@ def technique10_hidden_slides(file_path):
                 "ppt/presentation.xml"
             ).decode("utf-8", errors="ignore")
 
-            # Find all sldIdLst entries
-            # show="0" means hidden slide
+            # Find all sldId entries
+            # show="0" or show="false" means hidden slide
             hidden_pattern = re.compile(
-                r'<p:sldId[^>]*show="0"[^>]*/>'
+                r'<p:sldId[^>]*show="(?:0|false)"[^>]*\/?>',
+                re.IGNORECASE
             )
             hidden_slides = hidden_pattern.findall(
                 prs_xml
@@ -1581,7 +1664,7 @@ def technique10_hidden_slides(file_path):
 
             # Count total slides
             total_pattern = re.compile(
-                r'<p:sldId[^/]*/>'
+                r'<p:sldId[^>]*\/?>'
             )
             total_slides = total_pattern.findall(
                 prs_xml
@@ -1603,7 +1686,26 @@ def technique10_hidden_slides(file_path):
                     " hidden slide(s) detected!"
                 )
 
-                # Check content of hidden slides
+                # Map r:id to actual slide file path via presentation.xml.rels
+                rid_to_slide = {}
+                if "ppt/_rels/presentation.xml.rels" in names:
+                    try:
+                        rels_xml = z.read("ppt/_rels/presentation.xml.rels").decode("utf-8", errors="ignore")
+                        for rel in re.finditer(r'<Relationship\s+[^>]*Id="([^"]+)"[^>]*Target="([^"]+)"', rels_xml, re.IGNORECASE):
+                            rid, target = rel.group(1), rel.group(2)
+                            target_norm = target.lstrip("/")
+                            if not target_norm.startswith("ppt/"):
+                                target_norm = "ppt/" + target_norm
+                            rid_to_slide[rid] = target_norm
+                    except Exception:
+                        pass
+
+                hidden_slide_files = []
+                for sld_tag in hidden_slides:
+                    rid_match = re.search(r'r:id="([^"]+)"', sld_tag, re.IGNORECASE)
+                    if rid_match and rid_match.group(1) in rid_to_slide:
+                        hidden_slide_files.append(rid_to_slide[rid_match.group(1)])
+
                 slide_files = [
                     n for n in names
                     if re.match(
@@ -1611,37 +1713,39 @@ def technique10_hidden_slides(file_path):
                     )
                 ]
 
-                # Check last N slides (likely hidden ones)
-                hidden_count = len(hidden_slides)
-                for slide_file in slide_files[
-                    -hidden_count:
-                ]:
-                    try:
-                        slide_xml = z.read(
-                            slide_file
-                        ).decode(
-                            "utf-8", errors="ignore"
-                        )
-                        text_matches = re.findall(
-                            r'<a:t>([^<]+)</a:t>',
-                            slide_xml
-                        )
-                        text = " ".join(
-                            text_matches
-                        ).strip()
+                # Fallback to all slide files if rels resolution was unavailable
+                if not hidden_slide_files:
+                    hidden_slide_files = slide_files
 
-                        if text:
-                            findings.append(
-                                "hidden_slide_with_content"
+                for slide_file in hidden_slide_files:
+                    if slide_file in names:
+                        try:
+                            slide_xml = z.read(
+                                slide_file
+                            ).decode(
+                                "utf-8", errors="ignore"
                             )
-                            details.append(
-                                "CRITICAL: Hidden slide "
-                                "has content: " +
-                                text[:100]
+                            text_matches = re.findall(
+                                r'<a:t>([^<]+)</a:t>',
+                                slide_xml
                             )
+                            text = " ".join(
+                                text_matches
+                            ).strip()
 
-                    except Exception:
-                        pass
+                            if text:
+                                findings.append(
+                                    "hidden_slide_with_content"
+                                )
+                                details.append(
+                                    "CRITICAL: Hidden slide "
+                                    "has content: " +
+                                    text[:100]
+                                )
+                                break
+
+                        except Exception:
+                            pass
             else:
                 details.append(
                     "No hidden slides found ✅"
@@ -1675,20 +1779,19 @@ def technique11_obfuscation(file_path, vba_content):
         "--- TECHNIQUE 11: OBFUSCATION DETECTION ---"
     )
 
-    # Check VBA content
-    content_to_check = vba_content
+    content_to_check = vba_content or ""
 
-    # Also check slide XML content
+    # Check slide text content
     ext = os.path.splitext(file_path)[1].lower()
     try:
         if (ext in [
-            ".pptx", ".ppsx", ".pptm", ".ppsm"
+            ".pptx", ".ppsx", ".pptm", ".ppsm", ".potx", ".potm",
         ] and zipfile.is_zipfile(file_path)):
             with zipfile.ZipFile(
                 file_path, "r"
             ) as z:
                 for name in z.namelist():
-                    if name.endswith(".xml"):
+                    if re.match(r'ppt/slides/slide\d+\.xml', name):
                         try:
                             content_to_check += z.read(
                                 name
@@ -1708,9 +1811,9 @@ def technique11_obfuscation(file_path, vba_content):
         )
         return findings, details
 
-    # Check 1 — Base64 strings
+    # Check 1 — Base64 strings (in VBA or slide text)
     b64_pattern = re.compile(
-        r'[A-Za-z0-9+/]{40,}={0,2}'
+        r'[A-Za-z0-9+/]{60,}={0,2}'
     )
     b64_matches = b64_pattern.findall(content_to_check)
     if b64_matches:
@@ -1725,7 +1828,7 @@ def technique11_obfuscation(file_path, vba_content):
 
     # Check 2 — Chr() concatenation
     chr_pattern = re.compile(
-        r'chr\(\d+\)', re.IGNORECASE
+        r'chr[w\$]?\(\s*\d+\s*\)', re.IGNORECASE
     )
     chr_matches = chr_pattern.findall(
         content_to_check
@@ -1739,7 +1842,7 @@ def technique11_obfuscation(file_path, vba_content):
 
     # Check 3 — String splitting
     split_patterns = [
-        r'"[a-z]{2,4}"\s*&\s*"[a-z]{2,4}"',
+        r'"[a-zA-Z]{1,4}"\s*&\s*"[a-zA-Z]{1,4}"',
         r'"pow"\s*&\s*"er"',
         r'"cmd"\s*&\s*"\.exe"',
     ]
@@ -1761,9 +1864,9 @@ def technique11_obfuscation(file_path, vba_content):
     if vba_content:
         lines = vba_content.split("\n")
         for line in lines:
-            if len(line) > 50:
+            if len(line.strip()) > 50:
                 entropy = calculate_entropy(
-                    line.encode()
+                    line.strip().encode()
                 )
                 if entropy > 5.5:
                     findings.append(
@@ -1796,9 +1899,9 @@ def technique12_action_buttons(file_path):
     This technique is UNIQUE to PowerPoint files!
 
     Common attack:
-    Invisible button covers entire slide.
+    Invisible button covers slide.
     Victim clicks anywhere.
-    Button runs malware silently.
+    Button runs malware or macro silently.
     """
     findings = []
     details  = []
@@ -1810,7 +1913,7 @@ def technique12_action_buttons(file_path):
 
     ext = os.path.splitext(file_path)[1].lower()
     if ext not in [
-        ".pptx", ".ppsx", ".pptm", ".ppsm"
+        ".pptx", ".ppsx", ".pptm", ".ppsm", ".potx", ".potm",
     ]:
         details.append(
             "Old format — action button check skipped"
@@ -1846,37 +1949,36 @@ def technique12_action_buttons(file_path):
                         if slide_num else "?"
                     )
 
-                    # Check for action settings
-                    if "<p:ph" not in slide_xml:
+                    # Check for shape click action (on shape non-visual properties or explicit action)
+                    has_shape_click = bool(
+                        re.search(r'<p:cNv(?:Sp)?Pr\b[^>]*>.*?<a:hlinkClick\b', slide_xml, re.DOTALL | re.IGNORECASE) or
+                        re.search(r'<a:hlinkClick\b[^>]*action=', slide_xml, re.IGNORECASE)
+                    )
+                    if has_shape_click:
+                        findings.append(
+                            "action_button_found"
+                        )
+                        details.append(
+                            "Slide " + snum +
+                            ": click action button found on shape"
+                        )
 
-                        # hlinkClick = hyperlink on click
-                        if "hlinkClick" in slide_xml:
-                            findings.append(
-                                "action_button_found"
-                            )
-                            details.append(
-                                "Slide " + snum +
-                                ": click action found"
-                            )
-
-                        # hlinkMouseOver = on hover
-                        if (
-                            "hlinkMouseOver" in
-                            slide_xml
-                        ):
-                            findings.append(
-                                "mouseover_action"
-                            )
-                            details.append(
-                                "CRITICAL: Slide " + snum +
-                                ": mouseover action found!"
-                            )
+                    # Check for shape mouseover action
+                    has_shape_hover = bool(
+                        re.search(r'<p:cNv(?:Sp)?Pr\b[^>]*>.*?<a:hlinkMouseOver\b', slide_xml, re.DOTALL | re.IGNORECASE) or
+                        re.search(r'<a:hlinkMouseOver\b[^>]*action=', slide_xml, re.IGNORECASE)
+                    )
+                    if has_shape_hover:
+                        findings.append(
+                            "mouseover_action"
+                        )
+                        details.append(
+                            "CRITICAL: Slide " + snum +
+                            ": mouseover action found!"
+                        )
 
                     # Check for run macro action
-                    if (
-                        "ppaction://macro" in
-                        slide_xml.lower()
-                    ):
+                    if "ppaction://macro" in slide_xml.lower():
                         findings.append(
                             "macro_action_button"
                         )
@@ -1885,13 +1987,8 @@ def technique12_action_buttons(file_path):
                             ": macro trigger button!"
                         )
 
-                    # Check for run program action
-                    if (
-                        "ppaction://hlinksldjump" in
-                        slide_xml.lower() or
-                        "ppaction://program" in
-                        slide_xml.lower()
-                    ):
+                    # Check for run program action (Note: hlinksldjump is benign slide jump)
+                    if "ppaction://program" in slide_xml.lower():
                         findings.append(
                             "run_program_action"
                         )
@@ -1900,25 +1997,42 @@ def technique12_action_buttons(file_path):
                             ": run program action!"
                         )
 
-                    # Check for invisible shapes
-                    # (no fill, no line = invisible)
-                    # Only flag invisible button if it
-                    # ALSO has an action attached
-                    # noFill alone = normal design element
-                    has_no_fill = "<a:noFill/>" in slide_xml
-                    has_action  = (
-                        "hlinkClick" in slide_xml or
-                        "hlinkMouseOver" in slide_xml or
-                        "ppaction://" in slide_xml.lower()
+                    # Check for invisible shapes with actions
+                    # Extract shape blocks <p:sp>...</p:sp>
+                    shape_blocks = re.findall(
+                        r'<p:sp\b[^>]*>.*?</p:sp>',
+                        slide_xml,
+                        re.DOTALL
                     )
-                    if has_no_fill and has_action:
-                        findings.append(
-                            "invisible_button"
+                    for shape_xml in shape_blocks:
+                        # Has action?
+                        shape_has_action = (
+                            "hlinkclick" in shape_xml.lower() or
+                            "hlinkmouseover" in shape_xml.lower() or
+                            "ppaction://" in shape_xml.lower()
                         )
-                        details.append(
-                            "Slide " + snum +
-                            ": invisible button WITH action!"
+                        if not shape_has_action:
+                            continue
+
+                        # Check if shape has text (visible text = normal button, not invisible trap)
+                        text_matches = re.findall(
+                            r'<a:t>([^<]+)</a:t>',
+                            shape_xml
                         )
+                        has_text = bool("".join(text_matches).strip())
+
+                        # Check for noFill / transparent fill
+                        has_no_fill = "<a:noFill/>" in shape_xml or "<a:noFill " in shape_xml
+
+                        if has_no_fill and not has_text:
+                            findings.append(
+                                "invisible_button"
+                            )
+                            details.append(
+                                "Slide " + snum +
+                                ": invisible button WITH action (no text, no fill)!"
+                            )
+                            break
 
                 except Exception as e:
                     details.append(
@@ -1960,7 +2074,7 @@ def technique13_media_files(file_path):
 
     ext = os.path.splitext(file_path)[1].lower()
     if ext not in [
-        ".pptx", ".ppsx", ".pptm", ".ppsm"
+        ".pptx", ".ppsx", ".pptm", ".ppsm", ".potx", ".potm",
     ]:
         details.append(
             "Old format — media check skipped"
@@ -2043,12 +2157,15 @@ def technique13_media_files(file_path):
                         findings.append(
                             "embedded_executable"
                         )
+                        findings.append(
+                            "mz_header_found"
+                        )
                         details.append(
                             "CRITICAL: EXE header in " +
                             media_name + "!"
                         )
 
-                    # Check for large media files
+                    # Check for large media files (> 10MB)
                     if size_kb > 10240:
                         findings.append(
                             "large_media_file"
@@ -2059,19 +2176,20 @@ def technique13_media_files(file_path):
                             " (" + str(size_kb) + " KB)"
                         )
 
-                    # Check entropy
-                    entropy = calculate_entropy(
-                        content[:2000]
-                    )
-                    if entropy > 7.9:
-                        findings.append(
-                            "high_entropy_media"
+                    # Check entropy for non-standard or suspicious media
+                    if media_ext not in [".png", ".jpg", ".jpeg", ".mp4", ".mp3", ".webp"]:
+                        entropy = calculate_entropy(
+                            content[:2000]
                         )
-                        details.append(
-                            "High entropy media: " +
-                            media_name +
-                            " (" + str(entropy) + ")"
-                        )
+                        if entropy > 7.9:
+                            findings.append(
+                                "high_entropy_media"
+                            )
+                            details.append(
+                                "High entropy media: " +
+                                media_name +
+                                " (" + str(entropy) + ")"
+                            )
 
                 except Exception as e:
                     details.append(
@@ -2115,19 +2233,16 @@ def technique14_attack_chain(all_findings):
     # Chain 1 — Dropper attack
     if (
         "vba_macro_detected" in fs and
-        "shell_command" in fs
+        ("shell_command" in fs or "process_creation" in fs or "powershell_in_vba" in fs)
     ):
         findings.append("dropper_pattern")
         details.append(
             "ATTACK CHAIN: Macro present -> "
-            "Shell command -> Dropper attack!"
+            "Shell/Process execution -> Dropper attack!"
         )
 
     # Chain 2 — Remote template injection
-    if (
-        "template_injection" in fs or
-        "external_relationship" in fs
-    ):
+    if "template_injection" in fs:
         findings.append("remote_template_attack")
         details.append(
             "ATTACK CHAIN: External template -> "
@@ -2161,20 +2276,31 @@ def technique14_attack_chain(all_findings):
 
     # Chain 5 — Click to execute
     if (
-        "action_button_found" in fs or
-        "macro_action_button" in fs
+        "macro_action_button" in fs or
+        "run_program_action" in fs or
+        ("action_button_found" in fs and (
+            "vba_macro_detected" in fs or
+            "suspicious_url" in fs or
+            "suspicious_external_url" in fs or
+            "embedded_executable" in fs or
+            "mz_header_found" in fs
+        ))
     ):
         findings.append("click_execute_chain")
         details.append(
             "ATTACK CHAIN: Action button -> "
-            "Victim clicks -> "
+            "Victim interaction -> "
             "Malware executes!"
         )
 
     # Chain 6 — Multistage
     if (
         "base64_payload" in fs and
-        "network_call_in_vba" in fs
+        (
+            "network_call_in_vba" in fs or
+            "suspicious_external_url" in fs or
+            "template_injection" in fs
+        )
     ):
         findings.append("multistage_indicator")
         details.append(
@@ -2218,6 +2344,13 @@ def parse_ppt(file_path):
     all_findings = []
     all_details  = []
     sha256_hash  = ""
+
+    if not file_path or not os.path.exists(file_path):
+        return {
+            "findings": ["invalid_ppt_format"],
+            "details": ["File not found or invalid path: " + str(file_path)],
+            "sha256": "",
+        }
 
     try:
 

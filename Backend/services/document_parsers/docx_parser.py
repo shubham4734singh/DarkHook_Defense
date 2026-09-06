@@ -50,6 +50,13 @@ try:
 except ImportError:
     OLETOOLS_AVAILABLE = False
 
+try:
+    from .deobfuscator import run_deobfuscation_pipeline
+    DEOBFUSCATOR_AVAILABLE = True
+except ImportError:
+    from services.document_parsers.deobfuscator import run_deobfuscation_pipeline
+    DEOBFUSCATOR_AVAILABLE = True
+
 
 # ================================================================
 # CONFIGURATION — Keywords and patterns
@@ -711,128 +718,135 @@ def techniques3456_macro_analysis(file_path):
 
     try:
         vba = VBA_Parser(file_path)
-
-        # -----------------------------------------------
-        # TECHNIQUE 3 — Macro presence
-        # -----------------------------------------------
-
-        if not vba.detect_vba_macros():
-            details.append("Technique 3: No VBA macros detected")
-            vba.close()
-            return findings, details
-
-        findings.append("malicious_macro")
-        details.append("Technique 3: VBA macros DETECTED!")
-
-        # Check for hidden macro streams
         try:
-            results = vba.analyze_macros()
-            for kw_type, kw_keyword, kw_description in results:
-                if "suspicious" in kw_type.lower():
-                    findings.append("hidden_macro_stream")
+            # -----------------------------------------------
+            # TECHNIQUE 3 — Macro presence
+            # -----------------------------------------------
+
+            if not vba.detect_vba_macros():
+                details.append("Technique 3: No VBA macros detected")
+                return findings, details
+
+            findings.append("malicious_macro")
+            details.append("Technique 3: VBA macros DETECTED!")
+
+            # Check for hidden macro streams
+            try:
+                results = vba.analyze_macros()
+                for kw_type, kw_keyword, kw_description in results:
+                    if "suspicious" in kw_type.lower():
+                        findings.append("hidden_macro_stream")
+                        details.append(
+                            "Hidden/suspicious stream: " + str(kw_description)
+                        )
+            except Exception:
+                pass
+
+            # Extract all macro code
+            all_vba_code = ""
+            for (filename, stream_path,
+                 vba_filename, vba_code) in vba.extract_macros():
+                all_vba_code += vba_code.lower() + "\n"
+
+            # -----------------------------------------------
+            # TECHNIQUE 4 — Auto-execution detection
+            # -----------------------------------------------
+
+            for auto_name in AUTOOPEN_NAMES:
+                if auto_name in all_vba_code:
+                    findings.append("autoopen_macro")
                     details.append(
-                        "Hidden/suspicious stream: " + str(kw_description)
+                        "Technique 4: AutoOpen macro: '" +
+                        auto_name + "' — RUNS ON DOCUMENT OPEN!"
                     )
-        except Exception:
-            pass
 
-        # Extract all macro code
-        all_vba_code = ""
-        for (filename, stream_path,
-             vba_filename, vba_code) in vba.extract_macros():
-            all_vba_code += vba_code.lower() + "\n"
+            # -----------------------------------------------
+            # TECHNIQUE 5 — VBA behavior analysis
+            # -----------------------------------------------
 
-        # -----------------------------------------------
-        # TECHNIQUE 4 — Auto-execution detection
-        # -----------------------------------------------
+            for category, apis in DANGEROUS_VBA_APIS.items():
+                for api in apis:
+                    if api in all_vba_code:
+                        if category == "shell_execution":
+                            findings.append("suspicious_vba_api")
+                            details.append("Technique 5 [Shell]: " + api)
+                        elif category == "powershell":
+                            findings.append("powershell_in_vba")
+                            details.append("Technique 5 [PowerShell]: " + api)
+                        elif category == "network_calls":
+                            findings.append("network_call_in_vba")
+                            details.append("Technique 5 [Network]: " + api)
+                        elif category == "file_system":
+                            findings.append("file_system_access")
+                            details.append("Technique 5 [FileSystem]: " + api)
+                        elif category == "registry":
+                            findings.append("registry_access")
+                            details.append("Technique 5 [Registry]: " + api)
+                        elif category == "process_creation":
+                            findings.append("process_creation")
+                            details.append("Technique 5 [Process]: " + api)
 
-        for auto_name in AUTOOPEN_NAMES:
-            if auto_name in all_vba_code:
-                findings.append("autoopen_macro")
+            # -----------------------------------------------
+            # TECHNIQUE 6 — Obfuscation detection
+            # -----------------------------------------------
+
+            # Check 1 — Base64 encoded strings
+            b64_pattern = re.compile(r'[A-Za-z0-9+/]{50,}={0,2}')
+            b64_matches = b64_pattern.findall(all_vba_code)
+            if b64_matches:
+                findings.append("encoded_macro_payload")
                 details.append(
-                    "Technique 4: AutoOpen macro: '" +
-                    auto_name + "' — RUNS ON DOCUMENT OPEN!"
+                    "Technique 6 [Base64]: " + b64_matches[0][:50] + "..."
                 )
 
-        # -----------------------------------------------
-        # TECHNIQUE 5 — VBA behavior analysis
-        # -----------------------------------------------
-
-        for category, apis in DANGEROUS_VBA_APIS.items():
-            for api in apis:
-                if api in all_vba_code:
-                    if category == "shell_execution":
-                        findings.append("suspicious_vba_api")
-                        details.append("Technique 5 [Shell]: " + api)
-                    elif category == "powershell":
-                        findings.append("powershell_in_vba")
-                        details.append("Technique 5 [PowerShell]: " + api)
-                    elif category == "network_calls":
-                        findings.append("network_call_in_vba")
-                        details.append("Technique 5 [Network]: " + api)
-                    elif category == "file_system":
-                        findings.append("file_system_access")
-                        details.append("Technique 5 [FileSystem]: " + api)
-                    elif category == "registry":
-                        findings.append("registry_access")
-                        details.append("Technique 5 [Registry]: " + api)
-                    elif category == "process_creation":
-                        findings.append("process_creation")
-                        details.append("Technique 5 [Process]: " + api)
-
-        # -----------------------------------------------
-        # TECHNIQUE 6 — Obfuscation detection
-        # -----------------------------------------------
-
-        # Check 1 — Base64 encoded strings
-        b64_pattern = re.compile(r'[A-Za-z0-9+/]{50,}={0,2}')
-        b64_matches = b64_pattern.findall(all_vba_code)
-        if b64_matches:
-            findings.append("encoded_macro_payload")
-            details.append(
-                "Technique 6 [Base64]: " + b64_matches[0][:50] + "..."
-            )
-
-        # Check 2 — Hex encoded strings
-        hex_pattern = re.compile(r'[0-9a-f]{40,}')
-        hex_matches = hex_pattern.findall(all_vba_code)
-        if hex_matches:
-            findings.append("encoded_macro_payload")
-            details.append(
-                "Technique 6 [Hex]: " + hex_matches[0][:50] + "..."
-            )
-
-        # Check 3 — String concatenation obfuscation
-        concat_patterns = [
-            r'"\s*&\s*"',
-            r'chr\(\d+\)',
-            r'chrw\(\d+\)',
-        ]
-        for pattern in concat_patterns:
-            if re.search(pattern, all_vba_code):
-                findings.append("string_obfuscation")
+            # Check 2 — Hex encoded strings
+            hex_pattern = re.compile(r'[0-9a-f]{40,}')
+            hex_matches = hex_pattern.findall(all_vba_code)
+            if hex_matches:
+                findings.append("encoded_macro_payload")
                 details.append(
-                    "Technique 6 [Obfuscation]: String pattern: " + pattern
+                    "Technique 6 [Hex]: " + hex_matches[0][:50] + "..."
                 )
 
-        # Check 4 — High entropy
-        entropy = calculate_entropy(all_vba_code[:1000])
-        if entropy > 5.5:
-            findings.append("high_entropy_string")
-            details.append(
-                "Technique 6 [Entropy]: High entropy: " +
-                str(entropy) + " — obfuscated"
-            )
+            # Check 3 — String concatenation obfuscation
+            concat_patterns = [
+                r'"\s*&\s*"',
+                r'chr\(\d+\)',
+                r'chrw\(\d+\)',
+            ]
+            for pattern in concat_patterns:
+                if re.search(pattern, all_vba_code):
+                    findings.append("string_obfuscation")
+                    details.append(
+                        "Technique 6 [Obfuscation]: String pattern: " + pattern
+                    )
 
-        # Check 5 — Known malicious signatures
-        for signature in KNOWN_MACRO_SIGNATURES:
-            if signature in all_vba_code:
-                findings.append("known_macro_signature")
+            # Check 4 — High entropy
+            entropy = calculate_entropy(all_vba_code[:1000])
+            if entropy > 5.5:
+                findings.append("high_entropy_string")
                 details.append(
-                    "Technique 13 [Known Signature]: " + signature[:50]
+                    "Technique 6 [Entropy]: High entropy: " +
+                    str(entropy) + " — obfuscated"
                 )
 
-        vba.close()
+            # Check 5 — Known malicious signatures
+            for signature in KNOWN_MACRO_SIGNATURES:
+                if signature in all_vba_code:
+                    findings.append("known_macro_signature")
+                    details.append(
+                        "Technique 13 [Known Signature]: " + signature[:50]
+                    )
+
+            # Static De-Obfuscation Pipeline
+            if DEOBFUSCATOR_AVAILABLE and all_vba_code:
+                deob_res = run_deobfuscation_pipeline(all_vba_code)
+                if deob_res.get("deobfuscation_applied"):
+                    findings.extend(deob_res.get("new_findings", []))
+                    details.extend(deob_res.get("details", []))
+
+        finally:
+            vba.close()
 
     except Exception as e:
         details.append("Macro analysis error: " + str(e))
