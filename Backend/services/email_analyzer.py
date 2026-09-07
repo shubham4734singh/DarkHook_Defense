@@ -25,6 +25,13 @@ try:
 except Exception:  # pragma: no cover - optional dependency guard
     _OLETOOLS_AVAILABLE = False
 
+try:
+    from services.url_analyzer import url_analyzer as _url_analyzer
+    _URL_ANALYZER_AVAILABLE = True
+except Exception:  # pragma: no cover - optional dependency guard
+    _url_analyzer = None
+    _URL_ANALYZER_AVAILABLE = False
+
 logger = logging.getLogger(__name__)
 
 # ============================================================
@@ -387,6 +394,12 @@ SUSPICIOUS_VBA_KEYWORDS = (
     "shell", "wscript.shell", "createobject", "powershell",
 )
 
+# Cap on how many unique-domain clickable links get cross-checked against the URL
+# analyzer per email. Each check is a live network fetch + external ML call, so this
+# bounds worst-case scan latency and avoids hammering external services on emails
+# with dozens of tracking/marketing links.
+MAX_URLS_TO_CROSS_CHECK = 5
+
 
 class EmailAnalyzer:
     """Core orchestrator for DarkHook Defense email analysis."""
@@ -496,6 +509,65 @@ class EmailAnalyzer:
                     seen.add(url)
                     urls.append(url)
         return urls
+
+    def _extract_clickable_links(self, html_body: str, max_links: int = MAX_URLS_TO_CROSS_CHECK) -> List[str]:
+        """Return a small, deduplicated (by domain) set of actual clickable links from the
+        HTML body — i.e. what a recipient could actually click, not CSS/font/tracking-pixel
+        URLs incidentally present in the markup. Capped to avoid excessive live lookups."""
+        if not html_body or not _BS4_AVAILABLE:
+            return []
+
+        try:
+            soup = BeautifulSoup(html_body, "html.parser")
+        except Exception as exc:
+            logger.warning("Failed to parse HTML body for link extraction: %s", exc)
+            return []
+
+        seen_domains: set[str] = set()
+        links: List[str] = []
+        for anchor in soup.find_all("a", href=True):
+            href = anchor["href"].strip()
+            if not href or href.startswith(("mailto:", "tel:", "#")):
+                continue
+            domain = self._url_domain(href)
+            if not domain or domain in seen_domains:
+                continue
+            seen_domains.add(domain)
+            links.append(href)
+            if len(links) >= max_links:
+                break
+        return links
+
+    @staticmethod
+    def _score_links_via_url_analyzer(links: List[str]) -> Tuple[float, List[str]]:
+        """Cross-check clickable links against the URL analysis module. Returns the highest
+        risk score found (0.0-1.0) and any flags worth surfacing. Every call is isolated —
+        a single failing/slow URL never breaks or blocks the rest of the email scan."""
+        if not links or not _URL_ANALYZER_AVAILABLE:
+            return 0.0, []
+
+        best_score = 0
+        best_flags: List[str] = []
+
+        for link in links:
+            try:
+                result = _url_analyzer.scan_url(link)
+            except Exception as exc:
+                logger.warning("URL cross-check failed for %s: %s", link, exc)
+                continue
+
+            link_score = int(result.get("score", 0))
+            if link_score > best_score:
+                best_score = link_score
+                best_flags = [
+                    f"Linked URL flagged by URL analyzer ({link_score}/100, "
+                    f"{result.get('verdict', 'Unknown')}): {link}"
+                ]
+                top_risks = (result.get("analysis_details") or {}).get("top_risks") or []
+                if top_risks:
+                    best_flags.append("Linked URL risk factors: " + "; ".join(top_risks[:3]))
+
+        return best_score / 100.0, best_flags
 
     @staticmethod
     def _url_domain(value: str) -> Optional[str]:
@@ -687,6 +759,7 @@ class EmailAnalyzer:
         html_text_ratio: float,
         link_mismatch_count: int = 0,
         attachment_risk_count: int = 0,
+        url_risk_score: float = 0.0,
     ) -> Tuple[int, str]:
         """Fuse ML and heuristic signals into a risk score."""
         header_component = 1.0 if header_suspicious else 0.0
@@ -700,14 +773,16 @@ class EmailAnalyzer:
 
         link_component = min(1.0, link_mismatch_count * 0.5)
         attachment_component = min(1.0, attachment_risk_count * 0.5)
+        url_component = max(0.0, min(1.0, url_risk_score))
 
         combined = (
-            0.5 * ml_proba
+            0.4 * ml_proba
             + 0.15 * header_component
             + 0.1 * urgency_component
             + 0.05 * html_component
             + 0.1 * link_component
             + 0.1 * attachment_component
+            + 0.1 * url_component
         )
         score = int(round(max(0.0, min(1.0, combined)) * 100))
 
@@ -745,6 +820,10 @@ class EmailAnalyzer:
         body_flags.extend(link_mismatch_flags)
         body_flags.extend(attachment_risk_flags)
 
+        clickable_links = self._extract_clickable_links(html_body)
+        url_risk_score, url_risk_flags = self._score_links_via_url_analyzer(clickable_links)
+        body_flags.extend(url_risk_flags)
+
         model_input_text = text_body or HTML_TAG_REGEX.sub(" ", html_body)
         ml_proba = self._ml_phishing_probability(model_input_text)
 
@@ -755,6 +834,7 @@ class EmailAnalyzer:
             html_text_ratio=html_text_ratio,
             link_mismatch_count=len(link_mismatch_flags),
             attachment_risk_count=len(attachment_risk_flags),
+            url_risk_score=url_risk_score,
         )
 
         result: Dict[str, Any] = {
