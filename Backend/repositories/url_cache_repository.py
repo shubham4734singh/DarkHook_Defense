@@ -4,12 +4,21 @@ from core.database import get_collection
 
 class UrlCacheRepository:
     def __init__(self) -> None:
-        self.collection = get_collection("cached_url_scans")
+        self._collection = None
         self._indexes_ready = False
+
+    @property
+    def collection(self):
+        if self._collection is None:
+            try:
+                self._collection = get_collection("cached_url_scans")
+            except Exception:
+                return None
+        return self._collection
 
     def ensure_indexes(self) -> None:
         """Create unique and TTL indexes for cached URL scans."""
-        if self._indexes_ready:
+        if self._indexes_ready or self.collection is None:
             return
         try:
             # TTL index on expires_at to auto-delete expired documents
@@ -24,6 +33,8 @@ class UrlCacheRepository:
 
     def get_cached_scan(self, url: str) -> Dict[str, Any] | None:
         """Retrieve a cached scan result by URL."""
+        if self.collection is None:
+            return None
         self.ensure_indexes()
         try:
             return self.collection.find_one({"url": url})
@@ -33,6 +44,8 @@ class UrlCacheRepository:
 
     def save_cached_scan(self, url: str, result: dict, ttl_hours: int) -> None:
         """Save or update a scan result in the cache with a TTL."""
+        if self.collection is None:
+            return
         self.ensure_indexes()
         now = datetime.now(timezone.utc)
         expires_at = now + timedelta(hours=ttl_hours)

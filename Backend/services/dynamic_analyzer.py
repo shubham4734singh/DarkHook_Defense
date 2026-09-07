@@ -1,4 +1,5 @@
 import base64
+import hashlib
 import io
 import re
 import socket
@@ -9,16 +10,57 @@ from typing import Any
 from urllib.parse import urljoin, urlparse
 
 import requests
-from bs4 import BeautifulSoup
+import tldextract
+from bs4 import BeautifulSoup, Tag
 from PIL import Image, ImageDraw
 
 from core.config import settings
+
+_tld_extractor = tldextract.TLDExtract(include_psl_private_domains=True)
 
 DYNAMIC_USER_AGENT = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
     "AppleWebKit/537.36 (KHTML, like Gecko) "
     "Chrome/131.0.0.0 Safari/537.36 DarkHookDefense/1.0"
 )
+
+EXFILTRATION_SINKS = [
+    "api.telegram.org",
+    "discord.com/api/webhooks",
+    "discordapp.com/api/webhooks",
+    "formspree.io",
+    "formsubmit.co",
+    "firebaseio.com",
+    "webhook.site",
+]
+
+AUTHENTIC_BRAND_FAVICONS = {
+    # Microsoft 365 / Azure AD / Entra ID login favicon
+    "b68fd2548725646144ec5ee6b9d901c1": {
+        "brand": "Microsoft 365",
+        "allowed_domains": {"microsoft.com", "office.com", "live.com", "azure.com", "windows.net", "msauth.net", "microsoftonline.com"},
+    },
+    # Microsoft corporate favicon
+    "bfd093e42dfed48a0323ae8d8432a82b": {
+        "brand": "Microsoft",
+        "allowed_domains": {"microsoft.com", "office.com", "live.com", "azure.com", "windows.net", "msauth.net"},
+    },
+    # Google
+    "f3418a443e7d841097c714d69ec4bcb8": {
+        "brand": "Google",
+        "allowed_domains": {"google.com", "gmail.com", "gstatic.com", "google.co.in", "google.co.uk", "google.com.au"},
+    },
+    # PayPal
+    "e1528b5176081f0ed963ec8397bc8fd3": {
+        "brand": "PayPal",
+        "allowed_domains": {"paypal.com", "paypalobjects.com"},
+    },
+    # Binance
+    "43365839589fc348172246e108c1297c": {
+        "brand": "Binance",
+        "allowed_domains": {"binance.com", "bnbstatic.com"},
+    },
+}
 
 SUSPICIOUS_SCRIPT_PATTERNS = [
     "eval(",
@@ -46,10 +88,25 @@ def _get_hostname(url: str) -> str:
 def _get_base_domain(host: str) -> str:
     if not host:
         return ""
-    parts = host.split(".")
-    if len(parts) <= 2:
-        return host
-    return ".".join(parts[-2:])
+    ext = _tld_extractor(host)
+    if ext.domain and ext.suffix:
+        return f"{ext.domain}.{ext.suffix}"
+    return ext.domain or ext.suffix or host
+
+def _get_tag_attr_str(tag: Tag, attr: str, default: str = "") -> str:
+    """Safely extract an attribute value as a clean string.
+
+    BeautifulSoup returns AttributeValueList (a subclass of list) for multi-valued
+    attributes (such as 'class') or when attributes appear multiple times on a tag.
+    Calling .strip() directly on tag.get(...) raises an AttributeError if an
+    AttributeValueList is returned.
+    """
+    val = tag.get(attr)
+    if val is None:
+        return default
+    if isinstance(val, (list, tuple)):
+        return " ".join(str(item) for item in val if item is not None).strip()
+    return str(val).strip()
 
 def _extract_tls_info(host: str, port: int = 443) -> dict[str, Any]:
     """Attempt to collect basic TLS certificate metadata."""
@@ -62,20 +119,40 @@ def _extract_tls_info(host: str, port: int = 443) -> dict[str, Any]:
             with context.wrap_socket(sock, server_hostname=host) as secure_sock:
                 cert = secure_sock.getpeercert()
 
-        subject = dict(item[0] for item in cert.get("subject", []) if item)
-        issuer = dict(item[0] for item in cert.get("issuer", []) if item)
+        if not cert:
+            return {"available": False, "error": "TLS certificate not available"}
+
+        subject_dict: dict[str, str] = {}
+        for rdn in cert.get("subject", ()):
+            for item in rdn:
+                if len(item) >= 2:
+                    subject_dict[str(item[0])] = str(item[1])
+
+        issuer_dict: dict[str, str] = {}
+        for rdn in cert.get("issuer", ()):
+            for item in rdn:
+                if len(item) >= 2:
+                    issuer_dict[str(item[0])] = str(item[1])
+
         not_after_raw = cert.get("notAfter")
         expires_at = None
         days_remaining = None
-        if not_after_raw:
+        if isinstance(not_after_raw, str):
             expires_at = datetime.strptime(not_after_raw, "%b %d %H:%M:%S %Y %Z").replace(tzinfo=timezone.utc)
             days_remaining = (expires_at - datetime.now(timezone.utc)).days
 
+        san_entries = cert.get("subjectAltName", ())
+        subject_alt_names: list[str] = []
+        if isinstance(san_entries, (list, tuple)):
+            for entry in san_entries:
+                if isinstance(entry, (list, tuple)) and len(entry) > 1:
+                    subject_alt_names.append(str(entry[1]))
+
         return {
             "available": True,
-            "subject_common_name": subject.get("commonName"),
-            "issuer_common_name": issuer.get("commonName"),
-            "subject_alt_names": [entry[1] for entry in cert.get("subjectAltName", []) if len(entry) > 1],
+            "subject_common_name": subject_dict.get("commonName"),
+            "issuer_common_name": issuer_dict.get("commonName"),
+            "subject_alt_names": subject_alt_names,
             "expires_at": expires_at.isoformat() if expires_at else None,
             "days_remaining": days_remaining,
         }
@@ -83,7 +160,7 @@ def _extract_tls_info(host: str, port: int = 443) -> dict[str, Any]:
         return {"available": False, "error": str(exc)}
 
 def _inspect_html(html: str, final_url: str) -> dict[str, Any]:
-    """Extract runtime page features from fetched HTML."""
+    """Extract runtime page features, exfiltration sinks, and behavioral metrics from fetched HTML."""
     if not html:
         return {
             "title": "",
@@ -98,6 +175,15 @@ def _inspect_html(html: str, final_url: str) -> dict[str, Any]:
             "js_redirect_indicators": [],
             "meta_refresh_targets": [],
             "title_brand_keywords": [],
+            "exfiltration_sinks": [],
+            "favicon_url": None,
+            "line_count": 0,
+            "largest_line_length": 0,
+            "has_password_field": 0,
+            "has_hidden_fields": 0,
+            "has_submit_button": 0,
+            "image_count": 0,
+            "css_link_count": 0,
         }
 
     soup = BeautifulSoup(html, "html.parser")
@@ -109,28 +195,37 @@ def _inspect_html(html: str, final_url: str) -> dict[str, Any]:
     password_field_count = 0
     hidden_input_count = 0
     form_action_mismatch_count = 0
+    exfiltration_sinks_detected: list[str] = []
 
     for form in forms:
-        action = (form.get("action") or "").strip()
+        action = _get_tag_attr_str(form, "action")
         resolved_action = urljoin(final_url, action) if action else final_url
         action_host = _get_hostname(resolved_action)
         action_base = _get_base_domain(action_host)
         if action and action_host and action_base and action_base != final_base:
             external_form_actions.append(resolved_action)
 
-        has_password_input = bool(form.find_all("input", attrs={"type": "password"}))
+        # Check for exfiltration sinks in form action
+        action_lower = resolved_action.lower()
+        for sink in EXFILTRATION_SINKS:
+            if sink in action_lower:
+                exfiltration_sinks_detected.append(sink)
+
+        password_inputs = form.find_all("input", attrs={"type": "password"})
+        has_password_input = len(password_inputs) > 0
         if has_password_input and action and action_host and action_base and action_base != final_base:
             form_action_mismatch_count += 1
 
-        password_field_count += len(form.find_all("input", attrs={"type": "password"}))
+        password_field_count += len(password_inputs)
         hidden_input_count += len(form.find_all("input", attrs={"type": "hidden"}))
 
     iframes = soup.find_all("iframe")
     script_src_count = 0
     script_text_blobs: list[str] = []
     for script in soup.find_all("script"):
-        if script.get("src"):
-            script_host = _get_hostname(urljoin(final_url, script.get("src", "")))
+        src = _get_tag_attr_str(script, "src")
+        if src:
+            script_host = _get_hostname(urljoin(final_url, src))
             if script_host and _get_base_domain(script_host) != final_base:
                 script_src_count += 1
         else:
@@ -139,6 +234,10 @@ def _inspect_html(html: str, final_url: str) -> dict[str, Any]:
                 script_text_blobs.append(text.lower())
 
     combined_script_text = " ".join(script_text_blobs)
+    for sink in EXFILTRATION_SINKS:
+        if sink in combined_script_text and sink not in exfiltration_sinks_detected:
+            exfiltration_sinks_detected.append(sink)
+
     suspicious_script_keywords = [
         pattern for pattern in SUSPICIOUS_SCRIPT_PATTERNS if pattern in combined_script_text
     ]
@@ -155,11 +254,11 @@ def _inspect_html(html: str, final_url: str) -> dict[str, Any]:
 
     meta_refresh_targets: list[str] = []
     for meta in soup.find_all("meta"):
-        http_equiv = (meta.get("http-equiv") or "").strip().lower()
+        http_equiv = _get_tag_attr_str(meta, "http-equiv").lower()
         if http_equiv != "refresh":
             continue
-        content = (meta.get("content") or "").strip()
-        match = re.search(r"url\s*=\s*([^;]+)$", content, flags=re.IGNORECASE)
+        content = _get_tag_attr_str(meta, "content")
+        match = re.search(r"url\s*=\s*([^;]+)", content, flags=re.IGNORECASE)
         if not match:
             continue
         target = match.group(1).strip().strip('"').strip("'")
@@ -170,6 +269,37 @@ def _inspect_html(html: str, final_url: str) -> dict[str, Any]:
     title = (soup.title.string or "").strip() if soup.title and soup.title.string else ""
     title_lower = title.lower()
     title_brand_keywords = [brand for brand in TITLE_BRAND_KEYWORDS if brand in title_lower]
+
+    # Favicon resolution and CSS link count
+    css_link_count = 0
+    favicon_url = None
+    for link in soup.find_all("link"):
+        rel_attr = link.get("rel")
+        if isinstance(rel_attr, str):
+            rel_vals = [r.strip().lower() for r in rel_attr.split()]
+        elif isinstance(rel_attr, (list, tuple)):
+            rel_vals = [str(r).strip().lower() for r in rel_attr if r]
+        else:
+            rel_vals = []
+
+        if any("stylesheet" in r for r in rel_vals):
+            css_link_count += 1
+
+        if not favicon_url and any(r in rel_vals for r in ["icon", "shortcut icon", "apple-touch-icon"]):
+            href = _get_tag_attr_str(link, "href")
+            if href:
+                favicon_url = urljoin(final_url, href)
+
+    if not favicon_url:
+        parsed_final = urlparse(final_url)
+        if parsed_final.netloc:
+            favicon_url = f"{parsed_final.scheme or 'http'}://{parsed_final.netloc}/favicon.ico"
+
+    lines = html.splitlines() if html else []
+    has_submit_button = 1 if (
+        soup.find("input", attrs={"type": "submit"}) is not None
+        or soup.find("button", attrs={"type": "submit"}) is not None
+    ) else 0
 
     return {
         "title": title,
@@ -184,6 +314,15 @@ def _inspect_html(html: str, final_url: str) -> dict[str, Any]:
         "js_redirect_indicators": js_redirect_indicators[:8],
         "meta_refresh_targets": meta_refresh_targets[:5],
         "title_brand_keywords": title_brand_keywords[:6],
+        "exfiltration_sinks": sorted(list(set(exfiltration_sinks_detected))),
+        "favicon_url": favicon_url,
+        "line_count": len(lines),
+        "largest_line_length": max((len(line) for line in lines), default=0),
+        "has_password_field": 1 if password_field_count > 0 else 0,
+        "has_hidden_fields": 1 if hidden_input_count > 0 else 0,
+        "has_submit_button": has_submit_button,
+        "image_count": len(soup.find_all("img")),
+        "css_link_count": css_link_count,
     }
 
 def _capture_remote_screenshot(url: str) -> dict[str, Any]:
@@ -430,6 +569,33 @@ def analyze_runtime_url(url: str, timeout: int | None = None) -> dict[str, Any]:
 
     html = response.text if "html" in response.headers.get("Content-Type", "").lower() else ""
     page = _inspect_html(html, response.url)
+
+    # Favicon hash brand spoofing detection
+    favicon_url = page.get("favicon_url")
+    favicon_hash = None
+    favicon_spoof_detected = None
+    if settings.URL_ANALYSIS_FAVICON_ENABLED and favicon_url:
+        try:
+            fav_resp = session.get(
+                favicon_url,
+                timeout=2,
+                headers={"User-Agent": DYNAMIC_USER_AGENT},
+                stream=True,
+            )
+            if fav_resp.status_code == 200:
+                fav_bytes = fav_resp.raw.read(65536)
+                if fav_bytes:
+                    favicon_hash = hashlib.md5(fav_bytes).hexdigest()
+                    if favicon_hash in AUTHENTIC_BRAND_FAVICONS:
+                        brand_info = AUTHENTIC_BRAND_FAVICONS[favicon_hash]
+                        brand_name = brand_info["brand"]
+                        if final_base and final_base not in brand_info["allowed_domains"]:
+                            favicon_spoof_detected = brand_name
+        except Exception:
+            pass
+
+    page["favicon_hash"] = favicon_hash
+    page["favicon_spoof"] = favicon_spoof_detected
     result["page"] = page
     result["screenshot"] = _capture_screenshot(response.url)
 
@@ -467,6 +633,19 @@ def analyze_runtime_url(url: str, timeout: int | None = None) -> dict[str, Any]:
         score += min(16, int(page.get("form_action_mismatch_count", 0)) * 8)
         flags.append(
             f"Credential form action mismatch detected ({int(page.get('form_action_mismatch_count', 0))} form(s) post to external domain)"
+        )
+
+    # Exfiltration sinks penalty
+    if page.get("exfiltration_sinks"):
+        score += 25
+        sinks_str = ", ".join(page["exfiltration_sinks"])
+        flags.append(f"🚨 Phishing credential exfiltration sink detected: page routes data to credential drop service ({sinks_str})")
+
+    # Favicon brand spoofing penalty
+    if page.get("favicon_spoof"):
+        score += 35
+        flags.append(
+            f"🚨 Favicon brand spoofing detected: Page displays authentic {page['favicon_spoof']} favicon on unrelated domain ({final_base})"
         )
 
     if page.get("iframe_count", 0) > 0:
@@ -517,6 +696,7 @@ def analyze_runtime_url(url: str, timeout: int | None = None) -> dict[str, Any]:
         score += 5
         flags.append("TLS certificate is close to expiry")
 
-    result["dynamic_score"] = min(45, score)
+    result["dynamic_score"] = min(55, score)
     result["flags"] = flags
     return result
+

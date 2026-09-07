@@ -4,14 +4,20 @@ import socket
 import time
 from concurrent.futures import ThreadPoolExecutor
 from collections import Counter
+from datetime import datetime, timezone
 from ipaddress import ip_address
-from urllib.parse import urlparse
+from typing import Any
+from urllib.parse import parse_qs, unquote, urlparse
 from uuid import uuid4
 import requests
+import tldextract
 
 from core.config import settings
 from services.dynamic_analyzer import analyze_runtime_url
+from services.local_model import local_phishing_classifier
 from repositories.url_cache_repository import url_cache_repository
+
+_tld_extractor = tldextract.TLDExtract(include_psl_private_domains=True)
 
 SUSPICIOUS_TLDS = {
     "tk", "ml", "ga", "cf", "gq", "xyz", "top", "click", "work", "support", "zip", "country",
@@ -50,13 +56,42 @@ POPULAR_BRANDS = {
     "uniswap", "opensea", "blockchain", "bitcoin", "ethereum", "wallet"
 }
 
-IP_PATTERN = re.compile(r"^(\d{1,3}\.){3}\d{1,3}$")
-COMMON_SECOND_LEVEL_SUFFIXES = {
-    "ac.uk", "co.uk", "gov.uk", "org.uk",
-    "com.au", "net.au", "org.au",
-    "co.in", "firm.in", "net.in", "org.in", "bank.in", "gen.in", "ind.in", "nic.in",
-    "com.br", "com.mx", "com.sg", "co.jp",
+AUTHENTIC_BRAND_DOMAINS: dict[str, set[str]] = {
+    "google": {"google.com", "google.co.in", "google.co.uk", "google.com.au", "youtube.com", "gmail.com", "gstatic.com"},
+    "microsoft": {"microsoft.com", "live.com", "outlook.com", "office.com", "azure.com", "msn.com", "bing.com", "sharepoint.com", "windows.net", "microsoftonline.com", "msauth.net"},
+    "paypal": {"paypal.com", "paypalobjects.com"},
+    "apple": {"apple.com", "icloud.com"},
+    "amazon": {"amazon.com", "amazon.co.uk", "amazon.in", "aws.amazon.com"},
+    "facebook": {"facebook.com", "fb.com", "meta.com", "instagram.com", "whatsapp.com"},
+    "netflix": {"netflix.com"},
+    "binance": {"binance.com", "bnbstatic.com"},
+    "coinbase": {"coinbase.com"},
+    "metamask": {"metamask.io"},
+    "trezor": {"trezor.io"},
+    "ledger": {"ledger.com"},
+    "telegram": {"telegram.org", "t.me"},
+    "discord": {"discord.com", "discord.gg"},
+    "steam": {"steampowered.com", "steamcommunity.com"},
+    "dropbox": {"dropbox.com"},
+    "zoom": {"zoom.us"},
+    "stripe": {"stripe.com"},
+    "ebay": {"ebay.com"},
+    "twitter": {"twitter.com", "x.com"},
+    "instagram": {"instagram.com"},
+    "linkedin": {"linkedin.com"},
+    "spotify": {"spotify.com"},
+    "tiktok": {"tiktok.com"},
+    "kraken": {"kraken.com"},
+    "exodus": {"exodus.com"},
 }
+
+OPEN_REDIRECT_PARAM_NAMES = {
+    "q", "url", "redirect", "redirect_url", "redirect_to", "dest", "destination",
+    "target", "next", "u", "continue", "r", "link", "goto", "out", "return", "return_url"
+}
+
+IP_PATTERN = re.compile(r"^(\d{1,3}\.){3}\d{1,3}$")
+
 
 BLOCKED_HOSTNAMES = {
     "localhost",
@@ -92,14 +127,87 @@ KNOWN_BAD_INFRA_SUFFIXES = {
 }
 
 _THREAT_INTEL_CACHE: dict[str, tuple[float, dict]] = {}
+_RDAP_CACHE: dict[str, tuple[float, int | None]] = {}
+_URLHAUS_CACHE: dict[str, tuple[float, dict]] = {}
 
 def _parse_csv_set(value: str) -> set[str]:
     if not value:
         return set()
     return {item.strip().lower() for item in value.split(",") if item.strip()}
 
+def lookup_rdap_domain_age(registered_domain: str) -> int | None:
+    """Query rdap.org to find registration date and compute domain age in days."""
+    if not settings.URL_ANALYSIS_RDAP_ENABLED or not registered_domain or is_ip_host(registered_domain) or registered_domain in BLOCKED_HOSTNAMES:
+        return None
+
+    now = time.time()
+    if registered_domain in _RDAP_CACHE:
+        expires_at, cached_age = _RDAP_CACHE[registered_domain]
+        if now < expires_at:
+            return cached_age
+
+    age_days: int | None = None
+    try:
+        resp = requests.get(
+            f"https://rdap.org/domain/{registered_domain}",
+            headers={"User-Agent": "Mozilla/5.0 DarkHookDefense/1.0", "Accept": "application/json"},
+            timeout=settings.URL_ANALYSIS_RDAP_TIMEOUT_SECONDS,
+        )
+        if resp.status_code == 200:
+            data = resp.json() if resp.content else {}
+            events = data.get("events", [])
+            for event in events:
+                if event.get("eventAction") == "registration" and event.get("eventDate"):
+                    date_str = str(event["eventDate"]).replace("Z", "+00:00")
+                    try:
+                        reg_date = datetime.fromisoformat(date_str)
+                        age_days = max(0, (datetime.now(timezone.utc) - reg_date).days)
+                        break
+                    except Exception:
+                        pass
+    except Exception:
+        pass
+
+    _RDAP_CACHE[registered_domain] = (now + 86400, age_days)
+    return age_days
+
+def lookup_urlhaus(url: str) -> dict[str, Any]:
+    """Query abuse.ch URLhaus API for live zero-day threat intelligence."""
+    if not settings.URL_ANALYSIS_URLHAUS_ENABLED or not url:
+        return {"matched": False}
+
+    now = time.time()
+    if url in _URLHAUS_CACHE:
+        expires_at, cached = _URLHAUS_CACHE[url]
+        if now < expires_at:
+            return cached
+
+    res: dict[str, Any] = {"matched": False, "threat": None, "url_status": None}
+    try:
+        headers = {"User-Agent": "DarkHookDefense/1.0"}
+        if settings.URL_ANALYSIS_URLHAUS_API_KEY:
+            headers["Auth-Key"] = settings.URL_ANALYSIS_URLHAUS_API_KEY
+
+        resp = requests.post(
+            "https://urlhaus-api.abuse.ch/v1/url/",
+            data={"url": url},
+            headers=headers,
+            timeout=settings.URL_ANALYSIS_URLHAUS_TIMEOUT_SECONDS,
+        )
+        if resp.status_code == 200:
+            payload = resp.json() if resp.content else {}
+            if payload.get("query_status") == "ok":
+                res["matched"] = True
+                res["threat"] = payload.get("threat") or "malware/phishing"
+                res["url_status"] = payload.get("url_status")
+    except Exception:
+        pass
+
+    _URLHAUS_CACHE[url] = (now + 1800, res)
+    return res
+
 def lookup_threat_intel(url: str) -> dict:
-    """Return threat-intel verdict with safe fallback behavior and TTL caching."""
+    """Return threat-intel verdict with URLhaus, RDAP domain age, and TTL caching."""
     host = get_hostname(url)
     base_domain = get_base_domain(host)
     cache_key = f"{host}|{base_domain}"
@@ -110,14 +218,18 @@ def lookup_threat_intel(url: str) -> dict:
         if now < expires_at:
             return cached
 
-    result = {
+    sources: list[str] = []
+    evidence: list[str] = []
+
+    result: dict[str, Any] = {
         "enabled": settings.URL_ANALYSIS_THREAT_INTEL_ENABLED,
         "available": False,
         "matched": False,
         "score_boost": 0,
-        "sources": [],
-        "evidence": [],
+        "sources": sources,
+        "evidence": evidence,
         "domain_age_days": None,
+        "urlhaus_hit": False,
         "asn_reputation": None,
         "error": None,
     }
@@ -127,6 +239,7 @@ def lookup_threat_intel(url: str) -> dict:
         _THREAT_INTEL_CACHE[cache_key] = (now + settings.URL_ANALYSIS_THREAT_INTEL_CACHE_TTL_SECONDS, result)
         return result
 
+    # 1. Local domain / suffix feeds
     bad_domains = _parse_csv_set(settings.URL_ANALYSIS_THREAT_INTEL_DOMAINS)
     bad_suffixes = _parse_csv_set(settings.URL_ANALYSIS_THREAT_INTEL_SUFFIXES)
     bad_suffixes |= KNOWN_BAD_INFRA_SUFFIXES
@@ -134,17 +247,51 @@ def lookup_threat_intel(url: str) -> dict:
     if host in bad_domains or base_domain in bad_domains:
         result["matched"] = True
         result["score_boost"] += 35
-        result["sources"].append("local_domain_feed")
-        result["evidence"].append(f"Domain matched local threat feed: {host}")
+        sources.append("local_domain_feed")
+        evidence.append(f"Domain matched local threat feed: {host}")
 
     for suffix in bad_suffixes:
         if host_matches_domain(host, suffix):
             result["matched"] = True
             result["score_boost"] += 20
-            result["sources"].append("local_infra_suffix_feed")
-            result["evidence"].append(f"Domain matches suspicious infra suffix: {suffix}")
+            sources.append("local_infra_suffix_feed")
+            evidence.append(f"Domain matches suspicious infra suffix: {suffix}")
             break
 
+    # 2. Live abuse.ch URLhaus threat feed
+    if settings.URL_ANALYSIS_URLHAUS_ENABLED:
+        urlhaus_res = lookup_urlhaus(url)
+        if urlhaus_res.get("matched"):
+            result["available"] = True
+            result["matched"] = True
+            result["urlhaus_hit"] = True
+            result["score_boost"] += 40
+            sources.append("abuse.ch_urlhaus")
+            evidence.append(
+                f"abuse.ch URLhaus flagged URL as active threat ({urlhaus_res.get('threat', 'malware/phishing')})"
+            )
+
+    # 3. RDAP Domain Age Intelligence (NRD detection)
+    if settings.URL_ANALYSIS_RDAP_ENABLED and base_domain and not is_ip_host(base_domain):
+        domain_age = lookup_rdap_domain_age(base_domain)
+        if domain_age is not None:
+            result["available"] = True
+            result["domain_age_days"] = domain_age
+            if domain_age < 14:
+                result["matched"] = True
+                result["score_boost"] += 30
+                sources.append("rdap_domain_age")
+                evidence.append(
+                    f"Newly Registered Domain (NRD): registered {domain_age} day(s) ago (<14 days)"
+                )
+            elif domain_age < 30:
+                result["score_boost"] += 15
+                sources.append("rdap_domain_age")
+                evidence.append(
+                    f"Young domain: registered {domain_age} day(s) ago (<30 days)"
+                )
+
+    # 4. External threat-intel API (if configured)
     if settings.URL_ANALYSIS_THREAT_INTEL_API_URL:
         headers = {"Content-Type": "application/json"}
         if settings.URL_ANALYSIS_THREAT_INTEL_API_KEY:
@@ -171,33 +318,31 @@ def lookup_threat_intel(url: str) -> dict:
                     result["score_boost"] += 35
                     if confidence >= 0.8:
                         result["score_boost"] += 8
-                    result["sources"].append(str(data.get("source") or "external_threat_intel"))
+                    sources.append(str(data.get("source") or "external_threat_intel"))
                     reason = str(data.get("reason") or "External threat feed marked this URL as malicious")
-                    result["evidence"].append(reason)
+                    evidence.append(reason)
 
                 domain_age_days = data.get("domain_age_days")
                 if isinstance(domain_age_days, (int, float)):
                     result["domain_age_days"] = int(domain_age_days)
                     if domain_age_days <= 30:
                         result["score_boost"] += 8
-                        result["evidence"].append(f"Very new domain age: {int(domain_age_days)} days")
+                        evidence.append(f"Very new domain age: {int(domain_age_days)} days")
 
                 asn_reputation = str(data.get("asn_reputation") or "").strip().lower()
                 if asn_reputation:
                     result["asn_reputation"] = asn_reputation
                     if asn_reputation in {"bad", "high_risk", "malicious"}:
                         result["score_boost"] += 8
-                        result["evidence"].append(f"High-risk ASN reputation: {asn_reputation}")
+                        evidence.append(f"High-risk ASN reputation: {asn_reputation}")
             else:
-                result["available"] = False
                 result["error"] = f"threat-intel API returned {response.status_code}"
         except Exception as exc:
-            result["available"] = False
             result["error"] = f"threat-intel API error: {exc}"
     else:
         result["available"] = True
 
-    result["score_boost"] = min(45, int(result["score_boost"]))
+    result["score_boost"] = min(50, int(result["score_boost"]))
     _THREAT_INTEL_CACHE[cache_key] = (now + settings.URL_ANALYSIS_THREAT_INTEL_CACHE_TTL_SECONDS, result)
     return result
 
@@ -228,20 +373,96 @@ def get_hostname(url: str) -> str:
 
     return host
 
+def extract_domain_parts(url_or_host: str) -> tuple[str, str, str, str]:
+    """
+    Return (subdomain, domain, suffix, registered_domain).
+    Accurately parses multi-part TLDs (.co.uk, .com.au, .pages.dev, etc.) using Public Suffix List.
+    """
+    host = get_hostname(url_or_host) if "://" in url_or_host else (url_or_host or "").strip().lower().rstrip(".")
+    if not host or is_ip_host(host) or host in BLOCKED_HOSTNAMES:
+        return ("", host, "", host)
+
+    ext = _tld_extractor(host)
+    subdomain = ext.subdomain
+    domain = ext.domain
+    suffix = ext.suffix
+    registered_domain = f"{domain}.{suffix}" if domain and suffix else (domain or suffix or host)
+    return (subdomain, domain, suffix, registered_domain)
+
 def get_base_domain(host: str) -> str:
-    """Best-effort registrable domain extraction without public suffix data."""
+    """Accurately extract registrable/base domain using Public Suffix List (PSL)."""
     if not host:
         return ""
-
-    parts = host.split(".")
-    if len(parts) <= 2:
+    if is_ip_host(host) or host in BLOCKED_HOSTNAMES:
         return host
+    _, _, _, registered_domain = extract_domain_parts(host)
+    return registered_domain or host
 
-    last_two = ".".join(parts[-2:])
-    if last_two in COMMON_SECOND_LEVEL_SUFFIXES and len(parts) >= 3:
-        return ".".join(parts[-3:])
+def unpack_open_redirect(url: str) -> dict[str, Any]:
+    """
+    Inspect query parameters for embedded target destination URLs.
+    Detects when a domain redirects externally to another domain.
+    """
+    parsed = urlparse(url)
+    host = get_hostname(url)
+    base_domain = get_base_domain(host)
 
-    return last_two
+    if not parsed.query:
+        return {"is_open_redirect": False, "target_url": None, "target_host": None, "target_base": None}
+
+    qs = parse_qs(parsed.query, keep_blank_values=False)
+    for param, values in qs.items():
+        param_lower = param.lower()
+        is_target_param = (
+            param_lower in OPEN_REDIRECT_PARAM_NAMES
+            or any(kw in param_lower for kw in ["url", "redirect", "dest", "target", "link", "goto"])
+        )
+        if is_target_param:
+            for raw_val in values:
+                val = unquote(raw_val).strip()
+                if val.startswith(("http://", "https://", "//")):
+                    if val.startswith("//"):
+                        val = f"http:{val}"
+                    target_host = get_hostname(val)
+                    target_base = get_base_domain(target_host)
+                    if target_host and target_base and target_base != base_domain:
+                        return {
+                            "is_open_redirect": True,
+                            "param": param,
+                            "target_url": val,
+                            "target_host": target_host,
+                            "target_base": target_base,
+                        }
+    return {"is_open_redirect": False, "target_url": None, "target_host": None, "target_base": None}
+
+def detect_brand_in_path_or_subdomain(url: str) -> tuple[bool, str, str]:
+    """
+    AlwaysVerify Layer 1: Detect brand names appearing in URL path or subdomain
+    when the registered domain is NOT the brand's authentic domain.
+    Returns (detected, brand, location).
+    """
+    host = get_hostname(url)
+    subdomain, domain_label, suffix, registered_domain = extract_domain_parts(host)
+    parsed = urlparse(url)
+    path_lower = parsed.path.lower()
+    subdomain_lower = subdomain.lower()
+
+    for brand in POPULAR_BRANDS:
+        auth_domains = AUTHENTIC_BRAND_DOMAINS.get(brand, {f"{brand}.com"})
+        if registered_domain in auth_domains or host in auth_domains:
+            continue
+
+        # Check path: brand bounded by path delimiters
+        brand_pattern = rf"(?:^|[/_\-.=]){re.escape(brand)}(?:$|[/_\-.=?])"
+        if re.search(brand_pattern, path_lower):
+            return True, brand, "path"
+
+        # Check subdomain
+        if brand in subdomain_lower:
+            return True, brand, "subdomain"
+
+    return False, "", ""
+
 
 def is_ip_host(host: str) -> bool:
     """Return True when the hostname is an IPv4 or IPv6 literal."""
@@ -300,7 +521,7 @@ def validate_scan_target(url: str) -> tuple[bool, str | None]:
         return False, "Hostname could not be resolved"
 
     for entry in resolved:
-        ip_str = entry[4][0]
+        ip_str = str(entry[4][0])
         if is_blocked_ip(ip_str):
             return False, "Target resolves to private or non-routable network"
 
@@ -514,9 +735,11 @@ def extract_features(url: str) -> dict:
     features["has_port"] = 1 if parsed_port is not None else 0
     features["has_credentials"] = 1 if parsed.username else 0
     
-    base_domain = get_base_domain(domain)
-    base_parts = base_domain.split(".") if base_domain else []
-    features["num_subdomains"] = max(0, len([label for label in domain.split(".") if label]) - len(base_parts))
+    subdomain, domain_label, suffix, registered_domain = extract_domain_parts(domain)
+    base_domain = registered_domain or domain
+    subdomain_parts = [p for p in subdomain.split(".") if p]
+    features["num_subdomains"] = len(subdomain_parts)
+    features["registered_domain"] = base_domain
     
     suspicious_tlds = {".tk", ".ml", ".ga", ".cf", ".gq", ".xyz", ".top", ".work", ".click",
                       ".loan", ".men", ".review", ".racing", ".win", ".bid", ".download",
@@ -524,7 +747,7 @@ def extract_features(url: str) -> dict:
                       ".space", ".tech", ".store", ".fun", ".live", ".cyou", ".sbs", ".cfd",
                       ".boats", ".vip", ".pw", ".ninja", ".rocks", ".party", ".red", ".webcam",
                       ".monster", ".wtf", ".faith", ".trade", ".science", ".shop", ".host"}
-    tld = "." + domain.split(".")[-1] if "." in domain else ""
+    tld = "." + suffix if suffix else ("." + domain.split(".")[-1] if "." in domain else "")
     features["suspicious_tld"] = 1 if tld in suspicious_tlds else 0
     features["tld_is_country_code"] = 1 if (len(tld) == 3 and tld[1:].isalpha()) else 0
     
@@ -586,6 +809,11 @@ def extract_features(url: str) -> dict:
     has_urgency, urgency_score = detect_urgency_manipulation(full_url)
     features["has_urgency_tactics"] = 1 if has_urgency else 0
     features["urgency_score"] = urgency_score / 100
+
+    has_brand_path, brand_path_name, brand_loc = detect_brand_in_path_or_subdomain(url)
+    features["brand_in_path"] = 1 if (has_brand_path and brand_loc == "path") else 0
+    features["brand_in_subdomain"] = 1 if (has_brand_path and brand_loc == "subdomain") else 0
+    features["detected_brand"] = brand_path_name if has_brand_path else (brand_name if is_impersonating else "")
     
     return features
 
@@ -689,6 +917,27 @@ def build_flags(
     if int(feature_map.get("has_urgency_tactics", 0)) == 1:
         urgency = float(feature_map.get("urgency_score", 0))
         flags.append(f"⏰ Psychological manipulation detected - Urgency tactics designed to rush victims (urgency score: {urgency:.0%})")
+
+    if int(feature_map.get("open_redirect_detected", 0)) == 1:
+        target = feature_map.get("open_redirect_target")
+        flags.append(f"🚨 Open redirect detected - Trusted host redirects to external destination: {target}")
+
+    if int(feature_map.get("brand_in_path", 0)) == 1:
+        brand = feature_map.get("detected_brand", "popular brand")
+        flags.append(f"🎭 Brand name in path detected - Hosts '{brand}' content on unaffiliated domain '{domain}'")
+    elif int(feature_map.get("brand_in_subdomain", 0)) == 1:
+        brand = feature_map.get("detected_brand", "popular brand")
+        flags.append(f"🎭 Brand name in subdomain detected - Hosts '{brand}' in subdomain on unaffiliated domain '{domain}'")
+
+    domain_age = threat_intel.get("domain_age_days")
+    if domain_age is not None:
+        if domain_age < 14:
+            flags.append(f"⏳ Newly registered domain (NRD) - Created only {domain_age} day(s) ago (<14 days)")
+        elif domain_age < 30:
+            flags.append(f"⏳ Young domain - Created {domain_age} day(s) ago (<30 days)")
+
+    if threat_intel.get("urlhaus_hit"):
+        flags.append("🔴 abuse.ch URLhaus threat feed hit - Confirmed malicious URL")
 
     for dynamic_flag in dynamic_result.get("flags", [])[:5]:
         flags.append(f"Runtime analysis: {dynamic_flag}")
@@ -861,6 +1110,12 @@ def compute_heuristic_score(feature_map: dict, url: str) -> int:
 
     if int(feature_map.get("has_port", 0)) == 1:
         score += 8
+
+    if int(feature_map.get("brand_in_path", 0)) == 1 or int(feature_map.get("brand_in_subdomain", 0)) == 1:
+        score += 35
+
+    if int(feature_map.get("open_redirect_detected", 0)) == 1:
+        score += 30
 
     score += compute_structural_signal_score(feature_map)
 
@@ -1125,7 +1380,57 @@ def build_risk_factors(
                 "Brand language in the rendered page can reinforce impersonation even when the URL looks unfamiliar.",
             )
 
-    return risk_factors[:8]
+        if page.get("exfiltration_sinks"):
+            sinks = ", ".join(page["exfiltration_sinks"])
+            add_factor(
+                "Credential exfiltration drop sink",
+                "high",
+                "exfiltration",
+                f"Form or script submits credentials to drop service: {sinks}",
+                "Phishkits exfiltrate entered credentials to Telegram bots, Discord webhooks, or drop endpoints.",
+            )
+
+        if page.get("favicon_spoof"):
+            spoof_brand = page["favicon_spoof"]
+            add_factor(
+                "Favicon brand spoofing",
+                "high",
+                "brand-abuse",
+                f"Page displays authentic {spoof_brand} favicon on unrelated domain {base_domain}",
+                "Attackers clone official brand favicons to trick visual browser indicators into trusting fraudulent pages.",
+            )
+
+    if int(feature_map.get("open_redirect_detected", 0)) == 1:
+        add_factor(
+            "Open redirect on trusted domain",
+            "high",
+            "redirection",
+            f"URL redirects from trusted domain ({host}) to external target: {feature_map.get('open_redirect_target')}",
+            "Attackers abuse open redirects on trusted services to bypass email and perimeter security filters.",
+        )
+
+    if int(feature_map.get("brand_in_path", 0)) == 1 or int(feature_map.get("brand_in_subdomain", 0)) == 1:
+        brand = feature_map.get("detected_brand", "popular brand")
+        loc = "path" if int(feature_map.get("brand_in_path", 0)) == 1 else "subdomain"
+        add_factor(
+            f"Brand impersonation in URL {loc}",
+            "high",
+            "brand-abuse",
+            f"Brand '{brand}' placed in URL {loc} on unrelated domain '{base_domain}'",
+            "Phishkits host deceptive login forms on compromised domains or public cloud providers.",
+        )
+
+    domain_age = threat_intel.get("domain_age_days")
+    if domain_age is not None and domain_age < 30:
+        add_factor(
+            "Newly registered domain (NRD)",
+            "high" if domain_age < 14 else "medium",
+            "domain-age",
+            f"Domain was registered {domain_age} days ago (via RDAP lookup)",
+            "Over 85% of malicious phishing domains are less than 30 days old when first launched.",
+        )
+
+    return risk_factors[:10]
 
 def build_analysis_details(
     url: str,
@@ -1138,6 +1443,7 @@ def build_analysis_details(
     ml_available: bool,
     ml_error_msg: str | None,
     base_url: str | None = None,
+    model_source: str | None = None,
 ) -> dict:
     parsed = urlparse(url)
     host = get_hostname(url)
@@ -1161,7 +1467,7 @@ def build_analysis_details(
             f"It appears relatively low risk based on the inspected signals."
         )
 
-    model_source = "hybrid_ml_plus_heuristics" if ml_available else "heuristics_only"
+    resolved_model_source = model_source or ("hybrid_ml_plus_heuristics" if ml_available else "heuristics_only")
     dynamic_errors = dynamic_result.get("errors") or []
     dynamic_status = dynamic_result.get("status", "available" if dynamic_result.get("available") else "unavailable")
     dynamic_summary = (
@@ -1201,10 +1507,16 @@ def build_analysis_details(
             "fragment": parsed.fragment,
             "subdomain_count": int(feature_map.get("num_subdomains", 0)),
         },
-        "model_source": model_source,
+        "model_source": resolved_model_source,
         "model_status": "available" if ml_available else f"unavailable: {ml_error_msg}",
         "threat_intel": threat_intel,
         "detected_keywords": detected_keywords,
+        "open_redirect": feature_map.get("open_redirect_info", {"is_open_redirect": False}),
+        "brand_placement": {
+            "brand_in_path": bool(feature_map.get("brand_in_path")),
+            "brand_in_subdomain": bool(feature_map.get("brand_in_subdomain")),
+            "detected_brand": feature_map.get("detected_brand"),
+        },
         "top_risks": [factor["title"] for factor in risk_factors[:3]],
         "risk_factors": risk_factors,
         "recommendations": recommendations,
@@ -1220,10 +1532,17 @@ def build_analysis_details(
             "shortener": bool(feature_map.get("is_shortener")),
             "free_hosting": bool(feature_map.get("is_free_hosting")),
             "brand_impersonation": bool(feature_map.get("brand_impersonation")),
+            "brand_in_path": bool(feature_map.get("brand_in_path")),
+            "brand_in_subdomain": bool(feature_map.get("brand_in_subdomain")),
+            "open_redirect": bool(feature_map.get("open_redirect_detected")),
             "homograph": bool(feature_map.get("has_homograph")),
             "urgency_tactics": bool(feature_map.get("has_urgency_tactics")),
             "percent_encoded_count": int(feature_map.get("percent_encoded_count", 0)),
             "url_entropy": round(float(feature_map.get("url_entropy", 0)), 4),
+            "domain_age_days": threat_intel.get("domain_age_days"),
+            "urlhaus_hit": bool(threat_intel.get("urlhaus_hit")),
+            "exfiltration_sinks_detected": bool(dynamic_result.get("page", {}).get("exfiltration_sinks")),
+            "favicon_spoof_detected": bool(dynamic_result.get("page", {}).get("favicon_spoof")),
         },
     }
 
@@ -1274,6 +1593,27 @@ class UrlAnalyzer:
         feature_map = extract_features(normalized)
         heuristic_score = compute_heuristic_score(feature_map, normalized)
 
+        # Inspect for open redirect and nested targets
+        open_redirect_info = unpack_open_redirect(normalized)
+        target_heuristic = 0
+        if open_redirect_info["is_open_redirect"]:
+            target_url = open_redirect_info["target_url"]
+            feature_map["open_redirect_detected"] = 1
+            feature_map["open_redirect_target"] = target_url
+            feature_map["open_redirect_info"] = open_redirect_info
+            try:
+                target_features = extract_features(target_url)
+                target_heuristic = compute_heuristic_score(target_features, target_url)
+                target_intel = lookup_threat_intel(target_url)
+                if target_intel.get("matched"):
+                    target_heuristic = min(100, target_heuristic + target_intel.get("score_boost", 0))
+            except Exception:
+                target_heuristic = 45
+        else:
+            feature_map["open_redirect_detected"] = 0
+            feature_map["open_redirect_target"] = None
+            feature_map["open_redirect_info"] = open_redirect_info
+
         # Run dynamic and ML concurrent lookups
         with ThreadPoolExecutor(max_workers=2) as executor:
             dynamic_future = executor.submit(analyze_runtime_url, normalized)
@@ -1284,6 +1624,7 @@ class UrlAnalyzer:
         model_score = None
         ml_available = True
         ml_error_msg = None
+        ml_source_name = "external_huggingface_ml"
         
         if "error" not in ml_result or ml_result.get("available", False):
             try:
@@ -1296,20 +1637,31 @@ class UrlAnalyzer:
                         raw_ml_score = float(probability) * 100.0
 
                 if raw_ml_score is None and "prediction" in ml_result:
-                    prediction = int(ml_result.get("prediction"))
-                    raw_ml_score = 95 if prediction == 1 else 5
+                    pred_val = ml_result.get("prediction")
+                    if pred_val is not None:
+                        prediction = int(pred_val)
+                        raw_ml_score = 95 if prediction == 1 else 5
 
-                if raw_ml_score is None:
-                    raw_ml_score = heuristic_score
-
-                model_score = int(float(raw_ml_score))
-                model_score = max(0, min(100, model_score))
+                if raw_ml_score is not None:
+                    model_score = int(float(raw_ml_score))
+                    model_score = max(0, min(100, model_score))
+                else:
+                    ml_available = False
             except (ValueError, TypeError):
                 ml_available = False
                 ml_error_msg = "Invalid response format from ML service"
         else:
             ml_available = False
             ml_error_msg = ml_result.get("error", "ML service unavailable")
+
+        # Fall back to local Scikit-Learn ensemble model if external ML is unavailable
+        if not ml_available and settings.URL_ANALYSIS_LOCAL_ML_ENABLED:
+            local_ml = local_phishing_classifier.predict(feature_map, dynamic_result.get("page"))
+            if local_ml.get("available"):
+                model_score = local_ml.get("score")
+                ml_available = True
+                ml_error_msg = None
+                ml_source_name = "local_ml_ensemble"
 
         if ml_available and model_score is not None:
             score = max(model_score, heuristic_score)
@@ -1334,6 +1686,9 @@ class UrlAnalyzer:
             or int(feature_map.get("has_ip", 0)) == 1
             or int(feature_map.get("suspicious_tld", 0)) == 1
             or int(feature_map.get("brand_impersonation", 0)) == 1
+            or int(feature_map.get("brand_in_path", 0)) == 1
+            or int(feature_map.get("brand_in_subdomain", 0)) == 1
+            or int(feature_map.get("open_redirect_detected", 0)) == 1
             or int(feature_map.get("has_homograph", 0)) == 1
             or int(feature_map.get("keyword_hits", 0)) >= 2
             or dynamic_score >= 12
@@ -1349,10 +1704,14 @@ class UrlAnalyzer:
         ):
             score = min(score, 39)
         
-        if is_trusted_domain(normalized) and not has_strong_risk_evidence:
+        is_trusted = is_trusted_domain(normalized)
+        if open_redirect_info["is_open_redirect"]:
+            # Critical Open Redirect Fix: Never dampen trusted domain when it redirects externally
+            score = max(score, target_heuristic, 65 if target_heuristic >= 35 else 45)
+        elif is_trusted and not has_strong_risk_evidence:
             score = min(score, 30)
 
-        if is_trusted_domain(normalized) and score >= 40:
+        if is_trusted and not open_redirect_info["is_open_redirect"] and score >= 40:
             high_risk_signals = (
                 bool(threat_intel.get("matched"))
                 or int(feature_map.get("has_credentials", 0)) == 1
@@ -1364,7 +1723,7 @@ class UrlAnalyzer:
             )
             if not high_risk_signals:
                 score = max(0, score - 12)
-        elif is_low_risk_legit_pattern(feature_map, normalized) and score >= 70 and dynamic_score == 0:
+        elif is_low_risk_legit_pattern(feature_map, normalized) and score >= 70 and dynamic_score == 0 and not open_redirect_info["is_open_redirect"]:
             score = max(40, score - 25)
 
         if runtime_domain_changed:
@@ -1387,6 +1746,7 @@ class UrlAnalyzer:
             ml_available,
             ml_error_msg,
             request_base_url,
+            model_source=ml_source_name if ml_available else "heuristics_only",
         )
 
         feature_summary = {
@@ -1419,6 +1779,14 @@ class UrlAnalyzer:
             "anomaly_score": round(float(feature_map.get("anomaly_score", 0)), 4),
             "has_urgency_tactics": int(feature_map.get("has_urgency_tactics", 0)),
             "urgency_score": round(float(feature_map.get("urgency_score", 0)), 4),
+            "brand_in_path": int(feature_map.get("brand_in_path", 0)),
+            "brand_in_subdomain": int(feature_map.get("brand_in_subdomain", 0)),
+            "open_redirect_detected": int(feature_map.get("open_redirect_detected", 0)),
+            "open_redirect_target": feature_map.get("open_redirect_target"),
+            "domain_age_days": threat_intel.get("domain_age_days"),
+            "urlhaus_hit": 1 if threat_intel.get("urlhaus_hit") else 0,
+            "exfiltration_sinks_detected": int(bool(dynamic_result.get("page", {}).get("exfiltration_sinks"))),
+            "favicon_spoof_detected": int(bool(dynamic_result.get("page", {}).get("favicon_spoof"))),
             "threat_intel_hit": 1 if threat_intel.get("matched") else 0,
             "threat_intel_boost": int(threat_intel.get("score_boost", 0)),
         }
@@ -1430,7 +1798,9 @@ class UrlAnalyzer:
             explanation.append("Recommended action: " + analysis_details["recommendations"][0])
 
         explanation_str = " ".join(explanation)
-        if not ml_available:
+        if ml_available and ml_source_name == "local_ml_ensemble":
+            explanation_str += " (Analyzed using DarkHook local ML ensemble classifier)"
+        elif not ml_available:
             explanation_str += f" (Heuristic engine used because external ML is unavailable: {ml_error_msg})"
 
         result = {
