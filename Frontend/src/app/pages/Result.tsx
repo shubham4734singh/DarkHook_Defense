@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Loader2, ArrowLeft, Save, ArrowRight, Clock, Zap } from 'lucide-react';
+import { Loader2, ArrowLeft, Save, ArrowRight, Clock, Zap, Printer } from 'lucide-react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router';
 import { useAuth } from '../contexts/AuthContext';
+import { SecurityReportModal, type SecurityReportData } from '../components/SecurityReportModal';
 
 type Severity = 'high' | 'medium' | 'low';
 type Verdict = 'safe' | 'suspicious' | 'phishing';
@@ -502,9 +503,27 @@ function SkeletonLoader({ dotCount }: { dotCount: number }) {
 }
 
 function ResultContent({ result, navigate }: { result: ScanResult; navigate: any }) {
+  const [showReportModal, setShowReportModal] = useState(false);
   const verdictColor = result.verdict === 'safe' ? '#10B981' : result.verdict === 'suspicious' ? '#F59E0B' : '#EF4444';
   const circumference = 2 * Math.PI * 94; // radius 94px for 200px circle with stroke 12
   const strokeDashoffset = circumference - (result.score / 100) * circumference;
+
+  const reportData: SecurityReportData = {
+    reportId: `DHD-${Math.random().toString(36).substring(2, 9).toUpperCase()}`,
+    scanType: 'URL',
+    targetName: result.scannedUrl,
+    scanTimestamp: result.scanTime || new Date().toLocaleString(),
+    durationSeconds: parseFloat(result.duration) || 0.85,
+    verdict: result.verdict === 'safe' ? 'SAFE' : result.verdict === 'suspicious' ? 'SUSPICIOUS' : 'PHISHING',
+    riskScore: result.score,
+    findings: result.flags.map(f => ({
+      title: f.name,
+      severity: f.severity,
+      evidence: f.explanation,
+      impact: 'Potential deceptive or malicious pattern',
+    })),
+    summary: `Comprehensive security analysis of ${result.scannedUrl}. Analyzed by DarkHook Defense engine with an overall risk score of ${result.score}/100.`,
+  };
 
   return (
     <motion.div
@@ -739,6 +758,14 @@ function ResultContent({ result, navigate }: { result: ScanResult; navigate: any
 
             {/* Buttons */}
             <div className="space-y-2.5">
+              <button
+                onClick={() => setShowReportModal(true)}
+                className="w-full py-3 rounded-lg font-bold transition-all flex items-center justify-center gap-2 bg-[#00C2FF] hover:bg-[#00A8E0] text-[#060D1A] shadow-[0_0_20px_rgba(0,194,255,0.3)] cursor-pointer"
+                style={{ fontFamily: 'Raleway, sans-serif' }}
+              >
+                <Printer className="w-4 h-4" />
+                Print / Export Report
+              </button>
               <button
                 className="w-full py-3 rounded-lg font-semibold transition-all hover:opacity-90 flex items-center justify-center gap-2"
                 style={{
@@ -1097,6 +1124,12 @@ function ResultContent({ result, navigate }: { result: ScanResult; navigate: any
           </div>
         </motion.div>
       </div>
+
+      <SecurityReportModal
+        isOpen={showReportModal}
+        onClose={() => setShowReportModal(false)}
+        data={reportData}
+      />
     </motion.div>
   );
 }

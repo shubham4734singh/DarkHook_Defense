@@ -26,6 +26,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { useAuth } from '../contexts/AuthContext';
 import { api, type DocumentScanResult } from '../services/api';
+import { SecurityReportModal, type SecurityReportData } from '../components/SecurityReportModal';
 import logo from '@/assets/eabe0015a9a1edfe92cb4ac7f5415daf9aa9241d.png';
 
 export function DocumentScan() {
@@ -33,6 +34,7 @@ export function DocumentScan() {
   const [scanning, setScanning] = useState(false);
   const [result, setResult] = useState<DocumentScanResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [showReportModal, setShowReportModal] = useState(false);
   const [activeTab, setActiveTab] = useState<'overview' | 'threats' | 'mitre' | 'urls' | 'logs'>('overview');
   const [copiedHash, setCopiedHash] = useState(false);
   const [copiedLogs, setCopiedLogs] = useState(false);
@@ -40,6 +42,34 @@ export function DocumentScan() {
 
   const navigate = useNavigate();
   const { logout } = useAuth();
+
+  const reportData: SecurityReportData | null = result ? {
+    reportId: `DHD-DOC-${result.fileHash ? result.fileHash.slice(0, 8).toUpperCase() : Math.random().toString(36).substring(2, 9).toUpperCase()}`,
+    scanType: 'DOCUMENT',
+    targetName: result.fileName,
+    scanTimestamp: new Date().toLocaleString(),
+    durationSeconds: result.scanTime,
+    verdict: result.riskScore <= 39 ? 'SAFE' : result.riskScore <= 69 ? 'SUSPICIOUS' : 'PHISHING',
+    riskScore: result.riskScore,
+    sha256Hash: result.fileHash,
+    fileSize: result.fileSize,
+    findings: (result.findingsDetailed || []).map(f => ({
+      title: f.name,
+      severity: (f.severity?.toLowerCase() === 'critical' ? 'critical' : f.severity?.toLowerCase() === 'high' ? 'high' : f.severity?.toLowerCase() === 'medium' ? 'medium' : 'low') as any,
+      category: f.findingType,
+      evidence: `Score weight +${f.score} points. Trigger ID: ${f.findingType}`,
+      impact: f.mitre ? `${f.mitre.tactic} (${f.mitre.id})` : 'Malicious payload execution or evasion',
+      mitreId: f.mitre?.id,
+    })),
+    mitreTechniques: result.mitreTechniques,
+    extractedUrls: (result.extractedUrls || []).map(u => ({
+      url: u.url,
+      domain: u.domain,
+      isSuspicious: u.is_suspicious,
+      reasons: u.reasons,
+    })),
+    summary: `Document analysis completed for ${result.fileName} (${result.fileSize}). Evaluated across static heuristic layers, macro decoders, and stream analyzers. Found ${result.totalFindings} indicators.`,
+  } : null;
 
   const handleLogout = () => {
     logout();
@@ -288,11 +318,11 @@ export function DocumentScan() {
                     <span>Export JSON</span>
                   </button>
                   <button
-                    onClick={() => window.print()}
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-[#060D1A] border border-[#1E3A5F] hover:border-[#00C2FF] text-[#8BA3BC] hover:text-white rounded-lg text-xs font-medium transition-all"
+                    onClick={() => setShowReportModal(true)}
+                    className="flex items-center gap-1.5 px-3.5 py-1.5 bg-gradient-to-r from-[#00C2FF]/20 to-[#0077B6]/20 border border-[#00C2FF]/40 hover:border-[#00C2FF] text-[#00C2FF] hover:text-white rounded-lg text-xs font-semibold shadow-sm transition-all"
                   >
                     <Printer className="w-3.5 h-3.5" />
-                    <span>Print Report</span>
+                    <span>Print / Export Security Report</span>
                   </button>
                 </div>
               </div>
@@ -674,6 +704,14 @@ export function DocumentScan() {
                 </div>
               )}
             </motion.div>
+          )}
+
+          {reportData && (
+            <SecurityReportModal
+              isOpen={showReportModal}
+              onClose={() => setShowReportModal(false)}
+              data={reportData}
+            />
           )}
         </div>
       </main>

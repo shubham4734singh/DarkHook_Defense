@@ -1,9 +1,10 @@
 import { motion } from 'motion/react';
-import { Shield, Mail, Upload, AlertTriangle, CheckCircle, XCircle, ArrowLeft, LogOut } from 'lucide-react';
+import { Shield, Mail, Upload, AlertTriangle, CheckCircle, XCircle, ArrowLeft, LogOut, Printer } from 'lucide-react';
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { useAuth } from '../contexts/AuthContext';
 import { api, type EmailScanResult } from '../services/api';
+import { SecurityReportModal, type SecurityReportData } from '../components/SecurityReportModal';
 import logo from '@/assets/eabe0015a9a1edfe92cb4ac7f5415daf9aa9241d.png';
 
 export function EmailScan() {
@@ -12,8 +13,56 @@ export function EmailScan() {
   const [scanning, setScanning] = useState(false);
   const [result, setResult] = useState<EmailScanResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [showReportModal, setShowReportModal] = useState(false);
   const navigate = useNavigate();
   const { logout } = useAuth();
+
+  const reportData: SecurityReportData | null = result ? {
+    reportId: `DHD-EML-${Math.random().toString(36).substring(2, 9).toUpperCase()}`,
+    scanType: 'EMAIL',
+    targetName: result.fileName || (emailFile ? emailFile.name : 'pasted-email.eml'),
+    scanTimestamp: new Date().toLocaleString(),
+    durationSeconds: result.scanTime,
+    verdict: (result.verdict?.toUpperCase() === 'SAFE' ? 'SAFE' : result.verdict?.toUpperCase() === 'SUSPICIOUS' ? 'SUSPICIOUS' : 'PHISHING'),
+    riskScore: result.riskScore,
+    findings: [
+      ...result.headerFlags.map((flag) => ({
+        title: flag,
+        severity: (result.riskScore > 70 ? 'critical' : result.riskScore > 40 ? 'high' : 'medium') as any,
+        category: 'Header Authentication & Routing',
+        evidence: `RFC header verification flag: ${flag}`,
+        impact: 'Potential email spoofing, SPF/DKIM failure, or domain impersonation',
+        mitreId: 'T1566.001',
+      })),
+      ...result.bodyFlags.map((flag) => ({
+        title: flag,
+        severity: (result.riskScore > 70 ? 'high' : 'medium') as any,
+        category: 'Email Body & Social Engineering',
+        evidence: `Body content inspection flag: ${flag}`,
+        impact: 'Deceptive narrative, urgent call-to-action, or credential harvest bait',
+        mitreId: 'T1566.002',
+      })),
+    ],
+    extractedUrls: (result.extractedUrls || []).map((u) => ({
+      url: u,
+      domain: (() => {
+        try { return new URL(u).hostname; } catch { return u; }
+      })(),
+      isSuspicious: result.riskScore > 50,
+      reasons: result.riskScore > 50 ? ['Suspicious link inside unverified email body'] : [],
+    })),
+    recommendations: result.verdict === 'SAFE' ? [
+      'Email headers and content passed standard anti-phishing heuristics.',
+      'Exercise normal caution before downloading unverified attachments.',
+      'Report any unexpected behavioral anomalies to your SOC administrator.',
+    ] : [
+      'Quarantine or delete this email immediately; do NOT interact with embedded hyperlinks or attachments.',
+      'Verify the sender through a secondary out-of-band communication channel (e.g. phone call or internal chat).',
+      'If credentials or sensitive information were provided, reset accounts immediately and revoke active sessions.',
+      'Submit the email headers and raw source to the security operations center (SOC) for domain-wide blocklisting.',
+    ],
+    summary: `Comprehensive email forensic analysis completed for "${result.fileName || 'analyzed email'}". Identified ${result.headerFlags.length} header flags, ${result.bodyFlags.length} body indicators, and ${result.extractedUrls?.length || 0} embedded URLs.`,
+  } : null;
 
   const handleLogout = () => {
     logout();
@@ -170,6 +219,24 @@ export function EmailScan() {
               animate={{ opacity: 1, y: 0 }}
               className="space-y-6"
             >
+              {/* Header Action Bar */}
+              <div className="bg-[#0D1F38] border border-[#1E3A5F] rounded-2xl p-4 flex flex-wrap items-center justify-between gap-4">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs uppercase tracking-wider text-[#8BA3BC] font-semibold">Report Generated:</span>
+                  <span className="text-xs text-white font-mono">{new Date().toLocaleTimeString()}</span>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => setShowReportModal(true)}
+                    className="flex items-center gap-1.5 px-3.5 py-1.5 bg-gradient-to-r from-[#00C2FF]/20 to-[#0077B6]/20 border border-[#00C2FF]/40 hover:border-[#00C2FF] text-[#00C2FF] hover:text-white rounded-lg text-xs font-semibold shadow-sm transition-all"
+                  >
+                    <Printer className="w-3.5 h-3.5" />
+                    <span>Print / Export Security Report</span>
+                  </button>
+                </div>
+              </div>
+
               {/* Risk Score Card */}
               <div className="bg-[#0D1F38] border border-[#1E3A5F] rounded-2xl p-8">
                 <div className="text-center mb-6">
@@ -210,6 +277,14 @@ export function EmailScan() {
                 </div>
               </div>
             </motion.div>
+          )}
+
+          {reportData && (
+            <SecurityReportModal
+              isOpen={showReportModal}
+              onClose={() => setShowReportModal(false)}
+              data={reportData}
+            />
           )}
         </div>
       </div>

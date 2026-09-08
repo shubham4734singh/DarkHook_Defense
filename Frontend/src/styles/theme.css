@@ -194,3 +194,78 @@
     line-height: 1.5;
   }
 }
+
+/* ============================================================
+   PRINT / PDF AUDIT REPORT STYLES
+   ============================================================ */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 10mm 12mm 10mm 12mm;
+  }
+
+  html, body {
+    background: #ffffff !important;
+    color: #111827 !important;
+    font-size: 10pt !important;
+    line-height: 1.35 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+  }
+
+  /* When an executive security report is present, hide all standard web UI */
+  body:has(#printable-security-report) * {
+    visibility: hidden !important;
+  }
+
+  /* Make report container and children visible and position at document top */
+  body:has(#printable-security-report) .security-report-modal-root,
+  #printable-security-report,
+  #printable-security-report * {
+    visibility: visible !important;
+  }
+
+  .security-report-modal-root {
+    display: block !important;
+    position: static !important;
+    background: transparent !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  #printable-security-report {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    background: #ffffff !important;
+    color: #111827 !important;
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    display: block !important;
+  }
+
+  /* Ensure all interactive controls and browser bars are suppressed */
+  nav, footer, .no-print, .no-print *, .backdrop-blur-md, button:not(.print-include) {
+    display: none !important;
+    visibility: hidden !important;
+  }
+
+  /* Ensure clean page breaks across table rows and risk sections */
+  tr, td, th, .rounded-lg, .border {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  /* Preserve badge colors and borders in PDF / physical print output */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}

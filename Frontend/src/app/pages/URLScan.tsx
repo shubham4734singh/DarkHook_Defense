@@ -33,11 +33,13 @@ import {
   Clock,
   Percent,
   Shield,
+  Printer,
 } from 'lucide-react';
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { useAuth } from '../contexts/AuthContext';
 import { api, type UrlScanResult } from '../services/api';
+import { SecurityReportModal, type SecurityReportData } from '../components/SecurityReportModal';
 import logo from '@/assets/eabe0015a9a1edfe92cb4ac7f5415daf9aa9241d.png';
 
 const LAST_URL_SCAN_RESULT_KEY = 'darkhook_latest_url_scan_result';
@@ -53,6 +55,7 @@ export function URLScan() {
   const [url, setUrl] = useState('');
   const [scanning, setScanning] = useState(false);
   const [result, setResult] = useState<UrlScanResult | null>(null);
+  const [showReportModal, setShowReportModal] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
   const { logout } = useAuth();
@@ -124,6 +127,41 @@ export function URLScan() {
     : result?.status === 'suspicious'
       ? 'from-amber-500/20 via-orange-500/10 to-transparent'
       : 'from-rose-500/25 via-red-500/10 to-transparent';
+
+  const reportData: SecurityReportData = {
+    reportId: `DHD-URL-${result?.scan_id ? result.scan_id.slice(0, 8).toUpperCase() : Math.random().toString(36).substring(2, 9).toUpperCase()}`,
+    scanType: 'URL',
+    targetName: result?.url || '',
+    scanTimestamp: new Date().toLocaleString(),
+    durationSeconds: 1.15,
+    verdict: result?.status === 'safe' ? 'SAFE' : result?.status === 'suspicious' ? 'SUSPICIOUS' : 'PHISHING',
+    riskScore: result?.score ?? 0,
+    confidence: result?.confidence,
+    findings: (result?.analysis_details?.risk_factors || []).map((rf) => ({
+      title: rf.title,
+      severity: (rf.severity?.toLowerCase() === 'high' ? 'high' : rf.severity?.toLowerCase() === 'medium' ? 'medium' : 'low') as any,
+      category: rf.category,
+      evidence: rf.evidence,
+      impact: rf.impact,
+    })).concat(
+      (result?.flags || [])
+        .filter(f => !result?.analysis_details?.risk_factors?.some(rf => rf.title === f))
+        .map(f => ({
+          title: f,
+          severity: result?.status === 'phishing' ? 'high' : result?.status === 'suspicious' ? 'medium' : 'low',
+          evidence: 'Heuristic pattern match',
+          impact: 'Potential phishing risk factor',
+        }))
+    ),
+    recommendations: recommendations,
+    summary: result?.explanation || analysisDetails?.summary,
+    telemetry: {
+      redirectCount: dynamicAnalysis?.redirect_count,
+      tlsValid: Boolean(dynamicAnalysis?.tls),
+      formCount: dynamicAnalysis?.page?.form_count,
+      passwordFieldCount: dynamicAnalysis?.page?.password_field_count,
+    }
+  };
 
   return (
     <div className="min-h-screen bg-[#050A14] text-white relative overflow-hidden">
@@ -341,6 +379,15 @@ export function URLScan() {
                       </div>
                       
                       <p className="text-[#D1E0EE] text-sm mt-3 leading-relaxed">{result.explanation}</p>
+
+                      {/* Print Security Report Button */}
+                      <button
+                        onClick={() => setShowReportModal(true)}
+                        className="mt-5 w-full py-3 px-4 rounded-xl bg-[#00C2FF] hover:bg-[#00A8E0] text-[#060D1A] font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all shadow-[0_0_20px_rgba(0,194,255,0.35)] cursor-pointer"
+                      >
+                        <Printer className="w-4 h-4" />
+                        <span>Print / Export Security Report</span>
+                      </button>
                     </div>
 
                     {/* Recommendations Alert Box */}
@@ -393,6 +440,12 @@ export function URLScan() {
               <div className="mt-8">
                 <ForensicReport result={result} />
               </div>
+
+              <SecurityReportModal
+                isOpen={showReportModal}
+                onClose={() => setShowReportModal(false)}
+                data={reportData}
+              />
             </motion.section>
           )}
         </div>
@@ -1304,6 +1357,14 @@ export function ForensicReport({ result }: ForensicReportProps) {
               </div>
             )}
           </div>
+        )}
+
+        {reportData && (
+          <SecurityReportModal
+            isOpen={showReportModal}
+            onClose={() => setShowReportModal(false)}
+            data={reportData}
+          />
         )}
       </div>
     </section>
