@@ -47,7 +47,7 @@ export function ComparisonSection() {
               <span className="hidden sm:inline">Darkhook Defense</span>
               <span className="sm:hidden">Darkhook</span>
             </div>
-            <div className="p-3 sm:p-4 font-semibold text-white text-xs sm:text-base">VirusTotal</div>
+            <div className="p-3 sm:p-4 font-semibold text-white text-xs sm:text-base">Generic Scanners</div>
             <div className="p-3 sm:p-4 font-semibold text-white text-xs sm:text-base">
               <span className="hidden sm:inline">Manual Check</span>
               <span className="sm:hidden">Manual</span>

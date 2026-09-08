@@ -21,7 +21,9 @@ class FindingItem(BaseModel):
     findingType: str
     severity: str
     score: int
+    count: Optional[int] = 1
     mitre: Optional[MitreTechnique] = None
+    evidence: Optional[List[str]] = []
 
 
 class ScoreBreakdown(BaseModel):

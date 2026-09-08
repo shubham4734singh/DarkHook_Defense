@@ -10,6 +10,10 @@ from typing import Any, Dict, List, Tuple
 from urllib.parse import urlparse
 
 from services.document_parsers.scorer import MITRE_MAP, WEIGHTS, calculate_score
+from services.document_parsers.virustotal_checker import (
+    check_multiple_urls,
+    get_virustotal_findings,
+)
 
 SUPPORTED_PARSERS: Dict[str, Tuple[str, str, str, str]] = {
     # PDF
@@ -183,6 +187,120 @@ def map_severity(finding_type: str) -> str:
     return "safe"
 
 
+def _format_finding_name(finding_type: str) -> str:
+    """Formats a snake_case finding key into a human-readable title."""
+    if not finding_type:
+        return ""
+    acronyms = {"url", "pdf", "vba", "ocr", "ip", "qr", "dde", "tld", "ole", "cta", "exif", "xfa", "pe", "elf", "xlm"}
+    words = finding_type.replace("_", " ").split()
+    formatted = [w.upper() if w.lower() in acronyms else w.capitalize() for w in words]
+    return " ".join(formatted)
+
+
+def _extract_evidence_for_finding(
+    finding_type: str,
+    details: List[str],
+    extracted_urls: List[Dict[str, Any]],
+) -> List[str]:
+    """Matches raw log details and URL metadata to specific finding types for forensic visibility."""
+    evidence: List[str] = []
+
+    phish_categories = {
+        "urgency_phrases", "credential_harvesting", "financial_terms", "reward_tricks",
+        "legal_threats", "india_specific", "fake_security_alerts", "enable_macro_lures", "download_tricks"
+    }
+
+    # 1. Phishing / Lure Keywords
+    if finding_type in {"phishing_keyword", "ocr_phishing_text", "multilang_phishing_text", "hindi_phishing_detected", "urgent_tone_detected", "credential_harvesting", "financial_terms_detected"}:
+        phish_logs: List[str] = []
+        other_logs: List[str] = []
+        for log_line in details:
+            log_lower = log_line.lower()
+            if any(f"[{cat}]" in log_lower for cat in phish_categories):
+                if log_line not in phish_logs:
+                    phish_logs.append(log_line)
+            elif any(k in log_lower for k in ["phishing", "keyword", "phrase", "lure", "credential", "urgency", "financial", "kyc", "otp", "password", "bank"]):
+                if log_line not in other_logs:
+                    other_logs.append(log_line)
+        evidence = phish_logs + [l for l in other_logs if l not in phish_logs]
+
+    # 2. Entropy / Obfuscation
+    elif finding_type in {"high_entropy_string", "string_obfuscation", "chr_obfuscation_detected", "reverse_string_obfuscation", "encoded_macro_payload", "junk_code_detected", "high_entropy_pdf", "high_entropy_image"}:
+        for log_line in details:
+            log_lower = log_line.lower()
+            if any(k in log_lower for k in ["entropy", "obfuscation", "encoded", "reverse", "chr(", "junk", "random"]):
+                if log_line not in evidence:
+                    evidence.append(log_line)
+
+    # 3. Metadata findings
+    elif finding_type in {"suspicious_metadata", "wiped_metadata", "metadata_mismatch", "suspicious_template", "missing_metadata_pdf", "suspicious_author", "low_revision_count"}:
+        for log_line in details:
+            log_lower = log_line.lower()
+            if any(k in log_lower for k in ["metadata", "author", "creator", "revision", "template", "company", "title", "subject", "modified", "forged"]):
+                if log_line not in evidence:
+                    evidence.append(log_line)
+
+    # 4. URL / Domain findings matching
+    elif finding_type in {"suspicious_url", "shortened_url", "ip_based_url", "at_symbol_trick", "suspicious_tld", "homograph_domain", "mismatched_anchor", "hidden_hyperlink"}:
+        for u in extracted_urls:
+            if not isinstance(u, dict):
+                continue
+            url_str = u.get("url", "")
+            reasons = u.get("reasons", [])
+            domain = u.get("domain", "")
+            is_susp = u.get("is_suspicious", False)
+
+            if finding_type == "shortened_url" and any("short" in r.lower() or "bit.ly" in url_str or "tinyurl" in url_str or "t.co" in url_str for r in reasons + [domain]):
+                evidence.append(f"Shortened URL found: {url_str}")
+            elif finding_type == "ip_based_url" and any("ip" in r.lower() for r in reasons):
+                evidence.append(f"Direct IP destination: {url_str}")
+            elif finding_type == "at_symbol_trick" and "@" in url_str:
+                evidence.append(f"Credential mask '@' in URL: {url_str}")
+            elif finding_type == "suspicious_tld" and any("tld" in r.lower() or "top-level" in r.lower() for r in reasons):
+                evidence.append(f"Suspicious TLD endpoint: {url_str}")
+            elif finding_type == "suspicious_url" and is_susp:
+                evidence.append(f"Suspicious endpoint target: {url_str} — {', '.join(reasons)}")
+
+        for log_line in details:
+            log_lower = log_line.lower()
+            if any(k in log_lower for k in ["url", "link", "anchor", "hyperlink", "domain", "http", "tld"]):
+                if log_line not in evidence:
+                    evidence.append(log_line)
+
+    # 5. VirusTotal findings matching
+    elif "virustotal" in finding_type or "vt" in finding_type:
+        for u in extracted_urls:
+            if isinstance(u, dict) and "virustotal" in u:
+                vt_data = u["virustotal"]
+                if isinstance(vt_data, dict):
+                    positives = vt_data.get("malicious", vt_data.get("positives", 0))
+                    total = vt_data.get("total_engines", vt_data.get("total", 0))
+                    u_target = vt_data.get("url", u.get("url", ""))
+                    verdict_val = vt_data.get("verdict", "unknown")
+                    ratio_val = vt_data.get("percentage", round((positives / total * 100.0), 2) if total > 0 else 0.0)
+                    if finding_type == "virustotal_unknown" or total == 0:
+                        evidence.append(f"VirusTotal scan inconclusive for {u_target}: 0 engines detected (unanalyzed or error)")
+                    else:
+                        evidence.append(f"VirusTotal: {positives}/{total} engines flagged {u_target} as malicious ({ratio_val}%) — {verdict_val}")
+
+    # Generic detail log matching for all other findings
+    if not evidence:
+        keywords_to_match = finding_type.lower().replace("_", " ").split()
+        for log_line in details:
+            log_lower = log_line.lower()
+            if finding_type.lower() in log_lower or (len(keywords_to_match) > 1 and all(k in log_lower for k in keywords_to_match if len(k) > 3)):
+                if log_line not in evidence:
+                    evidence.append(log_line)
+
+    # Fallback to general log details if empty
+    if not evidence and details:
+        for log_line in details[:3]:
+            if log_line not in evidence:
+                evidence.append(log_line)
+
+    return evidence[:10]
+
+
 def _format_file_size_kb(file_size_bytes: int) -> str:
     return f"{file_size_bytes / 1024:.2f} KB"
 
@@ -257,6 +375,29 @@ class DocumentAnalyzer:
             findings = initial_findings + raw_findings
             details = initial_details + details
 
+            # Extract and inspect URLs
+            extracted_urls = extract_and_score_urls(details, findings)
+
+            # Threat Intelligence Scan (if configured)
+            vt_api_key = os.getenv("VIRUSTOTAL_API_KEY")
+            if vt_api_key and extracted_urls:
+                try:
+                    url_strings = [u["url"] for u in extracted_urls if isinstance(u, dict) and "url" in u]
+                    if url_strings:
+                        vt_results = check_multiple_urls(url_strings, vt_api_key)
+                        vt_findings = [res["finding_type"] for res in vt_results if "finding_type" in res]
+                        findings.extend(vt_findings)
+
+                        # Add scan details to each URL dict
+                        vt_lookup = {res["url"]: res for res in vt_results if "url" in res}
+                        for u_entry in extracted_urls:
+                            u_url = u_entry.get("url")
+                            if u_url in vt_lookup:
+                                u_entry["virustotal"] = vt_lookup[u_url]
+                except Exception:
+                    pass  # Silently skip if threat intelligence lookup encounters network errors
+
+            # Final unified scoring across all layers
             score_result = calculate_score(findings)
 
             score_breakdown = []
@@ -266,24 +407,31 @@ class DocumentAnalyzer:
                 reverse=True,
             ):
                 score_breakdown.append({
-                    "finding_type": finding_type.replace("_", " ").title(),
+                    "finding_type": _format_finding_name(finding_type),
                     "count": item["count"],
                     "score": item["score"],
                 })
 
             findings_detailed = []
+            seen_finding_types: set[str] = set()
+
             for finding in findings:
+                if finding in seen_finding_types:
+                    continue
+                seen_finding_types.add(finding)
+
+                count = findings.count(finding)
                 mitre_entry = MITRE_MAP.get(finding)
+                evidence = _extract_evidence_for_finding(finding, details, extracted_urls)
                 findings_detailed.append({
-                    "name": finding.replace("_", " ").title(),
+                    "name": _format_finding_name(finding),
                     "findingType": finding,
                     "severity": map_severity(finding),
                     "score": WEIGHTS.get(finding, 5),
+                    "count": count,
                     "mitre": mitre_entry,
+                    "evidence": evidence,
                 })
-
-            # Extract and inspect URLs
-            extracted_urls = extract_and_score_urls(details, findings)
 
             return {
                 "fileName": filename,

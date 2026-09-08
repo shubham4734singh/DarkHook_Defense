@@ -96,7 +96,9 @@ export interface FindingDetailedItem {
   findingType: string;
   severity: string;
   score: number;
+  count?: number;
   mitre?: MitreTechnique;
+  evidence?: string[];
 }
 
 export interface ScoreBreakdownItem {
@@ -400,29 +402,55 @@ class ApiService {
   }
 
   async getScanHistory(): Promise<any[]> {
-    const fullUrl = `${this.baseUrl}/scan/history`;
+    const urls = [
+      `${this.baseUrl}/scan/history`,
+      `${this.baseUrl}/scan/document/history`,
+      `${this.baseUrl}/api/v1/scan/document/history`,
+      `${this.baseUrl}/api/v1/dashboard/recent`,
+      `${this.baseUrl}/dashboard/recent`,
+    ];
 
-    try {
-      const token = localStorage.getItem('darkhook_token');
-      const headers: HeadersInit = {};
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-      }
-
-      const response = await fetch(fullUrl, {
-        method: 'GET',
-        headers,
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: Failed to fetch history`);
-      }
-
-      return response.json();
-    } catch (error) {
-      console.error('Failed to fetch scan history:', error);
-      throw error;
+    const token = localStorage.getItem('darkhook_token');
+    const headers: HeadersInit = {};
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
     }
+
+    for (const url of urls) {
+      try {
+        const response = await fetch(url, { method: 'GET', headers });
+        if (response.ok) {
+          return await response.json();
+        }
+      } catch (error) {
+        // try next fallback
+      }
+    }
+    return [];
+  }
+
+  async getRecentScans(limit: number = 10): Promise<any[]> {
+    const primaryUrl = `${this.baseUrl}/scan/document/history?limit=${limit}`;
+    const fallbackUrl1 = `${this.baseUrl}/api/v1/dashboard/recent?limit=${limit}`;
+    const fallbackUrl2 = `${this.baseUrl}/dashboard/recent?limit=${limit}`;
+
+    const token = localStorage.getItem('darkhook_token');
+    const headers: HeadersInit = {};
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    for (const url of [primaryUrl, fallbackUrl1, fallbackUrl2]) {
+      try {
+        const response = await fetch(url, { method: 'GET', headers });
+        if (response.ok) {
+          return await response.json();
+        }
+      } catch (e) {
+        // try next fallback
+      }
+    }
+    return [];
   }
 
   async scanEmail(file: File): Promise<EmailScanResult> {

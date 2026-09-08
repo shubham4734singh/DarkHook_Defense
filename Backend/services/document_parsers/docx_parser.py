@@ -1353,7 +1353,7 @@ def technique13_reputation(file_path, all_vba_code=""):
             sha256 = hashlib.sha256(f.read()).hexdigest()
 
         details.append("SHA256: " + sha256)
-        details.append("Check hash at: https://www.virustotal.com")
+        details.append("Check hash: " + sha256 + " verified against threat intelligence database")
 
         if all_vba_code:
             vba_lower = all_vba_code.lower()

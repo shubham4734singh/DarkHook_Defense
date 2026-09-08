@@ -21,8 +21,12 @@ import {
   Terminal,
   Activity,
   Cpu,
+  ChevronDown,
+  ChevronUp,
+  Info,
+  Clock,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { useAuth } from '../contexts/AuthContext';
 import { api, type DocumentScanResult } from '../services/api';
@@ -39,9 +43,59 @@ export function DocumentScan() {
   const [copiedHash, setCopiedHash] = useState(false);
   const [copiedLogs, setCopiedLogs] = useState(false);
   const [logFilter, setLogFilter] = useState('');
+  const [expandedThreats, setExpandedThreats] = useState<Record<number, boolean>>({});
+  const [recentScans, setRecentScans] = useState<any[]>([]);
 
   const navigate = useNavigate();
   const { logout } = useAuth();
+
+  const LOCAL_DOC_HISTORY_KEY = 'darkhook_doc_scan_history';
+
+  const fetchHistory = async () => {
+    try {
+      let backendHistory: any[] = [];
+      try {
+        backendHistory = await api.getRecentScans(15);
+      } catch (e) {
+        console.warn('Backend history fetch warning:', e);
+      }
+
+      let localHistory: any[] = [];
+      try {
+        const localStr = localStorage.getItem(LOCAL_DOC_HISTORY_KEY);
+        if (localStr) {
+          localHistory = JSON.parse(localStr);
+        }
+      } catch (e) {
+        console.warn('Failed to parse local history:', e);
+      }
+
+      // Merge backend and local history items deduplicated by unique ID / scanned_at timestamp
+      const mergedMap = new Map<string, any>();
+      [...backendHistory, ...localHistory].forEach((rawItem) => {
+        if (!rawItem) return;
+        const file_name = rawItem.file_name || rawItem.fileName || rawItem.url || 'Document.pdf';
+        const verdict = rawItem.verdict || rawItem.status || 'Safe';
+        const risk_score = rawItem.risk_score ?? rawItem.riskScore ?? rawItem.score ?? 0;
+        const scanned_at = rawItem.scanned_at || rawItem.scannedAt || new Date().toISOString();
+        const id = rawItem.id ? String(rawItem.id) : `${file_name}_${scanned_at}`;
+
+        const item = { id, file_name, verdict, risk_score, scanned_at };
+        if (!mergedMap.has(id)) {
+          mergedMap.set(id, item);
+        }
+      });
+
+      const mergedList = Array.from(mergedMap.values()).slice(0, 10);
+      setRecentScans(mergedList);
+    } catch (e) {
+      console.error('Failed to fetch scan history:', e);
+    }
+  };
+
+  useEffect(() => {
+    fetchHistory();
+  }, []);
 
   const reportData: SecurityReportData | null = result ? {
     reportId: `DHD-DOC-${result.fileHash ? result.fileHash.slice(0, 8).toUpperCase() : Math.random().toString(36).substring(2, 9).toUpperCase()}`,
@@ -86,6 +140,31 @@ export function DocumentScan() {
       const data = await api.scanDocument(file);
       setResult(data);
       setActiveTab('overview');
+
+      // Instantly cache to local state and localStorage
+      const localItem = {
+        id: Date.now(),
+        file_name: data.fileName,
+        verdict: data.verdict,
+        risk_score: data.riskScore,
+        scanned_at: new Date().toISOString(),
+      };
+
+      setRecentScans((prev) => {
+        const filtered = prev.filter((i) => String(i.id) !== String(localItem.id));
+        return [localItem, ...filtered].slice(0, 10);
+      });
+
+      try {
+        const localStr = localStorage.getItem(LOCAL_DOC_HISTORY_KEY);
+        const existing = localStr ? JSON.parse(localStr) : [];
+        const updated = [localItem, ...existing.filter((item: any) => String(item.id) !== String(localItem.id))].slice(0, 20);
+        localStorage.setItem(LOCAL_DOC_HISTORY_KEY, JSON.stringify(updated));
+      } catch (e) {
+        console.warn('Could not update local storage cache:', e);
+      }
+
+      void fetchHistory();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'An error occurred while scanning');
       console.error('Scan error:', err);
@@ -350,7 +429,7 @@ export function DocumentScan() {
                   }`}
                 >
                   <Crosshair className="w-4 h-4" />
-                  <span>Threats ({result.totalFindings})</span>
+                  <span>Threats ({result.findingsDetailed?.length || result.totalFindings})</span>
                 </button>
 
                 <button
@@ -506,37 +585,125 @@ export function DocumentScan() {
 
                   {result.findingsDetailed && result.findingsDetailed.length > 0 ? (
                     <div className="space-y-3">
-                      {result.findingsDetailed.map((item, idx) => (
-                        <div
-                          key={idx}
-                          className="bg-[#060D1A] border border-[#1E3A5F] rounded-xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
-                        >
-                          <div>
-                            <div className="flex items-center gap-2 mb-1">
-                              <span className="text-white font-semibold text-sm">{item.name}</span>
-                              <span
-                                className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-md border ${getSeverityBadgeClass(
-                                  item.severity
-                                )}`}
-                              >
-                                {item.severity}
-                              </span>
-                            </div>
-                            <p className="text-xs text-[#8BA3BC] font-mono">ID: {item.findingType}</p>
-                          </div>
+                      {result.findingsDetailed.map((item, idx) => {
+                        const isExpanded = !!expandedThreats[idx];
+                        return (
+                          <div
+                            key={idx}
+                            className="bg-[#060D1A] border border-[#1E3A5F] rounded-xl overflow-hidden transition-all duration-200 hover:border-[#00C2FF]/40"
+                          >
+                            <button
+                              type="button"
+                              onClick={() => setExpandedThreats((prev) => ({ ...prev, [idx]: !prev[idx] }))}
+                              className="w-full p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-left focus:outline-none cursor-pointer"
+                            >
+                              <div className="flex-1">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <span className="text-white font-semibold text-sm">{item.name}</span>
+                                  <span
+                                    className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-md border ${getSeverityBadgeClass(
+                                      item.severity
+                                    )}`}
+                                  >
+                                    {item.severity}
+                                  </span>
+                                </div>
+                                <p className="text-xs text-[#8BA3BC] font-mono mb-2">ID: {item.findingType}</p>
 
-                          <div className="flex items-center gap-3 self-end sm:self-center">
-                            {item.mitre && (
-                              <span className="text-[11px] font-mono text-[#00C2FF] bg-[#00C2FF]/10 border border-[#00C2FF]/30 px-2.5 py-1 rounded-lg">
-                                {item.mitre.id}
-                              </span>
-                            )}
-                            <span className="text-xs font-bold text-white bg-[#1E3A5F] px-3 py-1 rounded-lg">
-                              +{item.score} pts
-                            </span>
+                                {/* Direct Forensic Evidence Display */}
+                                {item.evidence && item.evidence.length > 0 && (
+                                  <div className="mt-2.5 space-y-1 bg-[#0A1628] border border-[#1E3A5F]/80 p-3 rounded-lg text-xs font-mono">
+                                    {item.evidence.slice(0, 4).map((ev, evIdx) => (
+                                      <div key={evIdx} className="flex items-start gap-2 break-all">
+                                        <span className="text-[#00C2FF] font-bold">›</span>
+                                        <span className="text-[#D6E6F2]">{ev}</span>
+                                      </div>
+                                    ))}
+                                    {item.evidence.length > 4 && (
+                                      <p className="text-[10px] text-[#8BA3BC] italic pt-1">
+                                        + {item.evidence.length - 4} more evidence traces (click card to view all)
+                                      </p>
+                                    )}
+                                  </div>
+                                )}
+                              </div>
+
+                              <div className="flex items-center gap-3 self-end sm:self-center">
+                                {item.mitre && (
+                                  <span className="text-[11px] font-mono text-[#00C2FF] bg-[#00C2FF]/10 border border-[#00C2FF]/30 px-2.5 py-1 rounded-lg">
+                                    {item.mitre.id}
+                                  </span>
+                                )}
+                                <div className="flex items-center gap-2">
+                                  {item.count && item.count > 1 && (
+                                    <span className="text-[11px] font-mono font-semibold text-[#00C2FF] bg-[#00C2FF]/10 border border-[#00C2FF]/30 px-2 py-0.5 rounded-md">
+                                      x{item.count}
+                                    </span>
+                                  )}
+                                  <span className="text-xs font-bold text-white bg-[#1E3A5F] px-3 py-1 rounded-lg">
+                                    +{item.score} pts
+                                  </span>
+                                </div>
+                                <div className="text-[#8BA3BC] hover:text-white transition-colors">
+                                  {isExpanded ? <ChevronUp className="w-4 h-4 text-[#00C2FF]" /> : <ChevronDown className="w-4 h-4" />}
+                                </div>
+                              </div>
+                            </button>
+
+                            <AnimatePresence>
+                              {isExpanded && (
+                                <motion.div
+                                  initial={{ height: 0, opacity: 0 }}
+                                  animate={{ height: 'auto', opacity: 1 }}
+                                  exit={{ height: 0, opacity: 0 }}
+                                  className="border-t border-[#1E3A5F]/60 bg-[#0A1628] p-4 space-y-3"
+                                >
+                                  {/* Detected Forensic Evidence */}
+                                  <div>
+                                    <h5 className="text-xs font-bold uppercase text-[#00C2FF] flex items-center gap-1.5 mb-2">
+                                      <Search className="w-3.5 h-3.5" />
+                                      <span>Detected Evidence & Log Details</span>
+                                    </h5>
+                                    {item.evidence && item.evidence.length > 0 ? (
+                                      <div className="space-y-1.5 bg-[#060D1A] border border-[#1E3A5F] p-3 rounded-lg text-xs font-mono text-[#D6E6F2]">
+                                        {item.evidence.map((ev, evIdx) => (
+                                          <div key={evIdx} className="flex items-start gap-2">
+                                            <span className="text-[#00C2FF]">•</span>
+                                            <span className="break-all">{ev}</span>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    ) : (
+                                      <p className="text-xs text-[#8BA3BC] italic bg-[#060D1A] p-3 rounded-lg border border-[#1E3A5F]">
+                                        Flagged by heuristic layer rules during static parsing.
+                                      </p>
+                                    )}
+                                  </div>
+
+                                  {/* MITRE Technique Info if mapped */}
+                                  {item.mitre && (
+                                    <div className="bg-[#060D1A] border border-[#00C2FF]/30 p-3 rounded-lg space-y-1">
+                                      <div className="flex items-center justify-between text-xs">
+                                        <span className="font-bold text-[#00C2FF] font-mono">{item.mitre.id} — {item.mitre.name}</span>
+                                        <span className="text-[10px] text-[#8BA3BC] uppercase bg-[#1E3A5F] px-2 py-0.5 rounded">{item.mitre.tactic}</span>
+                                      </div>
+                                      <p className="text-xs text-[#8BA3BC] leading-relaxed">{item.mitre.description}</p>
+                                    </div>
+                                  )}
+
+                                  {/* Severity & Threat Explanation */}
+                                  <div className="text-xs text-[#8BA3BC] flex items-start gap-2 bg-[#060D1A]/50 p-2.5 rounded-lg border border-[#1E3A5F]/40">
+                                    <Info className="w-4 h-4 text-[#00C2FF] shrink-0 mt-0.5" />
+                                    <span>
+                                      This threat indicator carries a severity weighting of <strong className="text-white">+{item.score} risk points</strong>. Click on the Forensic Logs tab to inspect full raw execution traces.
+                                    </span>
+                                  </div>
+                                </motion.div>
+                              )}
+                            </AnimatePresence>
                           </div>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   ) : (
                     <div className="text-center py-12 bg-[#060D1A] rounded-xl border border-[#1E3A5F]">
@@ -705,6 +872,78 @@ export function DocumentScan() {
               )}
             </motion.div>
           )}
+
+          {/* Recent Scan History Section */}
+          <div className="mt-12 bg-[#0D1F38] border border-[#1E3A5F] rounded-2xl p-6 md:p-8 shadow-xl">
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-[#060D1A] border border-[#1E3A5F] flex items-center justify-center text-[#00C2FF]">
+                  <Clock className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-white">Recent Document Scans History</h3>
+                  <p className="text-xs text-[#8BA3BC]">Live log of analyzed documents & verdict history</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={fetchHistory}
+                  className="text-xs text-[#00C2FF] hover:underline font-semibold flex items-center gap-1 cursor-pointer"
+                >
+                  Refresh History
+                </button>
+                <span className="text-[#1E3A5F]">|</span>
+                <Link
+                  to="/history"
+                  className="text-xs text-[#00C2FF] hover:underline font-semibold flex items-center gap-1 cursor-pointer"
+                >
+                  View Full History →
+                </Link>
+              </div>
+            </div>
+
+            {recentScans && recentScans.length > 0 ? (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {recentScans.map((scan, idx) => (
+                  <div
+                    key={idx}
+                    className="bg-[#060D1A] border border-[#1E3A5F] hover:border-[#00C2FF]/40 rounded-xl p-4 flex flex-col justify-between transition-all space-y-3"
+                  >
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <span
+                          className="text-[10px] font-extrabold uppercase px-2.5 py-0.5 rounded-full border"
+                          style={{
+                            color: getVerdictColor(scan.verdict),
+                            borderColor: `${getVerdictColor(scan.verdict)}55`,
+                            backgroundColor: `${getVerdictColor(scan.verdict)}15`,
+                          }}
+                        >
+                          {scan.verdict}
+                        </span>
+                        <span className="text-xs font-mono text-white bg-[#1E3A5F] px-2 py-0.5 rounded-md font-bold">
+                          {scan.risk_score} pts
+                        </span>
+                      </div>
+                      <p className="text-white text-sm font-semibold truncate" title={scan.file_name}>
+                        {scan.file_name}
+                      </p>
+                    </div>
+
+                    <div className="pt-2 border-t border-[#1E3A5F]/60 flex items-center justify-between text-xs text-[#8BA3BC]">
+                      <span>ID #{scan.id}</span>
+                      <span className="font-mono">{scan.scanned_at ? new Date(scan.scanned_at).toLocaleTimeString() : 'Just now'}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8 bg-[#060D1A] rounded-xl border border-[#1E3A5F]">
+                <Clock className="w-10 h-10 text-[#8BA3BC] mx-auto mb-2 opacity-50" />
+                <p className="text-xs text-[#8BA3BC]">No past scans found in database yet. Upload a document above to get started!</p>
+              </div>
+            )}
+          </div>
 
           {reportData && (
             <SecurityReportModal

@@ -230,6 +230,13 @@ WEIGHTS: Dict[str, int] = {
     "social_engineering_chain": 35,
     "hidden_payload_chain": 40,
     "click_execute_chain": 40,
+
+    # VIRUSTOTAL FINDINGS
+    "virustotal_malicious": 40,
+    "virustotal_suspicious": 20,
+    "virustotal_low_confidence": 10,
+    "virustotal_clean": 0,
+    "virustotal_unknown": 0,
 }
 
 
@@ -546,6 +553,18 @@ MITRE_MAP: Dict[str, Dict[str, str]] = {
         "name": "Ingress Tool Transfer: Dropper Chain",
         "tactic": "Command and Control",
         "description": "Attack pattern indicates file serves as a dropper for next-stage malware."
+    },
+    "virustotal_malicious": {
+        "id": "T1566.002",
+        "name": "Phishing: Spearphishing Link (Threat Intelligence Flagged)",
+        "tactic": "Initial Access",
+        "description": "URL detected as malicious by global threat intelligence engines."
+    },
+    "virustotal_suspicious": {
+        "id": "T1566.002",
+        "name": "Phishing: Spearphishing Link (Threat Intelligence Suspicious)",
+        "tactic": "Initial Access",
+        "description": "URL flagged as suspicious by threat intelligence engines."
     },
 }
 

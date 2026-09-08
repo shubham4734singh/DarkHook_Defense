@@ -9,26 +9,10 @@ router = APIRouter()
 
 @router.get("/history")
 async def get_scan_history():
-    """Retrieve the history of scanned URLs from MongoDB cache."""
+    """Retrieve merged scan history across URLs, Documents, and Emails."""
     try:
-        # Fetch latest 50 scans from MongoDB
-        scans = list(url_cache_repository.collection.find().sort("scanned_at", -1).limit(50))
-        history_list = []
-        for scan in scans:
-            res = scan.get("result", {})
-            history_list.append({
-                "url": scan["url"],
-                "score": res.get("score", 0),
-                "verdict": res.get("verdict", "Unknown"),
-                "status": res.get("status", "safe"),
-                "scanned_at": scan["scanned_at"].isoformat() if isinstance(scan.get("scanned_at"), datetime) else str(scan.get("scanned_at")),
-                "feature_summary": res.get("feature_summary", {}),
-                "flags": res.get("flags", []),
-                "explanation": res.get("explanation", ""),
-                "screenshot": res.get("screenshot"),
-                "analysis_details": res.get("analysis_details", {}),
-            })
-        return history_list
+        from repositories.scan_history_repository import scan_history_repository
+        return scan_history_repository.get_recent(limit=50)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to fetch scan history: {e}")
 
@@ -37,6 +21,24 @@ async def analyze_url(payload: URLAnalyzeRequest, request: Request):
     """Scan a target URL for phishing indicators, typosquatting, and zero-day threat signals."""
     try:
         result = url_analyzer.scan_url(payload.url, str(request.base_url))
+        url_cache_repository.save_cached_scan(payload.url, result)
+
+        try:
+            from repositories.scan_history_repository import scan_history_repository
+            scan_history_repository.save_scan({
+                "fileName": payload.url,
+                "fileHash": "",
+                "riskScore": result.get("score", 0),
+                "verdict": result.get("verdict", "Safe"),
+                "totalFindings": len(result.get("flags", [])),
+                "scanTime": 0.5,
+                "extractedUrls": [payload.url],
+                "findings": result.get("flags", []),
+                "scanType": "URL"
+            })
+        except Exception as db_exc:
+            print(f"[!] Warning: Failed saving URL scan to scan_history: {db_exc}")
+
         return URLAnalyzeResponse(
             scan_id=str(uuid4()),
             url=result["url"],

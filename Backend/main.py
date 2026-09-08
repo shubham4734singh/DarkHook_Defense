@@ -7,6 +7,7 @@ from fastapi.exceptions import RequestValidationError
 
 from core.config import settings
 from core.database import get_client, close_connection
+from core.sql_database import init_sqlite_db
 from api.v1.api import api_router
 
 def _cors_headers_for_origin(origin: str | None) -> dict[str, str]:
@@ -40,6 +41,12 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"[!] MongoDB connection warning: {e}")
         print("   App will continue but database operations may fail")
+
+    # Initialize SQLite database tables for scan history persistence
+    try:
+        init_sqlite_db()
+    except Exception as e:
+        print(f"[!] SQLite DB initialization warning: {e}")
 
     yield
 
@@ -88,8 +95,9 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
         headers=_cors_headers_for_origin(request.headers.get("origin")),
     )
 
-# Include consolidating api router
+# Include consolidating api router (both with and without /api/v1 prefix for compatibility)
 app.include_router(api_router)
+app.include_router(api_router, prefix="/api/v1")
 
 @app.get("/")
 async def root():
