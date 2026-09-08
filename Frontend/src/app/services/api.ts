@@ -70,6 +70,13 @@ export interface MessageResponse {
   message: string;
 }
 
+export interface VerifyOtpResponse {
+  message: string;
+  access_token?: string;
+  token_type?: string;
+}
+
+
 export interface MitreTechnique {
   id: string;
   name: string;
@@ -311,7 +318,7 @@ class ApiService {
     return response.json();
   }
 
-  async verifyEmailOtp(email: string, otp: string): Promise<MessageResponse> {
+  async verifyEmailOtp(email: string, otp: string): Promise<VerifyOtpResponse> {
     const response = await fetch(`${this.baseUrl}/auth/email-otp/verify`, {
       method: 'POST',
       headers: {

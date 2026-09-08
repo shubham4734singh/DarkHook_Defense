@@ -21,4 +21,9 @@ class UserRepository:
             {"$set": {"email_verified": True, "email_verified_at": verified_at}},
         )
 
+    def delete_by_email(self, email: str) -> None:
+        """Delete user by email address."""
+        self.collection.delete_one({"email": email.strip().lower()})
+
 user_repository = UserRepository()
+

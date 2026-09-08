@@ -10,6 +10,7 @@ from schemas.auth import (
     EmailOtpVerify,
     Token,
     RegisterResponse,
+    VerifyOtpResponse,
     UserResponse,
 )
 from services.auth_service import auth_service
@@ -71,17 +72,18 @@ async def request_email_otp(payload: EmailOtpRequest, request: Request):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal server error: {e}")
 
-@router.post("/email-otp/verify")
+@router.post("/email-otp/verify", response_model=VerifyOtpResponse)
 async def verify_email_otp(payload: EmailOtpVerify, request: Request):
-    """Verify an email OTP and activate the user's account with rate-limiting."""
+    """Verify an email OTP and activate/create the user's account with rate-limiting."""
     ip = get_client_ip(request)
     try:
         rate_limiter.enforce("otp_verify", ip, payload.email, settings.AUTH_OTP_VERIFY_MAX_ATTEMPTS)
-        otp_service.verify_email_otp(payload.email, payload.otp)
-        return {"message": "Email verified successfully."}
+        result = otp_service.verify_email_otp(payload.email, payload.otp)
+        return result
     except RateLimitException as e:
         raise HTTPException(status_code=e.status_code, detail=e.message)
     except OTPException as e:
         raise HTTPException(status_code=e.status_code, detail=e.message)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Internal server error: {e}")
+

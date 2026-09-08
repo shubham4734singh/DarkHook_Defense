@@ -51,8 +51,17 @@ export function Login() {
       const res = await api.verifyEmailOtp(email, otp);
       setInfo(res.message || 'Email verified.');
 
-      // After OTP verification, log the user in (works for both signup and login flows)
-      await login(email, password);
+      // After OTP verification, log the user in
+      if (password) {
+        await login(email, password);
+      } else if (res.access_token) {
+        // Fallback: Use the access token returned on verification
+        localStorage.setItem('darkhook_token', res.access_token);
+        const userInfo = await api.getCurrentUser();
+        if (userInfo) {
+          localStorage.setItem('darkhook_user', JSON.stringify(userInfo));
+        }
+      }
 
       const redirectPath = localStorage.getItem('darkhook_redirect');
       if (redirectPath) {
@@ -73,23 +82,25 @@ export function Login() {
     setError('');
     setInfo('');
     setLoading(true);
-    
+
     try {
       if (isLogin) {
-        // Call login from auth context (which now calls the API)
+        // Call login from auth context (which calls the API)
         await login(email, password);
       } else {
         const registration = await register(name, email, password);
-        setInfo(registration.message || 'Registration successful.');
 
         if (registration.requires_verification) {
-          await startOtpFlow(email);
+          // Backend already dispatched OTP email during registration
+          setOtpMode(true);
+          setOtp('');
+          setInfo(registration.message || 'Verification code sent. Check your email.');
           return;
         }
 
         await login(email, password);
       }
-      
+
       // Check if there's a redirect path stored
       const redirectPath = localStorage.getItem('darkhook_redirect');
       if (redirectPath) {
@@ -117,10 +128,13 @@ export function Login() {
   return (
     <div className="min-h-screen bg-[#060D1A] flex items-center justify-center px-4 py-16">
       {/* Background Effects */}
-      <div className="absolute inset-0 opacity-[0.08]" style={{
-        backgroundImage: `radial-gradient(circle, #1E3A5F 1px, transparent 1px)`,
-        backgroundSize: '24px 24px'
-      }} />
+      <div
+        className="absolute inset-0 opacity-[0.08]"
+        style={{
+          backgroundImage: `radial-gradient(circle, #1E3A5F 1px, transparent 1px)`,
+          backgroundSize: '24px 24px',
+        }}
+      />
 
       <motion.div
         initial={{ opacity: 0, y: 20 }}

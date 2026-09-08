@@ -66,6 +66,12 @@ class RegisterResponse(BaseModel):
     email: str
     requires_verification: bool
 
+class VerifyOtpResponse(BaseModel):
+    message: str
+    access_token: str | None = None
+    token_type: str | None = "bearer"
+
 class UserResponse(BaseModel):
     name: str
     email: str
+
