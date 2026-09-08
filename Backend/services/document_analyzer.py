@@ -343,6 +343,21 @@ class DocumentAnalyzer:
         file_hash = get_file_hash(file_data)
         magic = detect_file_magic(file_data)
 
+        # Check Redis Cache for Instant SHA-256 Fingerprint Hit (<0.1s performance upgrade)
+        try:
+            from core.redis_cache import redis_cache_service
+            cached_res = redis_cache_service.get_scan(f"doc:{file_hash}")
+            if cached_res:
+                res_copy = dict(cached_res)
+                res_copy["fileName"] = filename
+                res_copy["scanTime"] = 0.01
+                res_copy["details"] = [
+                    f"⚡ INSTANT REDIS CACHE HIT: SHA-256 fingerprint ({file_hash[:16]}...) matched in cache repository (scan time: 0.01s)"
+                ] + res_copy.get("details", [])
+                return res_copy
+        except Exception as cache_exc:
+            print(f"[CACHE WARNING] Redis lookup failed: {cache_exc}")
+
         initial_findings: List[str] = []
         initial_details: List[str] = []
 
@@ -433,7 +448,7 @@ class DocumentAnalyzer:
                     "evidence": evidence,
                 })
 
-            return {
+            result_dict = {
                 "fileName": filename,
                 "fileSize": _format_file_size_kb(len(file_data)),
                 "fileHash": file_hash,
@@ -449,6 +464,15 @@ class DocumentAnalyzer:
                 "extractedUrls": extracted_urls,
                 "details": details,
             }
+
+            # Save scan to Redis cache for instant future fingerprint hits
+            try:
+                from core.redis_cache import redis_cache_service
+                redis_cache_service.set_scan(f"doc:{file_hash}", result_dict)
+            except Exception as cache_set_exc:
+                print(f"[CACHE WARNING] Redis cache save error: {cache_set_exc}")
+
+            return result_dict
         finally:
             try:
                 os.unlink(tmp_path)

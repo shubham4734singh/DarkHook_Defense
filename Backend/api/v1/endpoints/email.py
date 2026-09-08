@@ -28,6 +28,19 @@ async def scan_email(file: UploadFile = File(...)):
     file_data = await file.read()
     if not file_data:
         raise HTTPException(status_code=400, detail="Uploaded file is empty.")
+
+    # SHA-256 fingerprint lookup in Redis Cache
+    file_hash = hashlib.sha256(file_data).hexdigest()
+    try:
+        from core.redis_cache import redis_cache_service
+        cached_email = redis_cache_service.get_scan(f"email:{file_hash}")
+        if cached_email:
+            res_copy = dict(cached_email)
+            res_copy["fileName"] = file.filename
+            res_copy["scanTime"] = 0.01
+            return EmailScanResult(**res_copy)
+    except Exception as cache_exc:
+        print(f"[CACHE WARNING] Email cache lookup warning: {cache_exc}")
     
     if len(file_data) > settings.MAX_EMAIL_UPLOAD_BYTES:
         raise HTTPException(
@@ -67,7 +80,7 @@ async def scan_email(file: UploadFile = File(...)):
         except Exception as db_exc:
             print(f"[!] Warning: Failed saving Email scan to scan_history: {db_exc}")
 
-        return EmailScanResult(
+        email_result = EmailScanResult(
             fileName=file.filename,
             riskScore=score,
             verdict=verdict_str,
@@ -78,6 +91,14 @@ async def scan_email(file: UploadFile = File(...)):
             extractedUrls=extracted_urls,
             extractedAttachments=extracted_attachments,
         )
+
+        try:
+            from core.redis_cache import redis_cache_service
+            redis_cache_service.set_scan(f"email:{file_hash}", email_result.model_dump())
+        except Exception:
+            pass
+
+        return email_result
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Error scanning email: {exc}")
     finally:
