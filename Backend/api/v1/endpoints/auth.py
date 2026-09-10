@@ -27,6 +27,8 @@ async def register(user: UserCreate, request: Request):
         return auth_service.register_user(user.name, user.email, user.password)
     except RateLimitException as e:
         raise HTTPException(status_code=e.status_code, detail=e.message)
+    except OTPException as e:
+        raise HTTPException(status_code=e.status_code, detail=e.message)
     except AuthException as e:
         raise HTTPException(status_code=e.status_code, detail=e.message)
     except Exception as e:

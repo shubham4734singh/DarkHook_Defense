@@ -11,8 +11,28 @@ import time
 from typing import Any, Dict, List, Optional
 import requests
 
+try:
+    from core.config import settings
+except ImportError:
+    settings = None
+
 VT_URL_SCAN_ENDPOINT = "https://www.virustotal.com/api/v3/urls"
 VT_ANALYSIS_ENDPOINT = "https://www.virustotal.com/api/v3/analyses"
+
+def _get_poll_interval() -> int:
+    if settings:
+        return getattr(settings, "VIRUSTOTAL_POLL_INTERVAL_SECONDS", 15)
+    return int(os.getenv("VIRUSTOTAL_POLL_INTERVAL_SECONDS", "15"))
+
+def _get_request_interval() -> int:
+    if settings:
+        return getattr(settings, "VIRUSTOTAL_REQUEST_INTERVAL_SECONDS", 16)
+    return int(os.getenv("VIRUSTOTAL_REQUEST_INTERVAL_SECONDS", "16"))
+
+def _get_backoff_interval() -> int:
+    if settings:
+        return getattr(settings, "VIRUSTOTAL_RATE_LIMIT_BACKOFF_SECONDS", 60)
+    return int(os.getenv("VIRUSTOTAL_RATE_LIMIT_BACKOFF_SECONDS", "60"))
 
 
 def _get_url_id(url: str) -> str:
@@ -116,9 +136,9 @@ def check_url(url: str, api_key: str = "") -> dict:
 
             if analysis_id:
                 analysis_url = f"{VT_ANALYSIS_ENDPOINT}/{analysis_id}"
-                # Poll up to 3 times, 15 seconds apart
+                # Poll up to 3 times, configurable seconds apart
                 for attempt in range(3):
-                    time.sleep(15)
+                    time.sleep(_get_poll_interval())
                     poll_res = requests.get(analysis_url, headers=headers, timeout=15)
                     if poll_res.status_code in (401, 403):
                         raise ValueError(
@@ -235,9 +255,9 @@ def check_multiple_urls(urls: list, api_key: str = "") -> list:
         if len(clean_url) < 10:
             continue
 
-        # Add 16 second delay between successive URL scans if multiple
+        # Add configurable delay between successive URL scans if multiple
         if results:
-            time.sleep(16)
+            time.sleep(_get_request_interval())
 
         try:
             res = check_url(clean_url, key)
@@ -247,7 +267,7 @@ def check_multiple_urls(urls: list, api_key: str = "") -> list:
             raise
         except requests.exceptions.HTTPError as http_err:
             if http_err.response is not None and http_err.response.status_code == 429:
-                time.sleep(60)
+                time.sleep(_get_backoff_interval())
                 try:
                     retry_res = check_url(clean_url, key)
                     if retry_res:

@@ -19,13 +19,8 @@ const getApiBaseUrl = (): string => {
     return 'http://localhost:8000';
   }
 
-  // Only use production URL if we're on the production domain
-  if (window.location.hostname.includes('darkhook') || window.location.hostname.includes('render')) {
-    return 'https://darkhook-defense.onrender.com';
-  }
-
-  // Fallback to localhost
-  return 'http://localhost:8000';
+  // For any deployed environment (Vercel, Render, custom domain), default to production backend
+  return 'https://darkhook-defense.onrender.com';
 };
 
 const API_BASE_URL = getApiBaseUrl();

@@ -34,21 +34,12 @@ class Settings(BaseSettings):
     OTP_MAX_ATTEMPTS: int = 5
     OTP_EMAIL_SENDING_DISABLED: bool = False
 
-    # Brevo API Configuration
+    # Brevo API & Email Sender Configuration
     BREVO_API_KEY: str | None = None
     BREVO_API_URL: str = "https://api.brevo.com/v3/smtp/email"
-
-    # SMTP Configuration
-    SMTP_HOST: str | None = None
-    SMTP_PORT: int = 587
-    SMTP_USERNAME: str | None = None
-    SMTP_PASSWORD: str | None = None
-    SMTP_FROM: str | None = None
-    SMTP_USE_TLS: bool = True
-    SMTP_USE_SSL: bool = False
-    SMTP_SSL_PORT: int = 465
-    SMTP_TIMEOUT_SECONDS: int = 30
-    SMTP_FALLBACK_TO_SSL: bool = True
+    BREVO_SENDER_EMAIL: str | None = None
+    BREVO_SENDER_NAME: str = "DarkHook Defense"
+    SMTP_FROM: str | None = None  # Backward-compatible fallback for sender email/name
 
     # Scan File Limits
     MAX_DOCUMENT_UPLOAD_BYTES: int = 10 * 1024 * 1024
@@ -88,7 +79,21 @@ class Settings(BaseSettings):
     URL_ANALYSIS_SCREENSHOT_CAPTURE_MODE: str = "local_first"
     URL_ANALYSIS_DYNAMIC_FAST_MODE: bool = False
 
+    # Additional Trusted Domains & Custom Whitelist
+    ADDITIONAL_TRUSTED_DOMAINS: str = ""
+
+    # VirusTotal Checker Configuration
+    VIRUSTOTAL_API_KEY: str = ""
+    VIRUSTOTAL_REQUEST_INTERVAL_SECONDS: int = 16
+    VIRUSTOTAL_POLL_INTERVAL_SECONDS: int = 15
+    VIRUSTOTAL_RATE_LIMIT_BACKOFF_SECONDS: int = 60
+
+    # Persistence & DNS Settings
+    SQLITE_DB_PATH: str = ""
+    DNS_NAMESERVERS: str = "8.8.8.8,1.1.1.1,8.8.4.4"
+
     # CORS origins
+    CORS_ALLOWED_ORIGINS: str = ""
     ALLOWED_ORIGINS: Set[str] = {
         "http://localhost:5173",
         "http://localhost:3000",
@@ -107,6 +112,11 @@ class Settings(BaseSettings):
 
     def get_cors_origins(self) -> list[str]:
         origins = set(self.ALLOWED_ORIGINS)
+        if self.CORS_ALLOWED_ORIGINS:
+            for item in self.CORS_ALLOWED_ORIGINS.split(","):
+                cleaned = item.strip()
+                if cleaned:
+                    origins.add(cleaned)
         if self.FRONTEND_URL:
             origins.add(self.FRONTEND_URL)
         return sorted(list(origins))

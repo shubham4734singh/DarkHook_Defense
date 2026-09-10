@@ -48,7 +48,7 @@ interface DashboardStats {
   suspicious_count: number;
   safe_count: number;
   average_risk_score: number;
-  most_common_finding?: strin| null;
+  most_common_finding?: string | null;
   scans_today: number;
 }
 
@@ -104,7 +104,7 @@ export function Dashboard() {
     suspicious_count: 0,
     safe_count: 0,
     average_risk_score: 0,
-    most_common_finding: 'VBA Macro Payload',
+    most_common_finding: null,
     scans_today: 0,
   });
 
@@ -143,20 +143,20 @@ export function Dashboard() {
         if (Array.isArray(trendData) && trendData.length > 0) {
           setDailyTrend(trendData);
         } else {
-          // Generate sample 7-day fallback trend if empty
-          const sampleTrend: DailyTrendItem[] = [];
+          // Generate 7-day zeroed trend if empty
+          const emptyTrend: DailyTrendItem[] = [];
           for (let i = 6; i >= 0; i--) {
             const d = new Date();
             d.setDate(d.getDate() - i);
             const dateStr = d.toISOString().split('T')[0];
-            sampleTrend.push({
+            emptyTrend.push({
               date: dateStr.slice(5),
-              safe: Math.floor(Math.random() * 8) + 4,
-              suspicious: Math.floor(Math.random() * 4) + 1,
-              phishing: Math.floor(Math.random() * 3) + 1,
+              safe: 0,
+              suspicious: 0,
+              phishing: 0,
             });
           }
-          setDailyTrend(sampleTrend);
+          setDailyTrend(emptyTrend);
         }
       } catch (e) {
         console.warn('Daily trend fetch warning:', e);

@@ -45,8 +45,18 @@ TRUSTED_DOMAINS = {
     "wikipedia.org", "github.com", "stackoverflow.com", "adobe.com", "paypal.com", "ebay.com",
     "yahoo.com", "live.com", "outlook.com", "office.com", "dropbox.com", "zoom.us",
     "salesforce.com", "slack.com", "wordpress.com", "shopify.com", "stripe.com",
-    "tryhackme.com", "paruluniversity.ac.in",
 }
+
+def get_trusted_domains() -> set[str]:
+    """Return base trusted domains plus dynamically configured additional trusted domains."""
+    domains = set(TRUSTED_DOMAINS)
+    additional = getattr(settings, "ADDITIONAL_TRUSTED_DOMAINS", "")
+    if additional:
+        for item in additional.split(","):
+            cleaned = item.strip().lower()
+            if cleaned:
+                domains.add(cleaned)
+    return domains
 
 POPULAR_BRANDS = {
     "google", "facebook", "amazon", "microsoft", "apple", "paypal", "netflix", "instagram",
@@ -531,7 +541,8 @@ def is_trusted_domain(url: str) -> bool:
     """Check if URL belongs to a well-known trusted domain"""
     host = get_hostname(url)
     base_domain = get_base_domain(host)
-    return host in TRUSTED_DOMAINS or base_domain in TRUSTED_DOMAINS
+    trusted = get_trusted_domains()
+    return host in trusted or base_domain in trusted
 
 def is_low_risk_legit_pattern(feature_map: dict, url: str) -> bool:
     """Detect likely legitimate URLs to reduce ML-driven false positives."""
@@ -590,7 +601,8 @@ def levenshtein_distance(s1: str, s2: str) -> int:
 
 def detect_brand_impersonation(domain: str, url: str) -> tuple[bool, str, float]:
     """Zero-day brand impersonation detection using fuzzy matching"""
-    if domain in TRUSTED_DOMAINS or get_base_domain(domain) in TRUSTED_DOMAINS:
+    trusted = get_trusted_domains()
+    if domain in trusted or get_base_domain(domain) in trusted:
         return False, "", 0.0
 
     base_domain = get_base_domain(domain)

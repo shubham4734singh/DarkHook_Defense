@@ -4,11 +4,15 @@ from pymongo.errors import ConfigurationError
 from urllib.parse import quote_plus
 from core.config import settings
 
+def _get_configured_nameservers() -> list[str]:
+    raw = getattr(settings, "DNS_NAMESERVERS", "8.8.8.8,1.1.1.1,8.8.4.4")
+    return [ns.strip() for ns in raw.split(",") if ns.strip()]
+
 # Configure dnspython with public DNS resolvers to prevent NXDOMAIN on cloud platforms (e.g. Render)
 try:
     import dns.resolver
     _custom_resolver = dns.resolver.Resolver(configure=False)
-    _custom_resolver.nameservers = ["8.8.8.8", "1.1.1.1", "8.8.4.4"]
+    _custom_resolver.nameservers = _get_configured_nameservers()
     dns.resolver.default_resolver = _custom_resolver
 except Exception:
     pass
@@ -39,7 +43,7 @@ def _resolve_direct_uri_from_srv(srv_uri: str) -> str:
 
         import dns.resolver
         resolver = dns.resolver.Resolver(configure=False)
-        resolver.nameservers = ["8.8.8.8", "1.1.1.1", "8.8.4.4"]
+        resolver.nameservers = _get_configured_nameservers()
 
         srv_records = resolver.resolve(f"_mongodb._tcp.{cluster}", "SRV", lifetime=5)
         hosts = [f"{r.target.to_text().rstrip('.')}:{r.port}" for r in srv_records]

@@ -39,7 +39,7 @@ import { useState } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { useAuth } from '../contexts/AuthContext';
 import { api, type UrlScanResult } from '../services/api';
-import { SecurityReportModal, type SecurityReportData } from '../components/SecurityReportModal';
+import { SecurityReportModal, type SecurityReportData, type ReportFinding } from '../components/SecurityReportModal';
 import logo from '@/assets/eabe0015a9a1edfe92cb4ac7f5415daf9aa9241d.png';
 
 const LAST_URL_SCAN_RESULT_KEY = 'darkhook_latest_url_scan_result';
@@ -128,40 +128,46 @@ export function URLScan() {
       ? 'from-amber-500/20 via-orange-500/10 to-transparent'
       : 'from-rose-500/25 via-red-500/10 to-transparent';
 
-  const reportData: SecurityReportData = {
-    reportId: `DHD-URL-${result?.scan_id ? result.scan_id.slice(0, 8).toUpperCase() : Math.random().toString(36).substring(2, 9).toUpperCase()}`,
+  const reportData: SecurityReportData | null = result ? {
+    reportId: `DHD-URL-${result.scan_id ? result.scan_id.slice(0, 8).toUpperCase() : Math.random().toString(36).substring(2, 9).toUpperCase()}`,
     scanType: 'URL',
-    targetName: result?.url || '',
+    targetName: result.url || '',
     scanTimestamp: new Date().toLocaleString(),
     durationSeconds: 1.15,
-    verdict: result?.status === 'safe' ? 'SAFE' : result?.status === 'suspicious' ? 'SUSPICIOUS' : 'PHISHING',
-    riskScore: result?.score ?? 0,
-    confidence: result?.confidence,
-    findings: (result?.analysis_details?.risk_factors || []).map((rf) => ({
-      title: rf.title,
-      severity: (rf.severity?.toLowerCase() === 'high' ? 'high' : rf.severity?.toLowerCase() === 'medium' ? 'medium' : 'low') as any,
-      category: rf.category,
-      evidence: rf.evidence,
-      impact: rf.impact,
-    })).concat(
-      (result?.flags || [])
-        .filter(f => !result?.analysis_details?.risk_factors?.some(rf => rf.title === f))
-        .map(f => ({
+    verdict: result.status === 'safe' ? 'SAFE' : result.status === 'suspicious' ? 'SUSPICIOUS' : 'PHISHING',
+    riskScore: result.score ?? 0,
+    confidence: result.confidence,
+    findings: [
+      ...(result.analysis_details?.risk_factors || []).map((rf): ReportFinding => ({
+        title: rf.title,
+        severity: (rf.severity?.toLowerCase() === 'high' ? 'high' : rf.severity?.toLowerCase() === 'medium' ? 'medium' : 'low'),
+        category: rf.category || 'Threat Indicator',
+        evidence: rf.evidence || 'Identified by risk analysis engine',
+        impact: rf.impact || 'Potential security risk factor',
+      })),
+      ...(result.flags || [])
+        .filter(f => !result.analysis_details?.risk_factors?.some(rf => rf.title === f))
+        .map((f): ReportFinding => ({
           title: f,
-          severity: result?.status === 'phishing' ? 'high' : result?.status === 'suspicious' ? 'medium' : 'low',
+          severity: result.status === 'phishing' ? 'high' : result.status === 'suspicious' ? 'medium' : 'low',
+          category: 'Heuristic Pattern',
           evidence: 'Heuristic pattern match',
           impact: 'Potential phishing risk factor',
-        }))
-    ),
-    recommendations: recommendations,
-    summary: result?.explanation || analysisDetails?.summary,
+        })),
+    ],
+    recommendations: recommendations.length > 0 ? recommendations : [
+      result.status === 'safe'
+        ? 'URL passed standard heuristic and machine learning phishing detections.'
+        : 'Exercise caution and avoid entering sensitive credentials on unverified domains.'
+    ],
+    summary: result.explanation || analysisDetails?.summary,
     telemetry: {
       redirectCount: dynamicAnalysis?.redirect_count,
       tlsValid: Boolean(dynamicAnalysis?.tls),
       formCount: dynamicAnalysis?.page?.form_count,
       passwordFieldCount: dynamicAnalysis?.page?.password_field_count,
     }
-  };
+  } : null;
 
   return (
     <div className="min-h-screen bg-[#050A14] text-white relative overflow-hidden">
@@ -441,11 +447,13 @@ export function URLScan() {
                 <ForensicReport result={result} />
               </div>
 
-              <SecurityReportModal
-                isOpen={showReportModal}
-                onClose={() => setShowReportModal(false)}
-                data={reportData}
-              />
+              {reportData && (
+                <SecurityReportModal
+                  isOpen={showReportModal}
+                  onClose={() => setShowReportModal(false)}
+                  data={reportData}
+                />
+              )}
             </motion.section>
           )}
         </div>
@@ -1357,14 +1365,6 @@ export function ForensicReport({ result }: ForensicReportProps) {
               </div>
             )}
           </div>
-        )}
-
-        {reportData && (
-          <SecurityReportModal
-            isOpen={showReportModal}
-            onClose={() => setShowReportModal(false)}
-            data={reportData}
-          />
         )}
       </div>
     </section>

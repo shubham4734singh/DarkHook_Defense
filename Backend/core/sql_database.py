@@ -1,9 +1,10 @@
 import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
+from core.config import settings
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-SQLITE_DB_PATH = os.path.join(BASE_DIR, "darkhook_defense.db")
+SQLITE_DB_PATH = settings.SQLITE_DB_PATH if getattr(settings, "SQLITE_DB_PATH", None) else os.path.join(BASE_DIR, "darkhook_defense.db")
 SQLALCHEMY_DATABASE_URL = f"sqlite:///{SQLITE_DB_PATH}"
 
 engine = create_engine(

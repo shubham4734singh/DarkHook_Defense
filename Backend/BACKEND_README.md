@@ -88,7 +88,7 @@ A multi-module phishing detection engine built with **FastAPI** and **Python**, 
 | Office Files | python-docx, openpyxl, python-pptx, oletools (olevba) |
 | OCR | pytesseract (Tesseract OCR) + Pillow |
 | QR Detection | pyzbar |
-| Authentication | JWT (python-jose) + bcrypt (passlib) + email OTP (Brevo API / SMTP) |
+| Authentication | JWT (python-jose) + bcrypt (passlib) + email OTP (Brevo HTTPS API) |
 | Database | MongoDB Atlas (pymongo) |
 | Deployment | Render (gunicorn + uvicorn workers) |
 
@@ -128,7 +128,7 @@ pip install -r requirements.txt
 
 # 4. Set up environment variables
 cp .env.example .env
-# Edit .env with your MongoDB URI, SECRET_KEY, and SMTP/Brevo settings
+# Edit .env with your MongoDB URI, SECRET_KEY, and BREVO_API_KEY settings
 ```
 
 ### Running the Server
@@ -344,13 +344,12 @@ GET /scan/document/formats → returns list of supported file formats
 
 ## 🔐 Email OTP Verification
 
-The backend supports **email OTP verification** via **Brevo HTTP API** (preferred) or **SMTP fallback**.
+The backend supports **email OTP verification** via **Brevo HTTPS REST API**.
 
 ### Features
 - 6-digit OTP with SHA-256 hashing (salted, never stored in plain text)
 - Configurable TTL, resend cooldown, and max attempts
-- Brevo API integration (works on free hosting tiers like Render)
-- SMTP fallback with TLS/SSL and automatic SSL failover
+- Brevo REST API integration (works on free cloud hosting like Render without port restrictions)
 - Styled HTML email template with OTP digit boxes
 - Account enumeration prevention (generic responses)
 - MongoDB TTL indexes for automatic OTP cleanup
@@ -358,18 +357,10 @@ The backend supports **email OTP verification** via **Brevo HTTP API** (preferre
 ### Environment Variables
 
 ```bash
-# Brevo API (recommended for Render/hosted platforms)
+# Brevo HTTPS REST API (bypasses cloud SMTP port blocks)
 BREVO_API_KEY=your_brevo_api_key
-
-# SMTP (fallback)
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=587
-SMTP_USERNAME=your_email@gmail.com
-SMTP_PASSWORD=your_app_password
-SMTP_FROM="DarkHook Defense <your_email@gmail.com>"
-SMTP_USE_TLS=true
-SMTP_FALLBACK_TO_SSL=true
-SMTP_TIMEOUT_SECONDS=30
+BREVO_SENDER_EMAIL=your_verified_sender@domain.com
+BREVO_SENDER_NAME="DarkHook Defense"
 
 # OTP behavior
 OTP_TTL_MINUTES=10
@@ -458,19 +449,19 @@ Allowed origins: `localhost:5173`, `localhost:3000`, `dark-hook-defense.vercel.a
 ---
 
 ## 🔧 Environment Variables
-
+ 
 ```env
 # Required
 MONGO_URI=mongodb+srv://<user>:<password>@cluster.mongodb.net/Phishing
 SECRET_KEY=your-jwt-secret-key
-SMTP_HOST=smtp.gmail.com
+BREVO_API_KEY=your_brevo_api_key
 
 # Optional
 DATABASE_NAME=Phishing
 JWT_ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=30
 FRONTEND_URL=https://darkhookdefense.online
-BREVO_API_KEY=your_brevo_api_key
+BREVO_SENDER_EMAIL=your_verified_sender@domain.com
 REQUIRE_EMAIL_VERIFICATION=false
 ```
 

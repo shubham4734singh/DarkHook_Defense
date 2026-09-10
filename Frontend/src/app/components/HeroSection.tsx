@@ -2,7 +2,6 @@ import { motion } from 'motion/react';
 import { Zap, Play, LayoutDashboard } from 'lucide-react';
 import { Link } from 'react-router';
 import { ScanNowDropdown } from './ScanNowDropdown';
-import { HeroScanWidget } from './HeroScanWidget';
 import { useAuth } from '../contexts/AuthContext';
 
 export function HeroSection() {
@@ -125,9 +124,6 @@ export function HeroSection() {
           <span>•</span>
           <span>🎓 Built by Students</span>
         </motion.div>
-
-        {/* Hero Scan Widget */}
-        <HeroScanWidget />
       </div>
     </section>
   );

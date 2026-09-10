@@ -25,13 +25,16 @@ async def lifespan(app: FastAPI):
     print("=" * 60)
     
     # Check critical settings
-    required_settings = ["MONGO_URI", "SECRET_KEY", "SMTP_HOST"]
+    required_settings = ["MONGO_URI", "SECRET_KEY"]
     missing = [var for var in required_settings if not getattr(settings, var, None)]
     if missing:
         print(f"[!] CRITICAL: Missing configuration settings: {', '.join(missing)}")
         print("   Please verify your environment variables or .env file settings")
     else:
         print("[+] All required configuration settings present")
+
+    if not settings.OTP_EMAIL_SENDING_DISABLED and not settings.BREVO_API_KEY:
+        print("[!] Warning: BREVO_API_KEY is not configured; email sending will be simulated.")
     
     # Test MongoDB connection
     try:
@@ -99,7 +102,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 app.include_router(api_router)
 app.include_router(api_router, prefix="/api/v1")
 
-@app.get("/")
+@app.api_route("/", methods=["GET", "HEAD"])
 async def root():
     return {
         "message": "DarkHook Defense API",
@@ -107,7 +110,7 @@ async def root():
         "docs": "/docs"
     }
 
-@app.get("/health")
+@app.api_route("/health", methods=["GET", "HEAD"])
 async def health_check():
     try:
         client = get_client()
